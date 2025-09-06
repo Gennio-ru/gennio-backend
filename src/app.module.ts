@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from "@nestjs/typeorm";
 
 import { UsersModule } from "./modules/users/users.module";
@@ -9,14 +10,23 @@ import { FilesModule } from "./modules/files/files.module";
 import { HealthModule } from "./modules/health/health.module";
 import { MailModule } from "./modules/mail/mail.module";
 import { MailQueueModule } from "./queues/mail-queue.module";
+import { envValidationSchema } from './config/env.validation';
+
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerGuard } from '@nestjs/throttler';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({
-      isGlobal: true,
+    ThrottlerModule.forRoot([
+      { name: 'global', ttl: 60, limit: 100 }, // 100 req/min per IP (override per-route if needed)
+    ]),
+    ConfigModule.forRoot({ isGlobal: true, validationSchema: envValidationSchema,
     }),
     TypeOrmModule.forRootAsync({
-      imports: [ConfigModule],
+      imports: [
+    ThrottlerModule.forRoot([
+      { name: 'global', ttl: 60, limit: 100 }, // 100 req/min per IP (override per-route if needed)
+    ]),ConfigModule],
       useFactory: (config: ConfigService) => {
         return {
           type: "postgres",
@@ -38,6 +48,9 @@ import { MailQueueModule } from "./queues/mail-queue.module";
     MailModule,
     HealthModule,
     MailQueueModule,
+  ],
+  providers: [
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],
 })
 export class AppModule {}

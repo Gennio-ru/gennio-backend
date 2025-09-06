@@ -224,4 +224,61 @@ export class AuthService {
     const user = await this.usersService.findById(userPayload.sub);
     return user;
   }
+
+
+  async refresh(refreshToken?: string) {
+    if (!refreshToken) throw new UnauthorizedException('No refresh token');
+    // Verify signature and get payload
+    let payload: any;
+    try {
+      payload = this.jwtService.verify(refreshToken, {
+        secret: process.env.JWT_REFRESH_SECRET || 'dev-refresh',
+        ignoreExpiration: false,
+      });
+    } catch (e) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+    const jti: string | undefined = payload?.jti;
+    const userId: string | undefined = payload?.sub;
+    if (!jti || !userId) throw new UnauthorizedException('Malformed refresh token');
+
+    // Check session exists and matches token hash
+    const hash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+    const session = await this.sessionsRepository.findOne({ where: { jti } });
+    if (!session || session.revokedAt) throw new UnauthorizedException('Session revoked');
+    if (session.refreshTokenHash !== hash) throw new UnauthorizedException('Token mismatch');
+    if (session.expiresAt && new Date(session.expiresAt) < new Date()) {
+      throw new UnauthorizedException('Session expired');
+    }
+
+    // Load user
+    const user = await this.usersService.findById(userId);
+    if (!user || !user.isActive) throw new UnauthorizedException('User inactive');
+
+    // Revoke old session
+    session.revokedAt = new Date();
+    await this.sessionsRepository.save(session);
+
+    // Issue fresh tokens & persist new session
+    return this.issueTokensAndPersistSession(user);
+  }
+
+  async logout(refreshToken?: string) {
+    if (!refreshToken) return;
+    try {
+      const payload: any = this.jwtService.verify(refreshToken, {
+        secret: process.env.JWT_REFRESH_SECRET || 'dev-refresh',
+        ignoreExpiration: true,
+      });
+      const jti: string | undefined = payload?.jti;
+      if (!jti) return;
+      const session = await this.sessionsRepository.findOne({ where: { jti } });
+      if (!session) return;
+      session.revokedAt = new Date();
+      await this.sessionsRepository.save(session);
+    } catch {
+      // ignore
+    }
+  }
+
 }

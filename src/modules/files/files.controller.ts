@@ -10,6 +10,7 @@ import {
   UseInterceptors,
   UseGuards,
   NotFoundException,
+  ParseUUIDPipe,
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { memoryStorage } from "multer";
@@ -28,7 +29,17 @@ export class FilesController {
 
   @Post("upload")
   @UseGuards(JwtAuthGuard)
-  @UseInterceptors(FileInterceptor("file", { storage: memoryStorage() }))
+  @UseInterceptors(
+    FileInterceptor("file", {
+      storage: memoryStorage(),
+      limits: { fileSize: 10 * 1024 * 1024 },
+      fileFilter: (req, file, cb) => {
+        const allowed = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
+        if (allowed.includes(file.mimetype)) cb(null, true);
+        else cb(new BadRequestException("Unsupported file type"), false);
+      },
+    })
+  )
   @ApiBody({ type: UploadDto })
   @ApiResponse({
     status: 201,
@@ -72,7 +83,7 @@ export class FilesController {
   @ApiResponse({ status: 200, type: FileDto })
   @ApiResponse({ status: 404, description: "Файл не найден" })
   async getOne(
-    @Param("id") fileId: string,
+    @Param("id", new ParseUUIDPipe({ version: "4" })) fileId: string,
     @Query("signed") signed?: string
   ): Promise<FileDto> {
     const fileMeta = await this.filesService.getMeta(fileId);
@@ -97,7 +108,9 @@ export class FilesController {
     type: DeleteFileResponseDto,
   })
   @ApiResponse({ status: 404, description: "Файл не найден" })
-  async remove(@Param("id") fileId: string): Promise<DeleteFileResponseDto> {
+  async remove(
+    @Param("id", new ParseUUIDPipe({ version: "4" })) fileId: string
+  ): Promise<DeleteFileResponseDto> {
     return this.filesService.removeById(fileId);
   }
 }

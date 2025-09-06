@@ -20,7 +20,7 @@ async function bootstrap() {
   // Глобальные настройки
   app.use(cookieParser());
   app.setGlobalPrefix("api"); // опционально
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: true, transformOptions: { enableImplicitConversion: true } }));
 
   app.enableCors({
     origin: ["http://localhost:5173"],
