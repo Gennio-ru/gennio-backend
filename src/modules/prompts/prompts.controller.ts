@@ -12,7 +12,6 @@ import {
   ParseUUIDPipe,
 } from "@nestjs/common";
 import { PromptsService } from "./prompts.service";
-import { Prompt } from "./prompt.entity";
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from "@nestjs/swagger";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { RolesGuard } from "src/modules/users/user-roles.guard";
@@ -21,7 +20,7 @@ import { Roles } from "src/modules/users/user-roles.decorator";
 import { CreatePromptDto } from "./dto/create-prompt.dto";
 import { FindPromptsDto } from "./dto/find-prompts.dto";
 import { PaginationResult } from "src/common/pagination/pagination.interface";
-import { IPrompt } from "./types/prompt.interface";
+import { PromptDto } from "./dto/prompt.dto";
 
 @ApiTags("prompts")
 @Controller("prompts")
@@ -38,17 +37,24 @@ export class PromptsController {
   @ApiResponse({
     status: 200,
     description: "Список промптов с мета-данными",
-    type: Object,
+    type: PromptDto,
+    isArray: true,
   })
-  findMany(@Query() query: FindPromptsDto): Promise<PaginationResult<IPrompt>> {
+  findMany(
+    @Query() query: FindPromptsDto
+  ): Promise<PaginationResult<PromptDto>> {
     return this.promptsService.findMany(query);
   }
 
   @Get(":id")
   @ApiOperation({ summary: "Получить один промпт по id" })
-  @ApiResponse({ status: 200, description: "Найденный промпт", type: Prompt })
+  @ApiResponse({
+    status: 200,
+    description: "Найденный промпт",
+    type: PromptDto,
+  })
   @ApiResponse({ status: 404, description: "Промпт не найден" })
-  findOne(@Param("id", ParseUUIDPipe) id: string): Promise<IPrompt> {
+  findOne(@Param("id", ParseUUIDPipe) id: string): Promise<PromptDto> {
     return this.promptsService.findOne(id);
   }
 
@@ -56,8 +62,8 @@ export class PromptsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.Admin)
   @ApiOperation({ summary: "Создать новый промпт (только админ)" })
-  @ApiResponse({ status: 201, description: "Промпт создан", type: Prompt })
-  create(@Body() dto: CreatePromptDto): Promise<IPrompt> {
+  @ApiResponse({ status: 201, description: "Промпт создан", type: PromptDto })
+  create(@Body() dto: CreatePromptDto): Promise<PromptDto> {
     return this.promptsService.create(dto);
   }
 
@@ -65,12 +71,16 @@ export class PromptsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.Admin)
   @ApiOperation({ summary: "Обновить промпт (только админ)" })
-  @ApiResponse({ status: 200, description: "Обновлённый промпт", type: Prompt })
+  @ApiResponse({
+    status: 200,
+    description: "Обновлённый промпт",
+    type: PromptDto,
+  })
   @ApiResponse({ status: 404, description: "Промпт не найден" })
   update(
     @Param("id", ParseUUIDPipe) id: string,
-    @Body() dto: Partial<Prompt>
-  ): Promise<IPrompt> {
+    @Body() dto: Partial<PromptDto>
+  ): Promise<PromptDto> {
     return this.promptsService.update(id, dto);
   }
 

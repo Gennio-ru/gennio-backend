@@ -11,8 +11,11 @@ async function bootstrap() {
   // Security & CORS
   app.use(helmet());
   const corsOriginEnv = process.env.CORS_ORIGIN;
-  const origins = corsOriginEnv ? corsOriginEnv.split(",").map((s) => s.trim()) : true;
+  const origins = corsOriginEnv
+    ? corsOriginEnv.split(",").map((s) => s.trim())
+    : true;
   app.enableCors({ origin: origins, credentials: true });
+  app.enableShutdownHooks();
 
   // Глобальные настройки
   app.use(cookieParser());

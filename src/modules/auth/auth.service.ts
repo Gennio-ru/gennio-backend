@@ -1,174 +1,227 @@
 import {
   Injectable,
   UnauthorizedException,
-  ForbiddenException,
+  BadRequestException,
 } from "@nestjs/common";
-import { JwtService } from "@nestjs/jwt";
-import { InjectRepository } from "@nestjs/typeorm";
-import { Repository, MoreThan, IsNull } from "typeorm";
 import * as bcrypt from "bcryptjs";
-import { v4 as uuidv4 } from "uuid";
+import * as crypto from "crypto";
+import { JwtService } from "@nestjs/jwt";
+import { UsersService } from "src/modules/users/users.service";
+import { User } from "src/modules/users/user.entity";
+import { RegisterByEmailDto } from "./dto/register-by-email.dto";
+import { RegisterByPhoneDto } from "./dto/register-by-phone.dto";
+import { LoginByEmailDto } from "./dto/login-by-email.dto";
+import { LoginByPhoneDto } from "./dto/login-by-phone.dto";
+import { RequestPhoneOtpDto } from "./dto/request-otp-by-phone.dto";
+import { VerifyEmailOtpDto } from "./dto/verify-otp-by-email.dto";
+import { MailService } from "../mail/mail.service";
+import { RequestEmailOtpDto } from "./dto/request-otp-by-email.dto";
+import { VerifyPhoneOtpDto } from "./dto/verify-otp-by-phone.dto";
+import { OtpStore } from "./otp.store";
 import { Session } from "./session.entity";
-import { User } from "../users/user.entity";
-import { UsersService } from "../users/users.service";
-
-type TokenPair = { accessToken: string; refreshToken: string };
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
 
 @Injectable()
 export class AuthService {
+  private readonly OTP_TTL_MIN = 5;
+
   constructor(
-    private readonly jwt: JwtService,
-    private readonly users: UsersService,
-    @InjectRepository(Session) private readonly sessions: Repository<Session>
+    private readonly usersService: UsersService,
+    private readonly jwtService: JwtService,
+    private readonly mailService: MailService,
+    private readonly otpStore: OtpStore,
+    @InjectRepository(Session)
+    private readonly sessionsRepository: Repository<Session>
   ) {}
 
-  private accessTtl() {
-    return process.env.JWT_ACCESS_TTL || "15m";
-  }
-  private refreshTtlMs() {
-    // parse like 7d, 30d, 3600000ms, fallback 7d
-    const raw = process.env.JWT_REFRESH_TTL || "7d";
-    const m = raw.match(/^(\d+)([smhd])$/); // s/m/h/d
-    if (!m) return 7 * 24 * 3600 * 1000;
-    const n = +m[1];
-    const u = m[2];
-    const mult =
-      u === "s" ? 1000 : u === "m" ? 60000 : u === "h" ? 3600000 : 86400000;
-    return n * mult;
-  }
-
-  async register(email: string, password: string) {
-    // UsersService уже валидирует уникальность/хэширует
-    return this.users.create({ email, password });
-  }
-
-  async validateUser(email: string, password: string) {
-    const user = await this.users.findByEmail(email);
-    if (!user) throw new UnauthorizedException("Invalid credentials");
-    const ok = await bcrypt.compare(password, user.passwordHash);
-    if (!ok) throw new UnauthorizedException("Invalid credentials");
-    return user;
-  }
-
-  private async signTokens(user: User, jti: string): Promise<TokenPair> {
-    const accessToken = await this.jwt.signAsync(
-      { sub: user.id, role: user.role },
-      { secret: process.env.JWT_ACCESS_SECRET, expiresIn: this.accessTtl() }
-    );
-    const refreshToken = await this.jwt.signAsync(
-      { sub: user.id, jti, typ: "refresh" },
-      {
-        secret: process.env.JWT_REFRESH_SECRET,
-        expiresIn: process.env.JWT_REFRESH_TTL || "7d",
-      }
-    );
-    return { accessToken, refreshToken };
-  }
-
-  async createSessionAndTokens(user: User, userAgent?: string, ip?: string) {
-    const jti = uuidv4();
-    const { accessToken, refreshToken } = await this.signTokens(user, jti);
-    const refreshTokenHash = await bcrypt.hash(refreshToken, 10);
-    const expiresAt = new Date(Date.now() + this.refreshTtlMs());
-
-    const session = this.sessions.create({
-      user,
-      jti,
-      refreshTokenHash,
-      userAgent,
-      ip,
-      expiresAt,
-    });
-    await this.sessions.save(session);
-
-    return { accessToken, refreshToken, session };
-  }
-
-  async login(
-    email: string,
-    password: string,
-    userAgent?: string,
-    ip?: string
-  ) {
-    const user = await this.validateUser(email, password);
-    const { accessToken, refreshToken } = await this.createSessionAndTokens(
-      user,
-      userAgent,
-      ip
-    );
-    return {
-      user: {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-        isActive: user.isActive,
-        credits: user.credits,
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt,
-      },
-      accessToken,
-      refreshToken, // можно не возвращать, если используешь только cookie
+  private signAccessToken(user: User): string {
+    const payload = {
+      sub: user.id,
+      role: user.role,
+      email: user.email,
+      phone: user.phone,
+      credits: user.credits,
+      isActive: user.isActive,
     };
-  }
-
-  async refresh(
-    fromCookieOrBody: string | undefined,
-    userAgent?: string,
-    ip?: string
-  ) {
-    const token = fromCookieOrBody;
-    if (!token) throw new UnauthorizedException("No refresh token");
-
-    let payload: any;
-    try {
-      payload = await this.jwt.verifyAsync(token, {
-        secret: process.env.JWT_REFRESH_SECRET,
-      });
-    } catch {
-      throw new UnauthorizedException("Invalid refresh token");
-    }
-
-    const { sub: userId, jti } = payload as { sub: string; jti: string };
-    const session = await this.sessions.findOne({
-      where: { jti, revokedAt: IsNull(), expiresAt: MoreThan(new Date()) },
-      relations: ["user"],
+    return this.jwtService.sign(payload, {
+      secret: process.env.JWT_ACCESS_SECRET || "dev-secret",
+      expiresIn: process.env.JWT_ACCESS_TTL || "7d",
     });
-    if (!session || session.user.id !== userId) {
-      throw new UnauthorizedException("Session invalid");
-    }
-
-    const match = await bcrypt.compare(token, session.refreshTokenHash);
-    if (!match) throw new ForbiddenException("Token mismatch");
-
-    // rotate: revoke old, create new
-    session.revokedAt = new Date();
-    await this.sessions.save(session);
-
-    const user = session.user;
-    const { accessToken, refreshToken } = await this.createSessionAndTokens(
-      user,
-      userAgent,
-      ip
-    );
-    return { accessToken, refreshToken };
   }
 
-  async logout(tokenFromCookieOrBody?: string) {
-    if (!tokenFromCookieOrBody) return { ok: true };
-    try {
-      const { jti } = await this.jwt.verifyAsync(tokenFromCookieOrBody, {
-        secret: process.env.JWT_REFRESH_SECRET,
-      });
-      const session = await this.sessions.findOne({
-        where: { jti, revokedAt: IsNull() },
-      });
-      if (session) {
-        session.revokedAt = new Date();
-        await this.sessions.save(session);
+  /** Выдать access+refresh и сохранить сессию в БД */
+  private async issueTokensAndPersistSession(
+    user: User,
+    ctx?: { ip?: string; ua?: string }
+  ) {
+    const accessToken = this.signAccessToken(user);
+
+    // jti для refresh-токена
+    const jti = crypto.randomUUID();
+
+    // генерируем refresh JWT (или можешь сделать просто рандомную строку)
+    const refreshToken = this.jwtService.sign(
+      { sub: user.id, jti },
+      {
+        secret: process.env.JWT_REFRESH_SECRET || "dev-refresh",
+        expiresIn: process.env.JWT_REFRESH_TTL || "30d",
       }
+    );
+
+    const refreshTokenHash = await bcrypt.hash(refreshToken, 10);
+
+    // вычислим expiresAt (из exp токена, если хочешь строго)
+    const expSec = (this.jwtService.decode(refreshToken) as any)?.exp;
+    const expiresAt = expSec
+      ? new Date(expSec * 1000)
+      : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+    await this.sessionsRepository.save(
+      this.sessionsRepository.create({
+        user: { id: user.id } as any, // достаточно id
+        jti,
+        refreshTokenHash,
+        expiresAt,
+        ip: ctx?.ip,
+        userAgent: ctx?.ua,
+      })
+    );
+
+    return { accessToken, refreshToken, user };
+  }
+
+  async registerByEmail(dto: RegisterByEmailDto) {
+    const user = await this.usersService.createByEmail(dto.email, dto.password);
+    const accessToken = this.signAccessToken(user);
+    return { accessToken, user };
+  }
+
+  async registerByPhone(dto: RegisterByPhoneDto) {
+    const user = await this.usersService.createByPhone(dto.phone, dto.password);
+    const accessToken = this.signAccessToken(user);
+    return { accessToken, user };
+  }
+
+  async loginByEmail(dto: LoginByEmailDto) {
+    const user = await this.usersService.findByEmail(dto.email);
+    if (!user || !user.passwordHash)
+      throw new UnauthorizedException("Invalid credentials");
+    const isMatch = await bcrypt.compare(dto.password, user.passwordHash);
+    if (!isMatch) throw new UnauthorizedException("Invalid credentials");
+
+    await this.usersService.markLastLogin(user.id);
+    return this.issueTokensAndPersistSession(user);
+  }
+
+  async loginByPhone(dto: LoginByPhoneDto) {
+    const user = await this.usersService.findByPhone(dto.phone);
+    if (!user || !user.passwordHash)
+      throw new UnauthorizedException("Invalid credentials");
+    const isMatch = await bcrypt.compare(dto.password, user.passwordHash);
+    if (!isMatch) throw new UnauthorizedException("Invalid credentials");
+
+    await this.usersService.markLastLogin(user.id);
+    return this.issueTokensAndPersistSession(user);
+  }
+
+  /** Запрос OTP на e-mail (SMTP Яндекс). Код хранится в Redis с TTL. */
+  async requestEmailOtp({ email }: RequestEmailOtpDto) {
+    const code = crypto.randomInt(100000, 999999).toString();
+    const ttlSec = this.OTP_TTL_MIN * 60;
+
+    console.log(`Generated code is - ${code}`);
+
+    // Положили код в Redis
+    await this.otpStore.set("email", email, code, ttlSec);
+
+    try {
+      const info = await this.mailService.sendOtpEmail({
+        to: email,
+        code,
+        project: "Gennio",
+        expireMinutes: this.OTP_TTL_MIN,
+        supportEmail: "support@gennio.ru",
+      });
+
+      const isDev = process.env.NODE_ENV !== "production";
+      return {
+        ok: true,
+        provider: { messageId: info?.messageId },
+        ...(isDev ? { debugCode: code } : {}),
+      };
     } catch {
-      // ignore
+      // Если отправка не удалась — аккуратно гасим именно этот код (если он актуален)
+      await this.otpStore
+        .compareAndConsume("email", email, code)
+        .catch(() => {});
+      throw new BadRequestException("Не удалось отправить письмо с кодом");
     }
-    return { ok: true };
+  }
+
+  /** Запрос OTP по телефону (пока заглушка SMS). */
+  async requestPhoneOtp({ phone }: RequestPhoneOtpDto) {
+    const code = crypto.randomInt(100000, 999999).toString();
+    const ttlSec = this.OTP_TTL_MIN * 60;
+
+    console.log(`Generated code is - ${code}`);
+
+    await this.otpStore.set("phone", phone, code, ttlSec);
+
+    // TODO: отправка через SMS-провайдера; пока лог:
+    // eslint-disable-next-line no-console
+    console.log(`[OTP] phone=${phone} code=${code}`);
+
+    const isDev = process.env.NODE_ENV !== "production";
+    return { ok: true, ...(isDev ? { debugCode: code } : {}) };
+  }
+
+  /** Верификация OTP по телефону (атомарная проверка + одноразовое погашение). */
+  async verifyPhoneOtp(dto: VerifyPhoneOtpDto) {
+    const res = await this.otpStore.compareAndConsume(
+      "phone",
+      dto.phone,
+      dto.code
+    );
+    if (res === -1) throw new BadRequestException("OTP not requested");
+    if (res === 0) throw new BadRequestException("Invalid OTP");
+
+    let user = await this.usersService.findByPhone(dto.phone);
+    if (!user) user = await this.usersService.createByPhone(dto.phone);
+
+    if (!user.isPhoneVerified) {
+      await this.usersService.setPhoneVerified(user.id, true);
+      user = await this.usersService.findById(user.id);
+    }
+
+    await this.usersService.markLastLogin(user.id);
+    return this.issueTokensAndPersistSession(user);
+  }
+
+  /** Верификация OTP по e-mail (атомарная проверка + одноразовое погашение). */
+  async verifyEmailOtp(dto: VerifyEmailOtpDto) {
+    const res = await this.otpStore.compareAndConsume(
+      "email",
+      dto.email,
+      dto.code
+    );
+    if (res === -1) throw new BadRequestException("OTP not requested");
+    if (res === 0) throw new BadRequestException("Invalid OTP");
+
+    let user = await this.usersService.findByEmail(dto.email);
+    if (!user) user = await this.usersService.createByEmail(dto.email);
+
+    if (!user.isEmailVerified) {
+      await this.usersService.setEmailVerified(user.id, true);
+      user = await this.usersService.findById(user.id);
+    }
+
+    await this.usersService.markLastLogin(user.id);
+    return this.issueTokensAndPersistSession(user);
+  }
+
+  async me(userPayload: any) {
+    const user = await this.usersService.findById(userPayload.sub);
+    return user;
   }
 }

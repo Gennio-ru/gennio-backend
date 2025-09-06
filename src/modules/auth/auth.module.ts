@@ -1,23 +1,26 @@
 import { Module } from "@nestjs/common";
-import { TypeOrmModule } from "@nestjs/typeorm";
 import { JwtModule } from "@nestjs/jwt";
 import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
-import { Session } from "./session.entity";
 import { JwtAccessStrategy } from "./strategies/jwt-access.strategy";
 import { UsersModule } from "../users/users.module";
+import { MailService } from "../mail/mail.service";
+import { RedisModule } from "../redis/redis.module";
+import { OtpStore } from "./otp.store";
+import { TypeOrmModule } from "@nestjs/typeorm";
+import { Session } from "./session.entity";
 
 @Module({
   imports: [
-    UsersModule,
     TypeOrmModule.forFeature([Session]),
+    UsersModule,
+    RedisModule,
     JwtModule.register({
-      // можно registerAsync + ConfigModule, если хочешь
       secret: process.env.JWT_ACCESS_SECRET,
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtAccessStrategy],
-  exports: [AuthService],
+  providers: [AuthService, JwtAccessStrategy, MailService, OtpStore],
+  exports: [AuthService, OtpStore],
 })
 export class AuthModule {}

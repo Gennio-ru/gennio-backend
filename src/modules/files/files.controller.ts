@@ -11,18 +11,17 @@ import {
   UseGuards,
   NotFoundException,
 } from "@nestjs/common";
-// если используешь аутентификацию — добавь Guard/достань userId из req.user
 import { FileInterceptor } from "@nestjs/platform-express";
 import { memoryStorage } from "multer";
 import { FilesService } from "./files.service";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
-import { ApiBody, ApiOperation, ApiResponse } from "@nestjs/swagger";
+import { ApiBody, ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger";
 import { UploadDto } from "./dto/upload.dto";
-import { IFile } from "./types/file.interface";
 import { UploadFileResponseDto } from "./dto/upload-file-response.dto";
 import { DeleteFileResponseDto } from "./dto/delete-file-response.dto";
 import { FileDto } from "./dto/file.dto";
 
+@ApiTags("files")
 @Controller("files")
 export class FilesController {
   constructor(private readonly filesService: FilesService) {}
@@ -52,7 +51,6 @@ export class FilesController {
       {
         folder,
         publicRead: publicQ === "true",
-        // ownerId: req.user?.id, // если есть авторизация
       }
     );
 
@@ -62,7 +60,7 @@ export class FilesController {
     return {
       id: saved.id,
       key: saved.key,
-      url: saved.url ?? signedUrl, // вернём рабочую ссылку (публичную или временную)
+      url: saved.url ?? signedUrl,
       contentType: saved.contentType,
       size: saved.size,
       createdAt: saved.createdAt,

@@ -1,123 +1,97 @@
-import {
-  Body,
-  Controller,
-  Get,
-  HttpCode,
-  Post,
-  Req,
-  Res,
-  UseGuards,
-} from "@nestjs/common";
-import {
-  ApiBearerAuth,
-  ApiCreatedResponse,
-  ApiOkResponse,
-  ApiTags,
-} from "@nestjs/swagger";
-import type { Request, Response } from "express";
+import { Controller, Post, Body, Get, UseGuards, Req } from "@nestjs/common";
+import { ApiTags, ApiOperation, ApiResponse } from "@nestjs/swagger";
 import { AuthService } from "./auth.service";
-import { RegisterDto } from "./dto/register.dto";
-import { LoginDto } from "./dto/login.dto";
-import { RefreshDto } from "./dto/refresh.dto";
+import { RegisterByEmailDto } from "./dto/register-by-email.dto";
+import { RegisterByPhoneDto } from "./dto/register-by-phone.dto";
+import { LoginByEmailDto } from "./dto/login-by-email.dto";
+import { LoginByPhoneDto } from "./dto/login-by-phone.dto";
+import { RequestPhoneOtpDto } from "./dto/request-otp-by-phone.dto";
+import { VerifyEmailOtpDto } from "./dto/verify-otp-by-email.dto";
+import { AuthResponseDto } from "./dto/auth-response.dto";
 import { JwtAuthGuard } from "./guards/jwt-auth.guard";
-
-const cookieName = "refresh_token";
-
-function setRefreshCookie(res: Response, token: string) {
-  const isSecure = String(process.env.COOKIE_SECURE || "false") === "true";
-  const domain = process.env.COOKIE_DOMAIN || "localhost";
-  res.cookie(cookieName, token, {
-    httpOnly: true,
-    secure: isSecure,
-    sameSite: "lax",
-    domain,
-    path: "/",
-    maxAge: 1000 * 60 * 60 * 24 * 30, // 30d (пример)
-  });
-}
-
-function clearRefreshCookie(res: Response) {
-  const isSecure = String(process.env.COOKIE_SECURE || "false") === "true";
-  const domain = process.env.COOKIE_DOMAIN || "localhost";
-  res.clearCookie(cookieName, {
-    httpOnly: true,
-    secure: isSecure,
-    sameSite: "lax",
-    domain,
-    path: "/",
-  });
-}
+import { UserDto } from "src/modules/users/dto/user.dto";
+import { RequestEmailOtpDto } from "./dto/request-otp-by-email.dto";
+import { VerifyPhoneOtpDto } from "./dto/verify-otp-by-phone.dto";
 
 @ApiTags("auth")
 @Controller("auth")
 export class AuthController {
-  constructor(private readonly auth: AuthService) {}
+  constructor(private readonly authService: AuthService) {}
 
-  @Post("register")
-  @ApiCreatedResponse({ description: "User created" })
-  async register(@Body() dto: RegisterDto) {
-    const user = await this.auth.register(dto.email, dto.password);
-    return {
-      user: {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-        isActive: user.isActive,
-      },
-    };
+  @Post("register/email")
+  @ApiOperation({ summary: "Регистрация по email + пароль" })
+  @ApiResponse({ status: 201, type: AuthResponseDto })
+  async registerByEmail(
+    @Body() dto: RegisterByEmailDto
+  ): Promise<AuthResponseDto> {
+    return this.authService.registerByEmail(dto);
   }
 
-  @Post("login")
-  @HttpCode(200)
-  @ApiOkResponse({ description: "Logged in" })
-  async login(
-    @Body() dto: LoginDto,
-    @Req() req: Request,
-    @Res({ passthrough: true }) res: Response
-  ) {
-    const { user, accessToken, refreshToken } = await this.auth.login(
-      dto.email,
-      dto.password,
-      req.get("user-agent") || undefined,
-      (req.headers["x-forwarded-for"] as string) || req.ip
-    );
-    setRefreshCookie(res, refreshToken);
-    return { user, accessToken };
+  @Post("register/phone")
+  @ApiOperation({ summary: "Регистрация по телефону (пароль опционален)" })
+  @ApiResponse({ status: 201, type: AuthResponseDto })
+  async registerByPhone(
+    @Body() dto: RegisterByPhoneDto
+  ): Promise<AuthResponseDto> {
+    return this.authService.registerByPhone(dto);
   }
 
-  @Post("refresh")
-  @HttpCode(200)
-  @ApiOkResponse({ description: "Tokens refreshed" })
-  async refresh(
-    @Body() dto: RefreshDto,
-    @Req() req: Request,
-    @Res({ passthrough: true }) res: Response
-  ) {
-    const token = dto.refreshToken || req.cookies?.[cookieName];
-    const { accessToken, refreshToken } = await this.auth.refresh(
-      token,
-      req.get("user-agent") || undefined,
-      (req.headers["x-forwarded-for"] as string) || req.ip
-    );
-    setRefreshCookie(res, refreshToken);
-    return { accessToken };
+  @Post("login/email")
+  @ApiOperation({ summary: "Логин по email + пароль" })
+  @ApiResponse({ status: 200, type: AuthResponseDto })
+  async loginByEmail(@Body() dto: LoginByEmailDto): Promise<AuthResponseDto> {
+    return this.authService.loginByEmail(dto);
   }
 
-  @Post("logout")
-  @HttpCode(200)
-  @ApiOkResponse({ description: "Logged out" })
-  async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    const token = req.cookies?.[cookieName];
-    await this.auth.logout(token);
-    clearRefreshCookie(res);
-    return { ok: true };
+  @Post("login/phone")
+  @ApiOperation({ summary: "Логин по телефону + пароль" })
+  @ApiResponse({ status: 200, type: AuthResponseDto })
+  async loginByPhone(@Body() dto: LoginByPhoneDto): Promise<AuthResponseDto> {
+    return this.authService.loginByPhone(dto);
+  }
+
+  @Post("login/email/otp/request")
+  @ApiOperation({ summary: "Запросить OTP-код для email" })
+  @ApiResponse({ status: 200, schema: { example: { ok: true } } })
+  async requestEmailOtp(
+    @Body() dto: RequestEmailOtpDto
+  ): Promise<{ ok: boolean }> {
+    return this.authService.requestEmailOtp(dto);
+  }
+
+  @Post("login/phone/otp/request")
+  @ApiOperation({ summary: "Запросить OTP-код для телефона" })
+  @ApiResponse({ status: 200, schema: { example: { ok: true } } })
+  async requestPhoneOtp(
+    @Body() dto: RequestPhoneOtpDto
+  ): Promise<{ ok: boolean }> {
+    return this.authService.requestPhoneOtp(dto);
+  }
+
+  @Post("login/phone/otp/verify")
+  @ApiOperation({ summary: "Подтвердить OTP-код по телефону и войти" })
+  @ApiResponse({ status: 200, type: AuthResponseDto })
+  async verifyPhoneOtp(
+    @Body() dto: VerifyPhoneOtpDto
+  ): Promise<AuthResponseDto> {
+    return this.authService.verifyPhoneOtp(dto);
+  }
+
+  @Post("login/email/otp/verify")
+  @ApiOperation({ summary: "Подтвердить OTP-код по email и войти" })
+  @ApiResponse({ status: 200, type: AuthResponseDto })
+  async verifyEmailOtp(
+    @Body() dto: VerifyEmailOtpDto
+  ): Promise<AuthResponseDto> {
+    return this.authService.verifyEmailOtp(dto);
   }
 
   @Get("me")
-  @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
-  @ApiOkResponse({ description: "Current user" })
-  async me(@Req() req: any) {
-    return { id: req.user.userId, role: req.user.role };
+  @ApiOperation({ summary: "Текущий пользователь" })
+  @ApiResponse({ status: 200, type: UserDto })
+  async me(@Req() req: any): Promise<UserDto> {
+    // payload из JwtStrategy.validate
+    return this.authService.me(req.user);
   }
 }

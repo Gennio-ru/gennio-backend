@@ -1,101 +1,101 @@
 import {
   Injectable,
-  ConflictException,
   NotFoundException,
-  ForbiddenException,
+  ConflictException,
+  BadRequestException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { User } from "./user.entity";
-import { CreateUserDto } from "./dto/create-user.dto";
-import { UpdateUserDto } from "./dto/update-user.dto";
 import { UserRole } from "./types/user-role.enum";
 import * as bcrypt from "bcryptjs";
 
 @Injectable()
 export class UsersService {
   constructor(
-    @InjectRepository(User) private readonly repository: Repository<User>
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>
   ) {}
 
-  async create(dto: CreateUserDto, actorRole?: UserRole) {
-    // запрещаем не-админам выставлять роль отличную от user
-    const role =
-      actorRole === UserRole.Admin ? dto.role ?? UserRole.User : UserRole.User;
+  async findById(userId: string): Promise<User> {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) throw new NotFoundException("User not found");
+    return user;
+  }
 
-    const exists = await this.repository.findOne({
-      where: { email: dto.email },
-    });
-    if (exists) throw new ConflictException("Email already in use");
+  async findByEmail(email: string): Promise<User | null> {
+    return this.userRepository.findOne({ where: { email } });
+  }
 
-    const passwordHash = await bcrypt.hash(dto.password, 10);
-    const user = this.repository.create({
-      email: dto.email,
+  async findByPhone(phone: string): Promise<User | null> {
+    return this.userRepository.findOne({ where: { phone } });
+  }
+
+  async createByEmail(email: string, password?: string): Promise<User> {
+    const existing = await this.findByEmail(email);
+    if (existing) throw new ConflictException("Email already in use");
+
+    const passwordHash = password ? await bcrypt.hash(password, 10) : null;
+    const newUser = this.userRepository.create({
+      email,
+      phone: null,
       passwordHash,
-      role,
-      isActive: dto.isActive ?? true,
+      role: UserRole.User,
+      credits: 0,
+      isActive: true,
+      isEmailVerified: false,
+      isPhoneVerified: false,
     });
-    const saved = await this.repository.save(user);
-    return this.stripPassword(saved);
+    return this.userRepository.save(newUser);
   }
 
-  async findAll() {
-    const users = await this.repository.find({ order: { createdAt: "DESC" } });
-    return users.map(this.stripPassword);
+  async createByPhone(phone: string, password?: string): Promise<User> {
+    const existing = await this.findByPhone(phone);
+    if (existing) throw new ConflictException("Phone already in use");
+
+    const passwordHash = password ? await bcrypt.hash(password, 10) : null;
+    const newUser = this.userRepository.create({
+      email: null,
+      phone,
+      passwordHash,
+      role: UserRole.User,
+      credits: 0,
+      isActive: true,
+      isEmailVerified: false,
+      isPhoneVerified: false,
+    });
+    return this.userRepository.save(newUser);
   }
 
-  async findById(id: string) {
-    const user = await this.repository.findOne({ where: { id } });
-    if (!user) throw new NotFoundException("User not found");
-    return this.stripPassword(user);
-  }
+  async setPhoneVerified(userId: string, isVerified: boolean): Promise<User> {
+    const user = await this.findById(userId);
 
-  async findByEmail(email: string) {
-    return this.repository.findOne({ where: { email } });
-  }
-
-  async update(
-    id: string,
-    dto: UpdateUserDto,
-    actor: { id: string; role: UserRole }
-  ) {
-    const user = await this.repository.findOne({ where: { id } });
-    if (!user) throw new NotFoundException("User not found");
-
-    // Только админ может менять роль / isActive и чужие аккаунты
-    const isSelf = actor.id === id;
-    const isAdmin = actor.role === UserRole.Admin;
-
-    if (!isAdmin && !isSelf) {
-      throw new ForbiddenException("You can update only your own profile");
+    if (!user.phone) {
+      throw new BadRequestException("User has no phone number to verify");
+    }
+    if (user.isPhoneVerified === isVerified) {
+      return user; // ничего менять не нужно
     }
 
-    if (dto.role !== undefined && !isAdmin) {
-      throw new ForbiddenException("Only admin can change role");
-    }
-    if (dto.isActive !== undefined && !isAdmin) {
-      throw new ForbiddenException("Only admin can change isActive");
-    }
-
-    if (dto.email) user.email = dto.email;
-    if (dto.password) user.passwordHash = await bcrypt.hash(dto.password, 10);
-    if (isAdmin && dto.role !== undefined) user.role = dto.role!;
-    if (isAdmin && dto.isActive !== undefined) user.isActive = dto.isActive!;
-
-    const saved = await this.repository.save(user);
-    return this.stripPassword(saved);
+    await this.userRepository.update(userId, { isPhoneVerified: isVerified });
+    return this.findById(userId);
   }
 
-  async remove(id: string) {
-    const user = await this.repository.findOne({ where: { id } });
-    if (!user) throw new NotFoundException("User not found");
-    await this.repository.remove(user);
-    return { id, removed: true };
+  async setEmailVerified(userId: string, isVerified: boolean): Promise<User> {
+    const user = await this.findById(userId);
+
+    if (!user.email) {
+      throw new BadRequestException("User has email to verify");
+    }
+    if (user.isPhoneVerified === isVerified) {
+      return user; // ничего менять не нужно
+    }
+
+    await this.userRepository.update(userId, { isEmailVerified: isVerified });
+    return this.findById(userId);
   }
 
-  private stripPassword = (u: User) => {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { passwordHash, ...rest } = u;
-    return rest;
-  };
+  async markLastLogin(userId: string): Promise<void> {
+    await this.userRepository.update(userId, { lastLoginAt: new Date() });
+  }
 }

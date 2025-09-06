@@ -1,23 +1,50 @@
-import { Entity, Column, Index } from "typeorm";
-import { UserRole } from "src/modules/users/types/user-role.enum";
-import { BaseEntity } from "src/common/base/base.entity";
-import { IUser } from "./types/user.interface";
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
+  Index,
+} from "typeorm";
+import { UserRole } from "./types/user-role.enum";
 
-@Entity("users")
-export class User extends BaseEntity implements IUser {
+@Entity({ name: "users" })
+export class User {
+  @PrimaryGeneratedColumn("uuid")
+  id!: string;
+
   @Index({ unique: true })
-  @Column()
-  email: string;
+  @Column({ type: "varchar", length: 255, nullable: true, unique: true })
+  email!: string | null;
 
-  @Column()
-  passwordHash: string;
+  @Index({ unique: true })
+  @Column({ type: "varchar", length: 32, nullable: true, unique: true })
+  phone!: string | null;
 
-  @Column({ type: "enum", enum: UserRole, default: UserRole.User })
-  role: UserRole;
+  @Column({ type: "varchar", length: 255, nullable: true })
+  passwordHash!: string | null;
 
-  @Column({ default: 0 })
-  credits: number;
+  @Column({ type: "varchar", length: 16, default: UserRole.User })
+  role!: UserRole;
 
-  @Column({ default: true })
-  isActive: boolean;
+  @Column({ type: "int", default: 0 })
+  credits!: number;
+
+  @Column({ type: "boolean", default: true })
+  isActive!: boolean;
+
+  @Column({ type: "boolean", default: false })
+  isEmailVerified!: boolean;
+
+  @Column({ type: "boolean", default: false })
+  isPhoneVerified!: boolean;
+
+  @Column({ type: "timestamptz", nullable: true })
+  lastLoginAt?: Date;
+
+  @CreateDateColumn({ type: "timestamptz" })
+  createdAt!: Date;
+
+  @UpdateDateColumn({ type: "timestamptz" })
+  updatedAt!: Date;
 }

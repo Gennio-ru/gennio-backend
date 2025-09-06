@@ -6,35 +6,23 @@ import { FindPromptsDto } from "./dto/find-prompts.dto";
 import { CreatePromptDto } from "./dto/create-prompt.dto";
 import { PaginationResult } from "src/common/pagination/pagination.interface";
 import { paginate } from "src/common/pagination/pagination.util";
-import { IPrompt } from "./types/prompt.interface";
 
 @Injectable()
 export class PromptsService {
   constructor(
     @InjectRepository(Prompt)
-    protected repository: Repository<Prompt>
+    private readonly repository: Repository<Prompt>
   ) {}
 
-  findAll(): Promise<IPrompt[]> {
-    return this.repository.find({
-      select: [
-        "id",
-        "title",
-        "description",
-        "beforeImageId",
-        "afterImageId",
-        "type",
-      ],
-    });
-  }
-
-  async findOne(id: string) {
+  async findOne(id: string): Promise<Prompt> {
     const prompt = await this.repository.findOne({ where: { id } });
-    if (!prompt) throw new NotFoundException("Prompt not found");
+    if (!prompt) {
+      throw new NotFoundException("Prompt not found");
+    }
     return prompt;
   }
 
-  async findMany(query: FindPromptsDto): Promise<PaginationResult<IPrompt>> {
+  async findMany(query: FindPromptsDto): Promise<PaginationResult<Prompt>> {
     return paginate<Prompt>(
       this.repository,
       query,
@@ -42,7 +30,6 @@ export class PromptsService {
       (queryBuilder) => {
         queryBuilder.distinct(true);
 
-        // Поиск по названию и описанию
         if (query.search) {
           queryBuilder.andWhere(
             "(prompt.title ILIKE :search OR prompt.description ILIKE :search)",
@@ -50,25 +37,24 @@ export class PromptsService {
           );
         }
 
-        // Сортировка по дате создания: новые сверху
         queryBuilder.orderBy("prompt.createdAt", "DESC");
       }
     );
   }
 
-  async create(data: CreatePromptDto): Promise<IPrompt> {
+  async create(data: CreatePromptDto): Promise<Prompt> {
     const prompt = this.repository.create(data);
     return this.repository.save(prompt);
   }
 
-  async update(id: string, data: Partial<Prompt>): Promise<IPrompt> {
+  async update(id: string, data: Partial<Prompt>): Promise<Prompt> {
     const prompt = await this.findOne(id);
     Object.assign(prompt, data);
     return this.repository.save(prompt);
   }
 
-  async remove(id: string) {
+  async remove(id: string): Promise<void> {
     const prompt = await this.findOne(id);
-    return this.repository.remove(prompt);
+    await this.repository.remove(prompt);
   }
 }

@@ -21,3 +21,6 @@ logs/
 .vscode/
 .DS_Store
 Thumbs.db
+
+pgdata/
+redis-data/

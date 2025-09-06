@@ -7,6 +7,8 @@ import { PromptsModule } from "./modules/prompts/prompts.module";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { FilesModule } from "./modules/files/files.module";
 import { HealthModule } from "./modules/health/health.module";
+import { MailModule } from "./modules/mail/mail.module";
+import { MailQueueModule } from "./queues/mail-queue.module";
 
 @Module({
   imports: [
@@ -33,6 +35,9 @@ import { HealthModule } from "./modules/health/health.module";
     AuthModule,
     PromptsModule,
     FilesModule,
+    MailModule,
+    HealthModule,
+    MailQueueModule,
   ],
 })
 export class AppModule {}
