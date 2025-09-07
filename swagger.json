@@ -1,0 +1,1088 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/users/{id}": {
+      "get": {
+        "operationId": "UsersController_getOne",
+        "summary": "Получить пользователя по id",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/api/auth/register/email": {
+      "post": {
+        "operationId": "AuthController_registerByEmail",
+        "summary": "Регистрация по email + пароль",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterByEmailDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/register/phone": {
+      "post": {
+        "operationId": "AuthController_registerByPhone",
+        "summary": "Регистрация по телефону (пароль опционален)",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterByPhoneDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/login/email": {
+      "post": {
+        "operationId": "AuthController_loginByEmail",
+        "summary": "Логин по email + пароль",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginByEmailDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/login/phone": {
+      "post": {
+        "operationId": "AuthController_loginByPhone",
+        "summary": "Логин по телефону + пароль",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginByPhoneDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/login/email/otp/request": {
+      "post": {
+        "operationId": "AuthController_requestEmailOtp",
+        "summary": "Запросить OTP-код для email",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestEmailOtpDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "ok": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/login/phone/otp/request": {
+      "post": {
+        "operationId": "AuthController_requestPhoneOtp",
+        "summary": "Запросить OTP-код для телефона",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestPhoneOtpDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "ok": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/login/phone/otp/verify": {
+      "post": {
+        "operationId": "AuthController_verifyPhoneOtp",
+        "summary": "Подтвердить OTP-код по телефону и войти",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyPhoneOtpDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/login/email/otp/verify": {
+      "post": {
+        "operationId": "AuthController_verifyEmailOtp",
+        "summary": "Подтвердить OTP-код по email и войти",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyEmailOtpDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/me": {
+      "get": {
+        "operationId": "AuthController_me",
+        "summary": "Текущий пользователь",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/prompts": {
+      "get": {
+        "operationId": "PromptsController_findMany",
+        "summary": "Получить список промптов с фильтрами и пагинацией",
+        "parameters": [
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "face",
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": 10,
+              "type": "number"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": 1,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Список промптов с мета-данными",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PromptDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "prompts"
+        ]
+      },
+      "post": {
+        "operationId": "PromptsController_create",
+        "summary": "Создать новый промпт (только админ)",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePromptDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Промпт создан",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PromptDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "prompts"
+        ]
+      }
+    },
+    "/api/prompts/{id}": {
+      "get": {
+        "operationId": "PromptsController_findOne",
+        "summary": "Получить один промпт по id",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Найденный промпт",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PromptDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Промпт не найден"
+          }
+        },
+        "tags": [
+          "prompts"
+        ]
+      },
+      "patch": {
+        "operationId": "PromptsController_update",
+        "summary": "Обновить промпт (только админ)",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Обновлённый промпт",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PromptDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Промпт не найден"
+          }
+        },
+        "tags": [
+          "prompts"
+        ]
+      },
+      "delete": {
+        "operationId": "PromptsController_remove",
+        "summary": "Удалить промпт (только админ)",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Промпт удалён"
+          },
+          "404": {
+            "description": "Промпт не найден"
+          }
+        },
+        "tags": [
+          "prompts"
+        ]
+      }
+    },
+    "/api/files/upload": {
+      "post": {
+        "operationId": "FilesController_upload",
+        "parameters": [
+          {
+            "name": "folder",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "public",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UploadDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Файл успешно загружен",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadFileResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "files"
+        ]
+      }
+    },
+    "/api/files/{id}": {
+      "get": {
+        "operationId": "FilesController_getOne",
+        "summary": "Получить метаданные файла",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "signed",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Файл не найден"
+          }
+        },
+        "tags": [
+          "files"
+        ]
+      },
+      "delete": {
+        "operationId": "FilesController_remove",
+        "summary": "Удалить файл по ID",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Файл удалён",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteFileResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Файл не найден"
+          }
+        },
+        "tags": [
+          "files"
+        ]
+      }
+    },
+    "/api/health": {
+      "get": {
+        "operationId": "HealthController_health",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Service healthcheck"
+          }
+        },
+        "tags": [
+          "health"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "AI Platform API",
+    "description": "Prompts / Generations / Users",
+    "version": "1.0.0",
+    "contact": {}
+  },
+  "tags": [],
+  "servers": [],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      }
+    },
+    "schemas": {
+      "UserDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "email": {
+            "type": "object",
+            "example": "user@example.com",
+            "nullable": true
+          },
+          "phone": {
+            "type": "object",
+            "example": "+79998887766",
+            "nullable": true
+          },
+          "passwordHash": {
+            "type": "object",
+            "example": "$2b$10$4FZr...",
+            "description": "bcrypt-хэш пароля или null, если OTP",
+            "nullable": true
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "user",
+              "admin"
+            ],
+            "example": "user"
+          },
+          "credits": {
+            "type": "number",
+            "example": 100,
+            "description": "Баланс кредитов"
+          },
+          "isActive": {
+            "type": "boolean",
+            "example": true,
+            "description": "Активен ли пользователь"
+          },
+          "isEmailVerified": {
+            "type": "boolean",
+            "example": false
+          },
+          "isPhoneVerified": {
+            "type": "boolean",
+            "example": true
+          },
+          "lastLoginAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "createdAt",
+          "updatedAt",
+          "role",
+          "credits",
+          "isActive",
+          "isEmailVerified",
+          "isPhoneVerified"
+        ]
+      },
+      "RegisterByEmailDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "example": "user@example.com"
+          },
+          "password": {
+            "type": "string",
+            "example": "StrongPass123!"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ]
+      },
+      "AuthResponseDto": {
+        "type": "object",
+        "properties": {
+          "accessToken": {
+            "type": "string",
+            "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+          },
+          "user": {
+            "$ref": "#/components/schemas/UserDto"
+          }
+        },
+        "required": [
+          "accessToken",
+          "user"
+        ]
+      },
+      "RegisterByPhoneDto": {
+        "type": "object",
+        "properties": {
+          "phone": {
+            "type": "string",
+            "example": "+79998887766"
+          },
+          "password": {
+            "type": "string",
+            "example": "secretPassword123",
+            "description": "Пароль (необязателен, если используется вход по OTP)"
+          }
+        },
+        "required": [
+          "phone"
+        ]
+      },
+      "LoginByEmailDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "example": "user@example.com"
+          },
+          "password": {
+            "type": "string",
+            "example": "StrongPass123!"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ]
+      },
+      "LoginByPhoneDto": {
+        "type": "object",
+        "properties": {
+          "phone": {
+            "type": "string",
+            "example": "+79998887766"
+          },
+          "password": {
+            "type": "string",
+            "example": "Secret123"
+          }
+        },
+        "required": [
+          "phone",
+          "password"
+        ]
+      },
+      "RequestEmailOtpDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "example": "user@example.com"
+          }
+        },
+        "required": [
+          "email"
+        ]
+      },
+      "RequestPhoneOtpDto": {
+        "type": "object",
+        "properties": {
+          "phone": {
+            "type": "string",
+            "example": "+79998887766"
+          }
+        },
+        "required": [
+          "phone"
+        ]
+      },
+      "VerifyPhoneOtpDto": {
+        "type": "object",
+        "properties": {
+          "phone": {
+            "type": "string",
+            "example": "+79998887766"
+          },
+          "code": {
+            "type": "string",
+            "example": "123456"
+          }
+        },
+        "required": [
+          "phone",
+          "code"
+        ]
+      },
+      "VerifyEmailOtpDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "example": "user@example.com"
+          },
+          "code": {
+            "type": "string",
+            "example": "123456"
+          }
+        },
+        "required": [
+          "email",
+          "code"
+        ]
+      },
+      "PromptDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "example": "Аниме-портрет"
+          },
+          "description": {
+            "type": "string",
+            "example": "Мягкое освещение, крупный план",
+            "nullable": true
+          },
+          "beforeImageId": {
+            "type": "string",
+            "example": "/uploads/previews/anime-portrait.jpg",
+            "nullable": true
+          },
+          "afterImageId": {
+            "type": "string",
+            "example": "/uploads/previews/anime-portrait.jpg",
+            "nullable": true
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "image-to-image",
+              "text-to-image",
+              "text-to-text"
+            ]
+          },
+          "text": {
+            "type": "string",
+            "description": "Текст промпта"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "title",
+          "type",
+          "text",
+          "id",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "CreatePromptDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "example": "Аниме-портрет"
+          },
+          "description": {
+            "type": "string",
+            "example": "Мягкое освещение, крупный план"
+          },
+          "beforeImageId": {
+            "type": "string",
+            "example": "/uploads/previews/anime-portrait.jpg"
+          },
+          "afterImageId": {
+            "type": "string",
+            "example": "/uploads/previews/anime-portrait.jpg"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "image-to-image",
+              "text-to-image",
+              "text-to-text"
+            ],
+            "default": "image-to-image"
+          },
+          "text": {
+            "type": "text",
+            "description": "промпт шаблона"
+          }
+        },
+        "required": [
+          "title",
+          "type",
+          "text"
+        ]
+      },
+      "UploadDto": {
+        "type": "object",
+        "properties": {
+          "file": {
+            "type": "string",
+            "format": "binary"
+          }
+        },
+        "required": [
+          "file"
+        ]
+      },
+      "UploadFileResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+          },
+          "key": {
+            "type": "string",
+            "example": "uploads/2025/09/04/file.png"
+          },
+          "url": {
+            "type": "object",
+            "example": "https://cdn.example.com/uploads/2025/09/04/file.png",
+            "nullable": true
+          },
+          "contentType": {
+            "type": "object",
+            "example": "image/png",
+            "nullable": true
+          },
+          "size": {
+            "type": "object",
+            "example": 204800,
+            "description": "Размер файла в байтах"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "key",
+          "url",
+          "contentType",
+          "size",
+          "createdAt"
+        ]
+      },
+      "FileDto": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "example": "uploads/2025/09/04/photo.png"
+          },
+          "url": {
+            "type": "object",
+            "example": "https://cdn.example.com/uploads/2025/09/04/photo.png",
+            "nullable": true
+          },
+          "contentType": {
+            "type": "object",
+            "example": "image/png",
+            "nullable": true
+          },
+          "size": {
+            "type": "object",
+            "example": 204800,
+            "description": "Размер файла в байтах"
+          },
+          "bucket": {
+            "type": "string",
+            "example": "my-bucket"
+          },
+          "ownerId": {
+            "type": "object",
+            "example": "user-123",
+            "nullable": true
+          },
+          "meta": {
+            "type": "object",
+            "example": {
+              "width": 400,
+              "height": 300
+            },
+            "nullable": true
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "key",
+          "bucket",
+          "id",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "DeleteFileResponseDto": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "example": true
+          },
+          "id": {
+            "type": "string",
+            "example": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+            "description": "UUID удалённого файла"
+          }
+        },
+        "required": [
+          "ok",
+          "id"
+        ]
+      }
+    }
+  }
+}

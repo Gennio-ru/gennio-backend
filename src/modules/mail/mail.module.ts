@@ -12,7 +12,7 @@ import { MailService } from "./mail.service";
       imports: [ConfigModule],
       useFactory: (config: ConfigService) => ({
         transport: {
-          host: config.get<string>("SMTP_HOST", "smtp.yandex.ru"),
+          host: config.get<string>("SMTP_HOST", "smtp.rusender.ru"),
           port: Number(config.get<string>("SMTP_PORT", "465")),
           secure: config.get<string>("SMTP_SECURE", "true") === "true",
           auth: {

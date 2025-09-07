@@ -4,6 +4,9 @@ import { ValidationPipe } from "@nestjs/common";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
+import { join } from "path";
+import { writeFileSync } from "fs";
+import { execSync } from "child_process";
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -20,7 +23,14 @@ async function bootstrap() {
   // Глобальные настройки
   app.use(cookieParser());
   app.setGlobalPrefix("api"); // опционально
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: true, transformOptions: { enableImplicitConversion: true } }));
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+      forbidNonWhitelisted: true,
+      transformOptions: { enableImplicitConversion: true },
+    })
+  );
 
   app.enableCors({
     origin: ["http://localhost:5173"],
@@ -35,6 +45,29 @@ async function bootstrap() {
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup("docs", app, document);
+
+  // === Автогенерация swagger.json ===
+  const swaggerPath = join(process.cwd(), "swagger.json");
+  writeFileSync(swaggerPath, JSON.stringify(document, null, 2));
+  console.log(`✅ Swagger JSON saved to ${swaggerPath}`);
+
+  // === Автогенерация типов для фронта ===
+  const frontendPath = join(
+    process.cwd(),
+    "..",
+    "frontend",
+    "src",
+    "api",
+    "types.gen.ts"
+  );
+  try {
+    execSync(`npx openapi-typescript ${swaggerPath} --output ${frontendPath}`, {
+      stdio: "inherit",
+    });
+    console.log(`✅ Types generated in ${frontendPath}`);
+  } catch (e) {
+    console.error("❌ Failed to generate types:", e);
+  }
 
   const port = Number(process.env.PORT) || 3000;
   await app.listen(port);
