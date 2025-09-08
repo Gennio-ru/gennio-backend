@@ -35,7 +35,6 @@
     "/api/auth/register/email": {
       "post": {
         "operationId": "AuthController_registerByEmail",
-        "summary": "Регистрация по email + пароль",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -49,14 +48,7 @@
         },
         "responses": {
           "201": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AuthResponseDto"
-                }
-              }
-            }
+            "description": ""
           }
         },
         "tags": [
@@ -67,7 +59,6 @@
     "/api/auth/register/phone": {
       "post": {
         "operationId": "AuthController_registerByPhone",
-        "summary": "Регистрация по телефону (пароль опционален)",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -81,14 +72,7 @@
         },
         "responses": {
           "201": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AuthResponseDto"
-                }
-              }
-            }
+            "description": ""
           }
         },
         "tags": [
@@ -231,7 +215,6 @@
     "/api/auth/login/phone/otp/verify": {
       "post": {
         "operationId": "AuthController_verifyPhoneOtp",
-        "summary": "Подтвердить OTP-код по телефону и войти",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -244,15 +227,8 @@
           }
         },
         "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AuthResponseDto"
-                }
-              }
-            }
+          "201": {
+            "description": ""
           }
         },
         "tags": [
@@ -263,7 +239,6 @@
     "/api/auth/login/email/otp/verify": {
       "post": {
         "operationId": "AuthController_verifyEmailOtp",
-        "summary": "Подтвердить OTP-код по email и войти",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -276,15 +251,8 @@
           }
         },
         "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AuthResponseDto"
-                }
-              }
-            }
+          "201": {
+            "description": ""
           }
         },
         "tags": [
@@ -311,6 +279,62 @@
         },
         "tags": [
           "auth"
+        ]
+      }
+    },
+    "/api/auth/refresh": {
+      "post": {
+        "operationId": "AuthController_refresh",
+        "summary": "Обновить access-токен по refresh (cookie)",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "auth"
+        ],
+        "security": [
+          {
+            "cookie": []
+          }
+        ]
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "operationId": "AuthController_logout",
+        "summary": "Выйти и отозвать сессию",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "ok": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "auth"
+        ],
+        "security": [
+          {
+            "cookie": []
+          }
         ]
       }
     },
@@ -349,13 +373,21 @@
         ],
         "responses": {
           "200": {
-            "description": "Список промптов с мета-данными",
+            "description": "",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/PromptDto"
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PromptResponseDto"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PaginationMetaDto"
+                    }
                   }
                 }
               }
@@ -443,6 +475,16 @@
             }
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePromptDto"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Обновлённый промпт",
@@ -733,22 +775,6 @@
           "password"
         ]
       },
-      "AuthResponseDto": {
-        "type": "object",
-        "properties": {
-          "accessToken": {
-            "type": "string",
-            "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-          },
-          "user": {
-            "$ref": "#/components/schemas/UserDto"
-          }
-        },
-        "required": [
-          "accessToken",
-          "user"
-        ]
-      },
       "RegisterByPhoneDto": {
         "type": "object",
         "properties": {
@@ -781,6 +807,22 @@
         "required": [
           "email",
           "password"
+        ]
+      },
+      "AuthResponseDto": {
+        "type": "object",
+        "properties": {
+          "accessToken": {
+            "type": "string",
+            "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+          },
+          "user": {
+            "$ref": "#/components/schemas/UserDto"
+          }
+        },
+        "required": [
+          "accessToken",
+          "user"
         ]
       },
       "LoginByPhoneDto": {
@@ -858,6 +900,99 @@
           "code"
         ]
       },
+      "PaginationMetaDto": {
+        "type": "object",
+        "properties": {
+          "totalItems": {
+            "type": "number"
+          },
+          "itemCount": {
+            "type": "number"
+          },
+          "itemsPerPage": {
+            "type": "number"
+          },
+          "totalPages": {
+            "type": "number"
+          },
+          "currentPage": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "totalItems",
+          "itemCount",
+          "itemsPerPage",
+          "totalPages",
+          "currentPage"
+        ]
+      },
+      "PromptResponseDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "example": "Аниме-портрет"
+          },
+          "description": {
+            "type": "string",
+            "example": "Мягкое освещение, крупный план"
+          },
+          "beforeImageId": {
+            "type": "string"
+          },
+          "afterImageId": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "image-to-image",
+              "text-to-image",
+              "text-to-text"
+            ]
+          },
+          "text": {
+            "type": "string",
+            "description": "Текст промпта"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "beforeImageUrl": {
+            "type": "string",
+            "format": "uri",
+            "nullable": true
+          },
+          "afterImageUrl": {
+            "type": "string",
+            "format": "uri",
+            "nullable": true
+          }
+        },
+        "required": [
+          "title",
+          "description",
+          "beforeImageId",
+          "afterImageId",
+          "type",
+          "text",
+          "id",
+          "createdAt",
+          "updatedAt",
+          "beforeImageUrl",
+          "afterImageUrl"
+        ]
+      },
       "PromptDto": {
         "type": "object",
         "properties": {
@@ -867,18 +1002,13 @@
           },
           "description": {
             "type": "string",
-            "example": "Мягкое освещение, крупный план",
-            "nullable": true
+            "example": "Мягкое освещение, крупный план"
           },
           "beforeImageId": {
-            "type": "string",
-            "example": "/uploads/previews/anime-portrait.jpg",
-            "nullable": true
+            "type": "string"
           },
           "afterImageId": {
-            "type": "string",
-            "example": "/uploads/previews/anime-portrait.jpg",
-            "nullable": true
+            "type": "string"
           },
           "type": {
             "type": "string",
@@ -907,6 +1037,9 @@
         },
         "required": [
           "title",
+          "description",
+          "beforeImageId",
+          "afterImageId",
           "type",
           "text",
           "id",
@@ -933,25 +1066,40 @@
             "type": "string",
             "example": "/uploads/previews/anime-portrait.jpg"
           },
-          "type": {
-            "type": "string",
-            "enum": [
-              "image-to-image",
-              "text-to-image",
-              "text-to-text"
-            ],
-            "default": "image-to-image"
-          },
           "text": {
-            "type": "text",
+            "type": "string",
             "description": "промпт шаблона"
           }
         },
         "required": [
           "title",
-          "type",
           "text"
         ]
+      },
+      "UpdatePromptDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "example": "Аниме-портрет"
+          },
+          "description": {
+            "type": "string",
+            "example": "Мягкое освещение, крупный план"
+          },
+          "beforeImageId": {
+            "type": "string",
+            "example": "/uploads/previews/anime-portrait.jpg"
+          },
+          "afterImageId": {
+            "type": "string",
+            "example": "/uploads/previews/anime-portrait.jpg"
+          },
+          "text": {
+            "type": "string",
+            "description": "промпт шаблона"
+          }
+        }
       },
       "UploadDto": {
         "type": "object",

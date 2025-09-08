@@ -12,6 +12,6 @@ export interface PaginationMeta {
 }
 
 export interface PaginationResult<T> {
-  data: T[];
+  items: T[];
   meta: PaginationMeta;
 }

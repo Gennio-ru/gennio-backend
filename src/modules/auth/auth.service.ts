@@ -59,7 +59,6 @@ export class AuthService {
 
     // jti для refresh-токена
     const jti = crypto.randomUUID();
-
     // генерируем refresh JWT (или можешь сделать просто рандомную строку)
     const refreshToken = this.jwtService.sign(
       { sub: user.id, jti },
@@ -93,14 +92,14 @@ export class AuthService {
 
   async registerByEmail(dto: RegisterByEmailDto) {
     const user = await this.usersService.createByEmail(dto.email, dto.password);
-    const accessToken = this.signAccessToken(user);
-    return { accessToken, user };
+    await this.usersService.markLastLogin(user.id);
+    return this.issueTokensAndPersistSession(user);
   }
 
   async registerByPhone(dto: RegisterByPhoneDto) {
     const user = await this.usersService.createByPhone(dto.phone, dto.password);
-    const accessToken = this.signAccessToken(user);
-    return { accessToken, user };
+    await this.usersService.markLastLogin(user.id);
+    return this.issueTokensAndPersistSession(user);
   }
 
   async loginByEmail(dto: LoginByEmailDto) {
@@ -225,35 +224,40 @@ export class AuthService {
     return user;
   }
 
-
   async refresh(refreshToken?: string) {
-    if (!refreshToken) throw new UnauthorizedException('No refresh token');
+    if (!refreshToken) throw new UnauthorizedException("No refresh token");
     // Verify signature and get payload
     let payload: any;
     try {
       payload = this.jwtService.verify(refreshToken, {
-        secret: process.env.JWT_REFRESH_SECRET || 'dev-refresh',
+        secret: process.env.JWT_REFRESH_SECRET || "dev-refresh",
         ignoreExpiration: false,
       });
     } catch (e) {
-      throw new UnauthorizedException('Invalid refresh token');
+      throw new UnauthorizedException("Invalid refresh token");
     }
     const jti: string | undefined = payload?.jti;
     const userId: string | undefined = payload?.sub;
-    if (!jti || !userId) throw new UnauthorizedException('Malformed refresh token');
+    if (!jti || !userId)
+      throw new UnauthorizedException("Malformed refresh token");
 
     // Check session exists and matches token hash
-    const hash = crypto.createHash('sha256').update(refreshToken).digest('hex');
     const session = await this.sessionsRepository.findOne({ where: { jti } });
-    if (!session || session.revokedAt) throw new UnauthorizedException('Session revoked');
-    if (session.refreshTokenHash !== hash) throw new UnauthorizedException('Token mismatch');
+    if (!session || session.revokedAt)
+      throw new UnauthorizedException("Session revoked");
+
+    // сравниваем именно через bcrypt (мы же так и сохраняли)
+    const ok = await bcrypt.compare(refreshToken, session.refreshTokenHash);
+    if (!ok) throw new UnauthorizedException("Token mismatch");
+
     if (session.expiresAt && new Date(session.expiresAt) < new Date()) {
-      throw new UnauthorizedException('Session expired');
+      throw new UnauthorizedException("Session expired");
     }
 
     // Load user
     const user = await this.usersService.findById(userId);
-    if (!user || !user.isActive) throw new UnauthorizedException('User inactive');
+    if (!user || !user.isActive)
+      throw new UnauthorizedException("User inactive");
 
     // Revoke old session
     session.revokedAt = new Date();
@@ -267,7 +271,7 @@ export class AuthService {
     if (!refreshToken) return;
     try {
       const payload: any = this.jwtService.verify(refreshToken, {
-        secret: process.env.JWT_REFRESH_SECRET || 'dev-refresh',
+        secret: process.env.JWT_REFRESH_SECRET || "dev-refresh",
         ignoreExpiration: true,
       });
       const jti: string | undefined = payload?.jti;
@@ -280,5 +284,4 @@ export class AuthService {
       // ignore
     }
   }
-
 }

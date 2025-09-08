@@ -1,9 +1,8 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsEnum, IsNotEmpty, IsOptional, IsString } from "class-validator";
-import { PromptType } from "src/modules/prompts/types/prompt-type.enum";
+import { IsNotEmpty, IsOptional, IsString } from "class-validator";
 import { IPromptCreate } from "../types/prompt-mutations.interface";
 
-export class CreatePromptDto implements IPromptCreate {
+export class CreatePromptDto implements Omit<IPromptCreate, "type"> {
   @ApiProperty({ example: "Аниме-портрет" })
   @IsString()
   @IsNotEmpty()
@@ -25,14 +24,7 @@ export class CreatePromptDto implements IPromptCreate {
   afterImageId!: string;
 
   @ApiProperty({
-    enum: PromptType,
-    default: PromptType.ImageToImage,
-  })
-  @IsEnum(PromptType)
-  type: PromptType = PromptType.ImageToImage;
-
-  @ApiProperty({
-    type: "text",
+    type: String,
     description: "промпт шаблона",
   })
   @IsString()

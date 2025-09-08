@@ -18,13 +18,13 @@ export async function paginate<T extends ObjectLiteral>(
 
   qb.skip((page - 1) * limit).take(limit);
 
-  const [data, totalItems] = await qb.getManyAndCount();
+  const [items, totalItems] = await qb.getManyAndCount();
 
   return {
-    data,
+    items,
     meta: {
       totalItems,
-      itemCount: data.length,
+      itemCount: items.length,
       itemsPerPage: limit,
       totalPages: Math.ceil(totalItems / limit),
       currentPage: page,

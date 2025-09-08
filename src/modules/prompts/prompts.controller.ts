@@ -20,7 +20,9 @@ import { Roles } from "src/modules/users/user-roles.decorator";
 import { CreatePromptDto } from "./dto/create-prompt.dto";
 import { FindPromptsDto } from "./dto/find-prompts.dto";
 import { PaginationResult } from "src/common/pagination/pagination.interface";
-import { PromptDto } from "./dto/prompt.dto";
+import { PromptDto, PromptResponseDto } from "./dto/prompt.dto";
+import { UpdatePromptDto } from "./dto/update-prompt.dto";
+import { ApiPaginatedResponse } from "src/common/swagger/api-paginated-response.decorator";
 
 @ApiTags("prompts")
 @Controller("prompts")
@@ -34,16 +36,16 @@ export class PromptsController {
   @ApiQuery({ name: "page", required: false, type: Number, example: 1 })
   @ApiQuery({ name: "limit", required: false, type: Number, example: 10 })
   @ApiQuery({ name: "search", required: false, type: String, example: "face" })
-  @ApiResponse({
-    status: 200,
-    description: "Список промптов с мета-данными",
-    type: PromptDto,
-    isArray: true,
-  })
-  findMany(
+  @ApiPaginatedResponse(PromptResponseDto, { key: "items" })
+  async findMany(
     @Query() query: FindPromptsDto
   ): Promise<PaginationResult<PromptDto>> {
-    return this.promptsService.findMany(query);
+    const page = await this.promptsService.findMany(query);
+
+    return {
+      meta: page.meta,
+      items: page.items.map((p) => Object.assign(new PromptResponseDto(), p)),
+    };
   }
 
   @Get(":id")
@@ -54,8 +56,10 @@ export class PromptsController {
     type: PromptDto,
   })
   @ApiResponse({ status: 404, description: "Промпт не найден" })
-  findOne(@Param("id", ParseUUIDPipe) id: string): Promise<PromptDto> {
-    return this.promptsService.findOne(id);
+  async findOne(@Param("id", ParseUUIDPipe) id: string): Promise<PromptDto> {
+    const prompt = await this.promptsService.findOne(id);
+
+    return Object.assign(new PromptResponseDto(), prompt);
   }
 
   @Post()
@@ -79,7 +83,7 @@ export class PromptsController {
   @ApiResponse({ status: 404, description: "Промпт не найден" })
   update(
     @Param("id", ParseUUIDPipe) id: string,
-    @Body() dto: Partial<PromptDto>
+    @Body() dto: UpdatePromptDto
   ): Promise<PromptDto> {
     return this.promptsService.update(id, dto);
   }

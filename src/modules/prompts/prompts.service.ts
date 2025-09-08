@@ -6,6 +6,7 @@ import { FindPromptsDto } from "./dto/find-prompts.dto";
 import { CreatePromptDto } from "./dto/create-prompt.dto";
 import { PaginationResult } from "src/common/pagination/pagination.interface";
 import { paginate } from "src/common/pagination/pagination.util";
+import { UpdatePromptDto } from "./dto/update-prompt.dto";
 
 @Injectable()
 export class PromptsService {
@@ -15,7 +16,10 @@ export class PromptsService {
   ) {}
 
   async findOne(id: string): Promise<Prompt> {
-    const prompt = await this.repository.findOne({ where: { id } });
+    const prompt = await this.repository.findOne({
+      where: { id },
+      relations: ["beforeImage", "afterImage"],
+    });
     if (!prompt) {
       throw new NotFoundException("Prompt not found");
     }
@@ -28,7 +32,10 @@ export class PromptsService {
       query,
       "prompt",
       (queryBuilder) => {
-        queryBuilder.distinct(true);
+        queryBuilder
+          .leftJoinAndSelect("prompt.beforeImage", "beforeFile")
+          .leftJoinAndSelect("prompt.afterImage", "afterFile")
+          .distinct(true);
 
         if (query.search) {
           queryBuilder.andWhere(
@@ -47,10 +54,18 @@ export class PromptsService {
     return this.repository.save(prompt);
   }
 
-  async update(id: string, data: Partial<Prompt>): Promise<Prompt> {
-    const prompt = await this.findOne(id);
-    Object.assign(prompt, data);
-    return this.repository.save(prompt);
+  async update(id: string, data: UpdatePromptDto): Promise<Prompt> {
+    this.repository.update(id, { ...data });
+
+    const prompt = await this.repository.findOne({
+      where: { id },
+    });
+
+    if (!prompt) {
+      throw new Error("Prompt not found");
+    }
+
+    return prompt;
   }
 
   async remove(id: string): Promise<void> {

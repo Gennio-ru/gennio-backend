@@ -6,27 +6,22 @@ import {
 import { PromptType } from "src/modules/prompts/types/prompt-type.enum";
 import { IPrompt, IPromptBase } from "../types/prompt.interface";
 import { BaseDto } from "src/common/base/base.dto";
+import { Expose, Transform } from "class-transformer";
+import { buildPublicUrl } from "src/common/utils/file-url.util";
 
 export class PromptBaseDto implements IPromptBase {
   @ApiProperty({ example: "Аниме-портрет" })
   title!: string;
 
-  @ApiPropertyOptional({
+  @ApiProperty({
     example: "Мягкое освещение, крупный план",
-    nullable: true,
   })
   description!: string;
 
-  @ApiPropertyOptional({
-    example: "/uploads/previews/anime-portrait.jpg",
-    nullable: true,
-  })
+  @ApiProperty()
   beforeImageId!: string;
 
-  @ApiPropertyOptional({
-    example: "/uploads/previews/anime-portrait.jpg",
-    nullable: true,
-  })
+  @ApiProperty()
   afterImageId!: string;
 
   @ApiProperty({ enum: PromptType })
@@ -42,3 +37,19 @@ export class PromptBaseDto implements IPromptBase {
 export class PromptDto
   extends IntersectionType(PromptBaseDto, BaseDto)
   implements IPrompt {}
+
+export class PromptResponseDto extends PromptDto {
+  @Expose()
+  @Transform(({ obj }) =>
+    buildPublicUrl(obj.beforeImage.key, obj.beforeImage.bucket)
+  )
+  @ApiProperty({ type: String, format: "uri", nullable: true })
+  beforeImageUrl!: string | null;
+
+  @Expose()
+  @Transform(({ obj }) =>
+    buildPublicUrl(obj.afterImage.key, obj.afterImage.bucket)
+  )
+  @ApiProperty({ type: String, format: "uri", nullable: true })
+  afterImageUrl!: string | null;
+}
