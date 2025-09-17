@@ -13,6 +13,7 @@ import { ConfigService } from "@nestjs/config";
 import { FileEntity } from "./files.entity";
 import { S3_CLIENT } from "./s3.module";
 import { DeleteFileResponseDto } from "./dto/delete-file-response.dto";
+import { Readable } from "typeorm/platform/PlatformTools";
 
 type UploadOpts = {
   folder?: string;
@@ -90,11 +91,13 @@ export class FilesService {
     return this.repo.save(entity);
   }
 
+  // Генерирует ссылку на ограниченное время
   async getSignedGetUrl(key: string, expiresSec = 3600) {
     const cmd = new GetObjectCommand({ Bucket: this.bucket, Key: key });
     return getSignedUrl(this.s3, cmd, { expiresIn: expiresSec });
   }
 
+  // Удаляет объект из S3 и запись из БД
   async removeById(fileId: string): Promise<DeleteFileResponseDto> {
     const fileEntity = await this.repo.findOne({ where: { id: fileId } });
     if (!fileEntity) {
@@ -117,5 +120,31 @@ export class FilesService {
     const f = await this.repo.findOne({ where: { id } });
     if (!f) throw new NotFoundException("File not found");
     return f;
+  }
+
+  private async streamToBuffer(stream: Readable): Promise<Buffer> {
+    const chunks: Buffer[] = [];
+    for await (const chunk of stream) {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    }
+    return Buffer.concat(chunks);
+  }
+
+  async getFileBuffer(key: string): Promise<Buffer> {
+    const cmd = new GetObjectCommand({ Bucket: this.bucket, Key: key });
+    const res = await this.s3.send(cmd);
+
+    if (!res.Body) {
+      throw new NotFoundException("File body is empty");
+    }
+
+    return this.streamToBuffer(res.Body as Readable);
+  }
+
+  async getFileBufferById(fileId: string): Promise<Buffer> {
+    const fileEntity = await this.repo.findOne({ where: { id: fileId } });
+    if (!fileEntity) throw new NotFoundException("File not found");
+
+    return this.getFileBuffer(fileEntity.key);
   }
 }

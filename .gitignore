@@ -24,3 +24,4 @@ Thumbs.db
 
 pgdata/
 redis-data/
+rabbitmq-data/

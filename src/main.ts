@@ -7,6 +7,7 @@ import helmet from "helmet";
 import { join } from "path";
 import { writeFileSync } from "fs";
 import { execSync } from "child_process";
+import { MicroserviceOptions, Transport } from "@nestjs/microservices";
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -36,6 +37,19 @@ async function bootstrap() {
   app.enableCors({
     origin: ["http://localhost:5173"],
     credentials: true,
+  });
+
+  app.connectMicroservice<MicroserviceOptions>({
+    transport: Transport.RMQ,
+    options: {
+      urls: [
+        `amqp://${process.env.RABBIT_USER}:${process.env.RABBIT_PASS}@localhost:5672/`,
+      ],
+      queue: "jobs",
+      queueOptions: { durable: true },
+      noAck: false,
+      prefetchCount: 1,
+    },
   });
 
   const config = new DocumentBuilder()
@@ -70,6 +84,7 @@ async function bootstrap() {
     console.error("❌ Failed to generate types:", e);
   }
 
+  await app.startAllMicroservices();
   const port = Number(process.env.PORT) || 3000;
   await app.listen(port);
   console.log(`🚀 API:   http://localhost:${port}/api`);

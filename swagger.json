@@ -665,6 +665,27 @@
           "health"
         ]
       }
+    },
+    "/api/model-job/create": {
+      "post": {
+        "operationId": "ModelJobController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateModelJobDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        }
+      }
     }
   },
   "info": {
@@ -1229,6 +1250,32 @@
         "required": [
           "ok",
           "id"
+        ]
+      },
+      "ModelType": {
+        "type": "string",
+        "enum": [
+          "OPENAI"
+        ]
+      },
+      "CreateModelJobDto": {
+        "type": "object",
+        "properties": {
+          "model": {
+            "$ref": "#/components/schemas/ModelType"
+          },
+          "prompt": {
+            "type": "string",
+            "example": "Мягкое освещение, крупный план"
+          },
+          "inputFileId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "model",
+          "prompt",
+          "inputFileId"
         ]
       }
     }

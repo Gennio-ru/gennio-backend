@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { MailerService } from "@nestjs-modules/mailer";
 import { Address } from "nodemailer/lib/mailer";
+import { ConfigService } from "@nestjs/config";
 
 export type Recipient = string | Address | (string | Address)[];
 
@@ -8,7 +9,10 @@ export type Recipient = string | Address | (string | Address)[];
 export class MailService {
   private readonly logger = new Logger(MailService.name);
 
-  constructor(private readonly mailer: MailerService) {}
+  constructor(
+    private readonly mailer: MailerService,
+    private readonly config: ConfigService
+  ) {}
 
   /** Проверка соединения (полезно дернуть при старте/healthcheck) */
   async verify(): Promise<boolean> {
@@ -96,7 +100,6 @@ export class MailService {
     expireMinutes = 10,
     supportEmail = "support@gennio.ru",
     subject = `Код подтверждения: ${code}`,
-    from,
     replyTo,
     template = "otp",
   }: {
@@ -106,7 +109,6 @@ export class MailService {
     expireMinutes?: number;
     supportEmail?: string;
     subject?: string;
-    from?: string | Address;
     replyTo?: string | Address;
     template?: string;
   }) {
@@ -115,7 +117,7 @@ export class MailService {
       subject,
       template,
       context: { code, project, expireMinutes, supportEmail },
-      from,
+      from: this.config.get<string>("MAIL_FROM"),
       replyTo,
     });
   }

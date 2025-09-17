@@ -67,7 +67,7 @@ export class FilesController {
 
     const signedUrl = saved.url
       ? null
-      : await this.filesService.getSignedGetUrl(saved.key, 3600);
+      : await this.filesService.getSignedGetUrl(saved.key, 10);
     return {
       id: saved.id,
       key: saved.key,

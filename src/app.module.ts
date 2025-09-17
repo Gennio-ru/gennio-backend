@@ -14,6 +14,7 @@ import { envValidationSchema } from "./config/env.validation";
 
 import { APP_GUARD } from "@nestjs/core";
 import { ThrottlerGuard } from "@nestjs/throttler";
+import { ModelJobModule } from "./modules/model-job/model-job.module";
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { ThrottlerGuard } from "@nestjs/throttler";
     MailModule,
     HealthModule,
     MailQueueModule,
+    ModelJobModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
