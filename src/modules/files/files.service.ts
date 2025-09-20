@@ -31,7 +31,8 @@ export class FilesService {
   constructor(
     @Inject(S3_CLIENT) private readonly s3: S3Client,
     private readonly cfg: ConfigService,
-    @InjectRepository(FileEntity) private readonly repo: Repository<FileEntity>
+    @InjectRepository(FileEntity)
+    private readonly repository: Repository<FileEntity>
   ) {
     this.bucket = this.cfg.get<string>("YANDEX_S3_BUCKET")!;
     this.publicBase =
@@ -40,13 +41,34 @@ export class FilesService {
       (this.cfg.get<string>("FILES_DEFAULT_PUBLIC") ?? "false") === "true";
   }
 
-  private getPublicUrl(key: string) {
+  /**
+   * Собирает публичный URL (если `publicBase` указан в .env).
+   */
+  private buildPublicUrl(key: string): string | null {
     return this.publicBase
       ? `${this.publicBase.replace(/\/$/, "")}/${key}`
       : null;
   }
 
-  private buildKey(originalName: string, folder?: string) {
+  /**
+   * Универсальный метод для получения URL (public или signed).
+   */
+  async getFileUrl(
+    file: FileEntity,
+    expiresSec = 86400
+  ): Promise<string | null> {
+    // если явно сохранён url (публичный) → возвращаем его
+    if (file.url) return file.url;
+
+    // если `publicBase` настроен → собираем линк
+    if (this.publicBase) return this.buildPublicUrl(file.key);
+
+    // иначе генерим временный signed URL
+    const cmd = new GetObjectCommand({ Bucket: file.bucket, Key: file.key });
+    return getSignedUrl(this.s3, cmd, { expiresIn: expiresSec });
+  }
+
+  private buildKey(originalName: string, folder?: string): string {
     const ext = (originalName.split(".").pop() || "bin").toLowerCase();
     const now = new Date();
     const yyyy = now.getUTCFullYear();
@@ -79,16 +101,18 @@ export class FilesService {
       })
     );
 
-    const entity = this.repo.create({
+    const entity = this.repository.create({
       bucket: this.bucket,
       key,
-      url: publicRead ? this.getPublicUrl(key) : null,
+      // тут заменил на buildPublicUrl
+      url: publicRead ? this.buildPublicUrl(key) : null,
       contentType: file.mimetype ?? null,
       size: file.size ?? null,
       ownerId: opts.ownerId ?? null,
       meta: opts.meta ?? null,
     });
-    return this.repo.save(entity);
+
+    return this.repository.save(entity);
   }
 
   // Генерирует ссылку на ограниченное время
@@ -99,7 +123,7 @@ export class FilesService {
 
   // Удаляет объект из S3 и запись из БД
   async removeById(fileId: string): Promise<DeleteFileResponseDto> {
-    const fileEntity = await this.repo.findOne({ where: { id: fileId } });
+    const fileEntity = await this.repository.findOne({ where: { id: fileId } });
     if (!fileEntity) {
       throw new NotFoundException("File not found");
     }
@@ -111,13 +135,13 @@ export class FilesService {
       })
     );
 
-    await this.repo.delete({ id: fileEntity.id });
+    await this.repository.delete({ id: fileEntity.id });
 
     return { ok: true, id: fileEntity.id };
   }
 
   async getMeta(id: string) {
-    const f = await this.repo.findOne({ where: { id } });
+    const f = await this.repository.findOne({ where: { id } });
     if (!f) throw new NotFoundException("File not found");
     return f;
   }
@@ -133,7 +157,7 @@ export class FilesService {
   async getFileBuffer(key: string): Promise<Buffer> {
     const cmd = new GetObjectCommand({ Bucket: this.bucket, Key: key });
     const res = await this.s3.send(cmd);
-
+    console.log({ Bucket: this.bucket, Key: key });
     if (!res.Body) {
       throw new NotFoundException("File body is empty");
     }
@@ -142,9 +166,34 @@ export class FilesService {
   }
 
   async getFileBufferById(fileId: string): Promise<Buffer> {
-    const fileEntity = await this.repo.findOne({ where: { id: fileId } });
+    const fileEntity = await this.repository.findOne({ where: { id: fileId } });
+
     if (!fileEntity) throw new NotFoundException("File not found");
 
     return this.getFileBuffer(fileEntity.key);
+  }
+
+  async clearOldUserFile(userId: string): Promise<void> {
+    const oldFile = await this.repository.findOne({
+      where: { ownerId: userId },
+      order: { createdAt: "DESC" },
+    });
+
+    if (oldFile) {
+      try {
+        // сначала удаляем из S3
+        await this.s3.send(
+          new DeleteObjectCommand({
+            Bucket: oldFile.bucket,
+            Key: oldFile.key,
+          })
+        );
+
+        // потом убираем из базы
+        await this.repository.delete({ id: oldFile.id });
+      } catch (err) {
+        console.warn(`Не удалось удалить старый файл ${oldFile.id}`, err);
+      }
+    }
   }
 }

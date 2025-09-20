@@ -13,6 +13,7 @@ export class FileBaseDto implements IFileBase {
 
   @ApiPropertyOptional({
     example: "https://cdn.example.com/uploads/2025/09/04/photo.png",
+    format: "uri",
     nullable: true,
   })
   url!: string | null;

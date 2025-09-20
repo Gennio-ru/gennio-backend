@@ -378,6 +378,10 @@
               "application/json": {
                 "schema": {
                   "type": "object",
+                  "required": [
+                    "items",
+                    "meta"
+                  ],
                   "properties": {
                     "items": {
                       "type": "array",
@@ -666,7 +670,38 @@
         ]
       }
     },
-    "/api/model-job/create": {
+    "/api/model-job/{id}": {
+      "get": {
+        "operationId": "ModelJobController_findOne",
+        "summary": "Получить один процесс по id",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Найденный процесс",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelJobDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Процесс не найден"
+          }
+        }
+      }
+    },
+    "/api/model-job": {
       "post": {
         "operationId": "ModelJobController_create",
         "parameters": [],
@@ -682,7 +717,14 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "Генерация запущена",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelJobDto"
+                }
+              }
+            }
           }
         }
       }
@@ -705,6 +747,13 @@
       }
     },
     "schemas": {
+      "UserRole": {
+        "type": "string",
+        "enum": [
+          "user",
+          "admin"
+        ]
+      },
       "UserDto": {
         "type": "object",
         "properties": {
@@ -721,28 +770,18 @@
             "format": "date-time"
           },
           "email": {
-            "type": "object",
+            "type": "string",
             "example": "user@example.com",
             "nullable": true
           },
           "phone": {
-            "type": "object",
+            "type": "string",
             "example": "+79998887766",
             "nullable": true
           },
-          "passwordHash": {
-            "type": "object",
-            "example": "$2b$10$4FZr...",
-            "description": "bcrypt-хэш пароля или null, если OTP",
-            "nullable": true
-          },
           "role": {
-            "type": "string",
-            "enum": [
-              "user",
-              "admin"
-            ],
-            "example": "user"
+            "example": "user",
+            "$ref": "#/components/schemas/UserRole"
           },
           "credits": {
             "type": "number",
@@ -948,6 +987,14 @@
           "currentPage"
         ]
       },
+      "PromptType": {
+        "type": "string",
+        "enum": [
+          "image-to-image",
+          "text-to-image",
+          "text-to-text"
+        ]
+      },
       "PromptResponseDto": {
         "type": "object",
         "properties": {
@@ -966,12 +1013,7 @@
             "type": "string"
           },
           "type": {
-            "type": "string",
-            "enum": [
-              "image-to-image",
-              "text-to-image",
-              "text-to-text"
-            ]
+            "$ref": "#/components/schemas/PromptType"
           },
           "text": {
             "type": "string",
@@ -1032,12 +1074,7 @@
             "type": "string"
           },
           "type": {
-            "type": "string",
-            "enum": [
-              "image-to-image",
-              "text-to-image",
-              "text-to-text"
-            ]
+            "$ref": "#/components/schemas/PromptType"
           },
           "text": {
             "type": "string",
@@ -1081,11 +1118,11 @@
           },
           "beforeImageId": {
             "type": "string",
-            "example": "/uploads/previews/anime-portrait.jpg"
+            "example": "f47ac10b-58cc-4372-a567-0e02b2c3d479"
           },
           "afterImageId": {
             "type": "string",
-            "example": "/uploads/previews/anime-portrait.jpg"
+            "example": "f47ac10b-58cc-4372-a567-0e02b2c3d479"
           },
           "text": {
             "type": "string",
@@ -1094,6 +1131,9 @@
         },
         "required": [
           "title",
+          "description",
+          "beforeImageId",
+          "afterImageId",
           "text"
         ]
       },
@@ -1110,11 +1150,11 @@
           },
           "beforeImageId": {
             "type": "string",
-            "example": "/uploads/previews/anime-portrait.jpg"
+            "example": "f47ac10b-58cc-4372-a567-0e02b2c3d479"
           },
           "afterImageId": {
             "type": "string",
-            "example": "/uploads/previews/anime-portrait.jpg"
+            "example": "f47ac10b-58cc-4372-a567-0e02b2c3d479"
           },
           "text": {
             "type": "string",
@@ -1184,6 +1224,7 @@
           "url": {
             "type": "object",
             "example": "https://cdn.example.com/uploads/2025/09/04/photo.png",
+            "format": "uri",
             "nullable": true
           },
           "contentType": {
@@ -1258,6 +1299,99 @@
           "OPENAI"
         ]
       },
+      "ModelJobStatusType": {
+        "type": "string",
+        "enum": [
+          "queued",
+          "processing",
+          "succeeded",
+          "failed"
+        ]
+      },
+      "ModelJobDto": {
+        "type": "object",
+        "properties": {
+          "model": {
+            "$ref": "#/components/schemas/ModelType"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ModelJobStatusType"
+          },
+          "prompt": {
+            "type": "string",
+            "example": "Мягкое освещение, крупный план"
+          },
+          "userId": {
+            "type": "string",
+            "example": "user-123"
+          },
+          "inputFileId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+            "nullable": true
+          },
+          "outputFileId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+            "nullable": true
+          },
+          "inputFileUrl": {
+            "type": "object",
+            "example": "https://cdn.example.com/jobs/2025/09/19/5139b0d6-f38d-4af1.png",
+            "nullable": true
+          },
+          "outputFileUrl": {
+            "type": "object",
+            "example": "https://cdn.example.com/jobs/2025/09/19/5139b0d6-f38d-4af1.png",
+            "nullable": true
+          },
+          "error": {
+            "type": "object",
+            "example": "OpenAI timeout error",
+            "nullable": true
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "finishedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "model",
+          "status",
+          "prompt",
+          "userId",
+          "inputFileId",
+          "outputFileId",
+          "inputFileUrl",
+          "outputFileUrl",
+          "error",
+          "startedAt",
+          "finishedAt",
+          "id",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
       "CreateModelJobDto": {
         "type": "object",
         "properties": {
@@ -1269,7 +1403,9 @@
             "example": "Мягкое освещение, крупный план"
           },
           "inputFileId": {
-            "type": "string"
+            "type": "string",
+            "format": "uuid",
+            "example": "f47ac10b-58cc-4372-a567-0e02b2c3d479"
           }
         },
         "required": [

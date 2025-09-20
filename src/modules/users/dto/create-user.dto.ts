@@ -20,7 +20,11 @@ export class CreateUserDto {
   password!: string;
 
   // Разрешай передавать роль только админам (контроллером, а не валидатором)
-  @ApiPropertyOptional({ enum: UserRole, default: UserRole.User })
+  @ApiPropertyOptional({
+    enum: UserRole,
+    default: UserRole.User,
+    enumName: "UserRole",
+  })
   @IsOptional()
   @IsEnum(UserRole)
   role?: UserRole = UserRole.User;

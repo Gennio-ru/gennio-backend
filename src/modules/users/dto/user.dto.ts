@@ -1,4 +1,5 @@
 import {
+  ApiHideProperty,
   ApiProperty,
   ApiPropertyOptional,
   IntersectionType,
@@ -8,20 +9,24 @@ import { UserRole } from "src/modules/users/types/user-role.enum";
 import { IUser, IUserBase } from "../types/user.interface";
 
 export class UserBaseDto extends BaseDto implements IUserBase {
-  @ApiPropertyOptional({ example: "user@example.com", nullable: true })
-  email!: string | null;
-
-  @ApiPropertyOptional({ example: "+79998887766", nullable: true })
-  phone!: string | null;
-
   @ApiPropertyOptional({
-    example: "$2b$10$4FZr...",
-    description: "bcrypt-хэш пароля или null, если OTP",
+    type: String,
+    example: "user@example.com",
     nullable: true,
   })
+  email!: string | null;
+
+  @ApiPropertyOptional({
+    type: String,
+    example: "+79998887766",
+    nullable: true,
+  })
+  phone!: string | null;
+
+  @ApiHideProperty()
   passwordHash!: string | null;
 
-  @ApiProperty({ enum: UserRole, example: UserRole.User })
+  @ApiProperty({ enum: UserRole, example: UserRole.User, enumName: "UserRole" })
   role!: UserRole;
 
   @ApiProperty({ example: 100, description: "Баланс кредитов" })

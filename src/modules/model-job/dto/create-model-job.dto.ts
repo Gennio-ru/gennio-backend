@@ -13,7 +13,10 @@ export class CreateModelJobDto implements Omit<IModelJobCreate, "userId"> {
   @IsString()
   prompt!: string;
 
-  @ApiProperty()
+  @ApiProperty({
+    format: "uuid",
+    example: "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+  })
   @IsUUID()
   inputFileId!: string;
 }

@@ -21,6 +21,7 @@ import { UploadDto } from "./dto/upload.dto";
 import { UploadFileResponseDto } from "./dto/upload-file-response.dto";
 import { DeleteFileResponseDto } from "./dto/delete-file-response.dto";
 import { FileDto } from "./dto/file.dto";
+import { UserId } from "src/common/decorators/user-id.decorator";
 
 @ApiTags("files")
 @Controller("files")
@@ -48,10 +49,14 @@ export class FilesController {
   })
   async upload(
     @UploadedFile() file: Express.Multer.File,
+    @UserId() userId: string,
     @Query("folder") folder?: string,
     @Query("public") publicQ?: string
   ): Promise<UploadFileResponseDto> {
     if (!file) throw new BadRequestException("No file");
+
+    await this.filesService.clearOldUserFile(userId);
+
     const saved = await this.filesService.uploadBuffer(
       {
         buffer: file.buffer,
@@ -62,6 +67,7 @@ export class FilesController {
       {
         folder,
         publicRead: publicQ === "true",
+        ownerId: userId,
       }
     );
 

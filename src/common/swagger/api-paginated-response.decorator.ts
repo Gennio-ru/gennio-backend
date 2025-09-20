@@ -13,6 +13,7 @@ export function ApiPaginatedResponse<TModel extends Type<unknown>>(
       description: opts?.description,
       schema: {
         type: "object",
+        required: [key, "meta"],
         properties: {
           [key]: {
             type: "array",
