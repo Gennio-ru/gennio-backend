@@ -36,6 +36,7 @@ export class PromptsController {
   @ApiQuery({ name: "page", required: false, type: Number, example: 1 })
   @ApiQuery({ name: "limit", required: false, type: Number, example: 10 })
   @ApiQuery({ name: "search", required: false, type: String, example: "face" })
+  @ApiQuery({ name: "categoryId", required: false, type: String })
   @ApiPaginatedResponse(PromptResponseDto, { key: "items" })
   async findMany(
     @Query() query: FindPromptsDto

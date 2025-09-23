@@ -23,7 +23,12 @@ export class CreatePromptDto implements Omit<IPromptCreate, "type"> {
   @IsString()
   afterImageId!: string;
 
-  @ApiProperty({ description: "промпт шаблона" })
+  @ApiProperty({ description: "Промпт шаблона" })
   @IsString()
   text: string;
+
+  @ApiProperty({ description: "Категория" })
+  @IsUUID()
+  @IsOptional()
+  categoryId?: string;
 }

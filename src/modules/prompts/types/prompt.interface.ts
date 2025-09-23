@@ -8,6 +8,7 @@ export interface IPromptBase {
   afterImageId: string;
   type: PromptType;
   text: string;
+  categoryId: string | null;
 }
 
 export interface IPrompt extends ISchema, IPromptBase {}

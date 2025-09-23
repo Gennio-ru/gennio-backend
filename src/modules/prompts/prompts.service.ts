@@ -44,6 +44,12 @@ export class PromptsService {
           );
         }
 
+        if (query.categoryId) {
+          queryBuilder.andWhere("(prompt.categoryId = :categoryId)", {
+            categoryId: query.categoryId,
+          });
+        }
+
         queryBuilder.orderBy("prompt.createdAt", "DESC");
       }
     );

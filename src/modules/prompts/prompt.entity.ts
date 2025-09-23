@@ -3,6 +3,7 @@ import { IPrompt } from "./types/prompt.interface";
 import { Entity, Column, ManyToOne, JoinColumn } from "typeorm";
 import { FileEntity } from "../files/files.entity";
 import { BaseEntity } from "src/common/base/base.entity";
+import { Category } from "../categories/category.entity";
 
 @Entity("prompts")
 export class Prompt extends BaseEntity implements IPrompt {
@@ -35,4 +36,11 @@ export class Prompt extends BaseEntity implements IPrompt {
 
   @Column({ type: "text", default: "" })
   text: string;
+
+  @Column({ type: "uuid", nullable: true })
+  categoryId: string | null;
+
+  @ManyToOne(() => Category, { onDelete: "SET NULL" })
+  @JoinColumn({ name: "categoryId" })
+  category: Category;
 }

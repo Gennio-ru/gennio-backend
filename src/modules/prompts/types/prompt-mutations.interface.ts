@@ -7,6 +7,7 @@ export interface IPromptCreate {
   afterImageId: string;
   text: string;
   type: PromptType;
+  categoryId?: string;
 }
 
 export interface IPromptUpdate extends Partial<Omit<IPromptCreate, "type">> {}

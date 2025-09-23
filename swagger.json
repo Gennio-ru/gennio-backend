@@ -344,6 +344,14 @@
         "summary": "Получить список промптов с фильтрами и пагинацией",
         "parameters": [
           {
+            "name": "categoryId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "search",
             "required": false,
             "in": "query",
@@ -728,6 +736,130 @@
           }
         }
       }
+    },
+    "/api/categories": {
+      "get": {
+        "operationId": "CategoriesController_findMany",
+        "summary": "Получить список категорий",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CategoryDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "categories"
+        ]
+      },
+      "post": {
+        "operationId": "CategoriesController_create",
+        "summary": "Создать новую категорию (только админ)",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCategoryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Категория создана",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoryDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "categories"
+        ]
+      }
+    },
+    "/api/categories/{id}": {
+      "patch": {
+        "operationId": "CategoriesController_update",
+        "summary": "Обновить категорию (только админ)",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCategoryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Обновлённая категория",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoryDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Категория не найдена"
+          }
+        },
+        "tags": [
+          "categories"
+        ]
+      },
+      "delete": {
+        "operationId": "CategoriesController_remove",
+        "summary": "Удалить категорию (только админ)",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Категория удалёна"
+          },
+          "404": {
+            "description": "Категория не найдена"
+          }
+        },
+        "tags": [
+          "categories"
+        ]
+      }
     }
   },
   "info": {
@@ -995,6 +1127,38 @@
           "text-to-text"
         ]
       },
+      "CategoryDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Мультипликация"
+          },
+          "description": {
+            "type": "string",
+            "example": "Обработка изображения в рисовке мультфильмов"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "name",
+          "description",
+          "id",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
       "PromptResponseDto": {
         "type": "object",
         "properties": {
@@ -1018,6 +1182,12 @@
           "text": {
             "type": "string",
             "description": "Текст промпта"
+          },
+          "categoryId": {
+            "type": "object"
+          },
+          "category": {
+            "$ref": "#/components/schemas/CategoryDto"
           },
           "id": {
             "type": "string",
@@ -1049,6 +1219,8 @@
           "afterImageId",
           "type",
           "text",
+          "categoryId",
+          "category",
           "id",
           "createdAt",
           "updatedAt",
@@ -1080,6 +1252,12 @@
             "type": "string",
             "description": "Текст промпта"
           },
+          "categoryId": {
+            "type": "object"
+          },
+          "category": {
+            "$ref": "#/components/schemas/CategoryDto"
+          },
           "id": {
             "type": "string",
             "format": "uuid"
@@ -1100,6 +1278,8 @@
           "afterImageId",
           "type",
           "text",
+          "categoryId",
+          "category",
           "id",
           "createdAt",
           "updatedAt"
@@ -1126,7 +1306,11 @@
           },
           "text": {
             "type": "string",
-            "description": "промпт шаблона"
+            "description": "Промпт шаблона"
+          },
+          "categoryId": {
+            "type": "string",
+            "description": "Категория"
           }
         },
         "required": [
@@ -1134,7 +1318,8 @@
           "description",
           "beforeImageId",
           "afterImageId",
-          "text"
+          "text",
+          "categoryId"
         ]
       },
       "UpdatePromptDto": {
@@ -1158,7 +1343,11 @@
           },
           "text": {
             "type": "string",
-            "description": "промпт шаблона"
+            "description": "Промпт шаблона"
+          },
+          "categoryId": {
+            "type": "string",
+            "description": "Категория"
           }
         }
       },
@@ -1413,6 +1602,34 @@
           "prompt",
           "inputFileId"
         ]
+      },
+      "CreateCategoryDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Мультипликация"
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "description"
+        ]
+      },
+      "UpdateCategoryDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Мультипликация"
+          },
+          "description": {
+            "type": "string"
+          }
+        }
       }
     }
   }

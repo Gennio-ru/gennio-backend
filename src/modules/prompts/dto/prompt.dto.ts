@@ -4,6 +4,7 @@ import { IPrompt, IPromptBase } from "../types/prompt.interface";
 import { BaseDto } from "src/common/base/base.dto";
 import { Expose, Transform } from "class-transformer";
 import { buildPublicUrl } from "src/common/utils/file-url.util";
+import { CategoryDto } from "src/modules/categories/dto/category.dto";
 
 export class PromptBaseDto implements IPromptBase {
   @ApiProperty({ example: "Аниме-портрет" })
@@ -27,6 +28,12 @@ export class PromptBaseDto implements IPromptBase {
     description: "Текст промпта",
   })
   text!: string;
+
+  @ApiProperty()
+  categoryId!: string | null;
+
+  @ApiProperty()
+  category?: CategoryDto;
 }
 
 export class PromptDto
