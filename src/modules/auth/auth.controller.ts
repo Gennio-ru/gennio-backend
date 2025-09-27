@@ -27,6 +27,7 @@ import { UserDto } from "src/modules/users/dto/user.dto";
 import { RequestEmailOtpDto } from "./dto/request-otp-by-email.dto";
 import { VerifyPhoneOtpDto } from "./dto/verify-otp-by-phone.dto";
 import { Response } from "express";
+import { UserId } from "src/common/decorators/user-id.decorator";
 
 @ApiTags("auth")
 @Controller("auth")
@@ -103,6 +104,8 @@ export class AuthController {
   ): Promise<AuthResponseDto> {
     const { accessToken, refreshToken, user } =
       await this.authService.loginByEmail(dto);
+    console.log("accessToken", accessToken);
+    console.log("refreshToken", refreshToken);
     this.setRefreshCookie(res, refreshToken);
     return { accessToken, user };
   }
@@ -164,9 +167,8 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "Текущий пользователь" })
   @ApiResponse({ status: 200, type: UserDto })
-  async me(@Req() req: any): Promise<UserDto> {
-    // payload из JwtStrategy.validate
-    return this.authService.me(req.user);
+  async me(@UserId() userId: string): Promise<UserDto> {
+    return this.authService.me(userId);
   }
 
   @Post("refresh")

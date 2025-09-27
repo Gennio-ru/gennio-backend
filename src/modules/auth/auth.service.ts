@@ -219,8 +219,8 @@ export class AuthService {
     return this.issueTokensAndPersistSession(user);
   }
 
-  async me(userPayload: any) {
-    const user = await this.usersService.findById(userPayload.sub);
+  async me(userId: string) {
+    const user = await this.usersService.findById(userId);
     return user;
   }
 
