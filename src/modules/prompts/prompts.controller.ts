@@ -23,6 +23,11 @@ import { PaginationResult } from "src/common/pagination/pagination.interface";
 import { PromptDto, PromptResponseDto } from "./dto/prompt.dto";
 import { UpdatePromptDto } from "./dto/update-prompt.dto";
 import { ApiPaginatedResponse } from "src/common/swagger/api-paginated-response.decorator";
+import {
+  paginatePlainToClass,
+  plainModelToClass,
+  plainModelToClassArray,
+} from "src/common/helpers/entity.helper";
 
 @ApiTags("prompts")
 @Controller("prompts")
@@ -43,10 +48,7 @@ export class PromptsController {
   ): Promise<PaginationResult<PromptDto>> {
     const page = await this.promptsService.findMany(query);
 
-    return {
-      meta: page.meta,
-      items: page.items.map((p) => Object.assign(new PromptResponseDto(), p)),
-    };
+    return paginatePlainToClass(PromptResponseDto, page);
   }
 
   @Get(":id")
@@ -60,7 +62,7 @@ export class PromptsController {
   async findOne(@Param("id", ParseUUIDPipe) id: string): Promise<PromptDto> {
     const prompt = await this.promptsService.findOne(id);
 
-    return Object.assign(new PromptResponseDto(), prompt);
+    return plainModelToClass(PromptResponseDto, prompt);
   }
 
   @Post()
