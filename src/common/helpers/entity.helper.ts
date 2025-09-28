@@ -1,32 +1,32 @@
-import { plainToClass } from "class-transformer";
+import { plainToInstance } from "class-transformer";
 import {
   ClassConstructor,
   ClassTransformOptions,
 } from "class-transformer/types/interfaces";
 import { PaginationResult } from "../pagination/pagination.interface";
 
-export const plainModelToClass = <T>(
+export const plainModelToInstance = <T>(
   PlainClass: ClassConstructor<T>,
   model: any,
   options?: ClassTransformOptions
 ): T =>
-  plainToClass(PlainClass, model.toJSON ? model.toJSON() : model, options);
+  plainToInstance(PlainClass, model.toJSON ? model.toJSON() : model, options);
 
-export const plainModelToClassArray = <T, M>(
+export const plainModelToInstanceArray = <T, M>(
   PlainClass: ClassConstructor<T>,
   models: M[],
   options?: ClassTransformOptions
 ): T[] => {
   return models.map((element) =>
-    plainModelToClass(PlainClass, element, options)
+    plainModelToInstance(PlainClass, element, options)
   );
 };
 
-export const paginatePlainToClass = <T>(
+export const paginatePlainToInstance = <T>(
   PlainClass: ClassConstructor<T>,
   paginate: PaginationResult<any>,
   options?: ClassTransformOptions
 ): PaginationResult<T> => ({
   meta: paginate.meta,
-  items: plainModelToClassArray(PlainClass, paginate.items, options),
+  items: plainModelToInstanceArray(PlainClass, paginate.items, options),
 });

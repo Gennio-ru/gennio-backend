@@ -7,6 +7,7 @@ import {
   Index,
 } from "typeorm";
 import { UserRole } from "./types/user-role.enum";
+import { Exclude } from "class-transformer";
 
 @Entity({ name: "users" })
 export class User {
@@ -21,6 +22,7 @@ export class User {
   @Column({ type: "varchar", length: 32, nullable: true, unique: true })
   phone!: string | null;
 
+  @Exclude()
   @Column({ type: "varchar", length: 255, nullable: true })
   passwordHash!: string | null;
 

@@ -7,6 +7,7 @@ import {
 import { BaseDto } from "src/common/base/base.dto";
 import { UserRole } from "src/modules/users/types/user-role.enum";
 import { IUser, IUserBase } from "../types/user.interface";
+import { Exclude } from "class-transformer";
 
 export class UserBaseDto extends BaseDto implements IUserBase {
   @ApiPropertyOptional({
@@ -23,6 +24,7 @@ export class UserBaseDto extends BaseDto implements IUserBase {
   })
   phone!: string | null;
 
+  @Exclude()
   @ApiHideProperty()
   passwordHash!: string | null;
 

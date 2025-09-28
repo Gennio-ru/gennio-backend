@@ -20,7 +20,6 @@ async function bootstrap() {
     : true;
   app.enableCors({ origin: origins, credentials: true });
   app.enableShutdownHooks();
-  app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
 
   // Глобальные настройки
   app.use(cookieParser());

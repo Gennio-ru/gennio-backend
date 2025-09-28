@@ -13,6 +13,11 @@ export interface AccessPayload {
   exp?: number;
 }
 
+export interface ReqUserData
+  extends Pick<AccessPayload, "role" | "credits" | "email"> {
+  userId: string;
+}
+
 @Injectable()
 export class JwtAccessStrategy extends PassportStrategy(Strategy, "jwt") {
   constructor(config: ConfigService) {
@@ -22,7 +27,7 @@ export class JwtAccessStrategy extends PassportStrategy(Strategy, "jwt") {
       secretOrKey: config.get<string>("JWT_ACCESS_SECRET") as string,
     });
   }
-  validate(payload: AccessPayload) {
+  validate(payload: AccessPayload): ReqUserData {
     return {
       userId: payload.sub,
       role: payload.role,

@@ -24,10 +24,12 @@ import { PromptDto, PromptResponseDto } from "./dto/prompt.dto";
 import { UpdatePromptDto } from "./dto/update-prompt.dto";
 import { ApiPaginatedResponse } from "src/common/swagger/api-paginated-response.decorator";
 import {
-  paginatePlainToClass,
-  plainModelToClass,
-  plainModelToClassArray,
+  paginatePlainToInstance,
+  plainModelToInstance,
 } from "src/common/helpers/entity.helper";
+import { OptionalJwtAuthGuard } from "../auth/guards/optional-jwt-auth.guard";
+import { ReqUser } from "src/common/decorators/req-user.decorator";
+import { ReqUserData } from "../auth/strategies/jwt-access.strategy";
 
 @ApiTags("prompts")
 @Controller("prompts")
@@ -35,6 +37,7 @@ export class PromptsController {
   constructor(private readonly promptsService: PromptsService) {}
 
   @Get()
+  @UseGuards(OptionalJwtAuthGuard)
   @ApiOperation({
     summary: "Получить список промптов с фильтрами и пагинацией",
   })
@@ -44,14 +47,18 @@ export class PromptsController {
   @ApiQuery({ name: "categoryId", required: false, type: String })
   @ApiPaginatedResponse(PromptResponseDto, { key: "items" })
   async findMany(
-    @Query() query: FindPromptsDto
+    @Query() query: FindPromptsDto,
+    @ReqUser() user: ReqUserData
   ): Promise<PaginationResult<PromptDto>> {
     const page = await this.promptsService.findMany(query);
 
-    return paginatePlainToClass(PromptResponseDto, page);
+    return paginatePlainToInstance(PromptResponseDto, page, {
+      groups: user ? [user?.role] : [],
+    });
   }
 
   @Get(":id")
+  @UseGuards(OptionalJwtAuthGuard)
   @ApiOperation({ summary: "Получить один промпт по id" })
   @ApiResponse({
     status: 200,
@@ -59,10 +66,15 @@ export class PromptsController {
     type: PromptDto,
   })
   @ApiResponse({ status: 404, description: "Промпт не найден" })
-  async findOne(@Param("id", ParseUUIDPipe) id: string): Promise<PromptDto> {
+  async findOne(
+    @Param("id", ParseUUIDPipe) id: string,
+    @ReqUser() user: ReqUserData
+  ): Promise<PromptDto> {
     const prompt = await this.promptsService.findOne(id);
 
-    return plainModelToClass(PromptResponseDto, prompt);
+    return plainModelToInstance(PromptResponseDto, prompt, {
+      groups: user ? [user?.role] : [],
+    });
   }
 
   @Post()

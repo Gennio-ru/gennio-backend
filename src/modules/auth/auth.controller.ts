@@ -7,6 +7,8 @@ import {
   Req,
   Res,
   HttpCode,
+  ClassSerializerInterceptor,
+  UseInterceptors,
 } from "@nestjs/common";
 import {
   ApiTags,
@@ -31,6 +33,7 @@ import { UserId } from "src/common/decorators/user-id.decorator";
 
 @ApiTags("auth")
 @Controller("auth")
+@UseInterceptors(ClassSerializerInterceptor)
 export class AuthController {
   private readonly refreshCookieName = "refresh_token";
 

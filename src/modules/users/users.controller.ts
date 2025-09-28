@@ -2,10 +2,10 @@ import {
   Controller,
   Get,
   Param,
-  Patch,
-  Body,
   UseGuards,
   ParseUUIDPipe,
+  UseInterceptors,
+  ClassSerializerInterceptor,
 } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiResponse } from "@nestjs/swagger";
 import { UsersService } from "./users.service";
@@ -14,6 +14,7 @@ import { UserDto } from "./dto/user.dto";
 
 @ApiTags("users")
 @Controller("users")
+@UseInterceptors(ClassSerializerInterceptor)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 

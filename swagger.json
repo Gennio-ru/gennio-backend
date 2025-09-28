@@ -1119,6 +1119,67 @@
           "currentPage"
         ]
       },
+      "FileDto": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "example": "uploads/2025/09/04/photo.png"
+          },
+          "url": {
+            "type": "object",
+            "example": "https://cdn.example.com/uploads/2025/09/04/photo.png",
+            "format": "uri",
+            "nullable": true
+          },
+          "contentType": {
+            "type": "object",
+            "example": "image/png",
+            "nullable": true
+          },
+          "size": {
+            "type": "object",
+            "example": 204800,
+            "description": "Размер файла в байтах"
+          },
+          "bucket": {
+            "type": "string",
+            "example": "my-bucket"
+          },
+          "ownerId": {
+            "type": "object",
+            "example": "user-123",
+            "nullable": true
+          },
+          "meta": {
+            "type": "object",
+            "example": {
+              "width": 400,
+              "height": 300
+            },
+            "nullable": true
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "key",
+          "bucket",
+          "id",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
       "PromptType": {
         "type": "string",
         "enum": [
@@ -1173,8 +1234,14 @@
           "beforeImageId": {
             "type": "string"
           },
+          "beforeImage": {
+            "$ref": "#/components/schemas/FileDto"
+          },
           "afterImageId": {
             "type": "string"
+          },
+          "afterImage": {
+            "$ref": "#/components/schemas/FileDto"
           },
           "type": {
             "$ref": "#/components/schemas/PromptType"
@@ -1216,7 +1283,9 @@
           "title",
           "description",
           "beforeImageId",
+          "beforeImage",
           "afterImageId",
+          "afterImage",
           "type",
           "text",
           "categoryId",
@@ -1242,8 +1311,14 @@
           "beforeImageId": {
             "type": "string"
           },
+          "beforeImage": {
+            "$ref": "#/components/schemas/FileDto"
+          },
           "afterImageId": {
             "type": "string"
+          },
+          "afterImage": {
+            "$ref": "#/components/schemas/FileDto"
           },
           "type": {
             "$ref": "#/components/schemas/PromptType"
@@ -1275,7 +1350,9 @@
           "title",
           "description",
           "beforeImageId",
+          "beforeImage",
           "afterImageId",
+          "afterImage",
           "type",
           "text",
           "categoryId",
@@ -1401,67 +1478,6 @@
           "contentType",
           "size",
           "createdAt"
-        ]
-      },
-      "FileDto": {
-        "type": "object",
-        "properties": {
-          "key": {
-            "type": "string",
-            "example": "uploads/2025/09/04/photo.png"
-          },
-          "url": {
-            "type": "object",
-            "example": "https://cdn.example.com/uploads/2025/09/04/photo.png",
-            "format": "uri",
-            "nullable": true
-          },
-          "contentType": {
-            "type": "object",
-            "example": "image/png",
-            "nullable": true
-          },
-          "size": {
-            "type": "object",
-            "example": 204800,
-            "description": "Размер файла в байтах"
-          },
-          "bucket": {
-            "type": "string",
-            "example": "my-bucket"
-          },
-          "ownerId": {
-            "type": "object",
-            "example": "user-123",
-            "nullable": true
-          },
-          "meta": {
-            "type": "object",
-            "example": {
-              "width": 400,
-              "height": 300
-            },
-            "nullable": true
-          },
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time"
-          }
-        },
-        "required": [
-          "key",
-          "bucket",
-          "id",
-          "createdAt",
-          "updatedAt"
         ]
       },
       "DeleteFileResponseDto": {
