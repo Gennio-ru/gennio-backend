@@ -35,6 +35,7 @@ export class PromptsService {
         queryBuilder
           .leftJoinAndSelect("prompt.beforeImage", "beforeFile")
           .leftJoinAndSelect("prompt.afterImage", "afterFile")
+          .leftJoinAndSelect("prompt.category", "category")
           .distinct(true);
 
         if (query.search) {
