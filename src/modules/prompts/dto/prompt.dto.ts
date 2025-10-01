@@ -48,7 +48,7 @@ export class PromptBaseDto implements IPromptBase {
   text!: string;
 
   @Expose()
-  @ApiProperty()
+  @ApiProperty({ type: String })
   categoryId!: string | null;
 
   @Expose()

@@ -1251,7 +1251,7 @@
             "description": "Текст промпта"
           },
           "categoryId": {
-            "type": "object"
+            "type": "string"
           },
           "category": {
             "$ref": "#/components/schemas/CategoryDto"
@@ -1328,7 +1328,7 @@
             "description": "Текст промпта"
           },
           "categoryId": {
-            "type": "object"
+            "type": "string"
           },
           "category": {
             "$ref": "#/components/schemas/CategoryDto"

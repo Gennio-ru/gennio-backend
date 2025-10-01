@@ -62,7 +62,7 @@ export class PromptsService {
   }
 
   async update(id: string, data: UpdatePromptDto): Promise<Prompt> {
-    this.repository.update(id, { ...data });
+    await this.repository.update(id, { ...data });
 
     const prompt = await this.repository.findOne({
       where: { id },
