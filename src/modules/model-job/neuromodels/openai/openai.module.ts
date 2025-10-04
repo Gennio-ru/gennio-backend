@@ -2,7 +2,7 @@ import { Module } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import OpenAI from "openai";
 import { OPENAI_CLIENT } from "./openai.constants";
-import { OpenAiImageService } from "./openai-image.service";
+import { OpenAiImageService } from "./openai.service";
 
 @Module({
   imports: [ConfigModule.forRoot({ isGlobal: true })],

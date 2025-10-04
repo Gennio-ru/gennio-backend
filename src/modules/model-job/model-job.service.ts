@@ -4,7 +4,7 @@ import { Repository } from "typeorm";
 import { ModelJob } from "./model-job.entity";
 import { CreateModelJobDto } from "./dto/create-model-job.dto";
 import { GenerateImageDto } from "./dto/generate-image.dto";
-import { OpenAiImageService } from "./neuromodels/openai/openai-image.service";
+import { OpenAiImageService } from "./neuromodels/openai/openai.service";
 import { ClientProxy } from "@nestjs/microservices";
 import { MODEL_JOB_CLIENT } from "./model-job.constants";
 import { IModelJobCreate } from "./types/model-job-mutations.interface";
@@ -61,7 +61,9 @@ export class ModelJobService {
 
   async create(data: IModelJobCreate): Promise<ModelJob> {
     const modelJob = this.repository.create(data);
+
     await this.repository.save(modelJob);
+
     this.client.emit("model_job_created", {
       modelJobId: modelJob.id,
       payload: data,
@@ -70,13 +72,8 @@ export class ModelJobService {
     return modelJob;
   }
 
-  async generate(dto: GenerateImageDto) {
-    return this.openaiService.generate({ prompt: dto.prompt });
-  }
-
   // Обработка изображения
-  async processJob(modelJobId: string, dto: CreateModelJobDto) {
-    // Идемпотентный переход queued -> processing
+  async modelJobProcess(modelJobId: string, dto: CreateModelJobDto) {
     const startRes = await this.repository.update(
       { id: modelJobId, status: ModelJobStatusType.queued },
       {
@@ -91,36 +88,41 @@ export class ModelJobService {
     }
 
     try {
-      const { outputFileId } = await this.process(dto);
+      const { outputFileId } = await this.fileProcess(dto);
 
       await this.repository.update(modelJobId, {
         status: ModelJobStatusType.succeeded,
         outputFileId,
         finishedAt: new Date(),
       });
-
-      // тут можно публиковать событие "job.succeeded" в outbox/шину
     } catch (e) {
       await this.repository.update(modelJobId, {
         status: ModelJobStatusType.failed,
         error: e instanceof Error ? e.message : String(e),
         finishedAt: new Date(),
       });
-      // Опционально: пробрасывать дальше, если наверху нужна реакция
     }
   }
 
-  private async process(
+  private async fileProcess(
     payload: CreateModelJobDto
   ): Promise<{ outputFileId: string }> {
-    const fileBuffer = await this.filesService.getFileBufferById(
-      payload.inputFileId
-    );
+    let resultPngBuffer: Buffer<ArrayBufferLike>;
 
-    const resultPngBuffer = await this.openaiService.process({
-      image: fileBuffer,
-      prompt: payload.prompt,
-    });
+    if (payload.inputFileId) {
+      const fileBuffer = await this.filesService.getFileBufferById(
+        payload.inputFileId
+      );
+
+      resultPngBuffer = await this.openaiService.editImage({
+        image: fileBuffer,
+        prompt: payload.prompt,
+      });
+    } else {
+      resultPngBuffer = await this.openaiService.generateImage({
+        prompt: payload.prompt,
+      });
+    }
 
     const outputFile = await this.filesService.uploadBuffer(
       {
