@@ -711,14 +711,14 @@
     },
     "/api/model-job": {
       "post": {
-        "operationId": "ModelJobController_create",
+        "operationId": "ModelJobController_startImageGenerateByPromptText",
         "parameters": [],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreateModelJobDto"
+                "$ref": "#/components/schemas/StartImageGenerateByPromptTextDto"
               }
             }
           }
@@ -1522,8 +1522,14 @@
           "status": {
             "$ref": "#/components/schemas/ModelJobStatusType"
           },
-          "prompt": {
+          "text": {
             "type": "string",
+            "nullable": true,
+            "example": "Мягкое освещение, крупный план"
+          },
+          "promptId": {
+            "type": "string",
+            "nullable": true,
             "example": "Мягкое освещение, крупный план"
           },
           "userId": {
@@ -1583,7 +1589,8 @@
         "required": [
           "model",
           "status",
-          "prompt",
+          "text",
+          "promptId",
           "userId",
           "inputFileId",
           "outputFileId",
@@ -1597,26 +1604,64 @@
           "updatedAt"
         ]
       },
-      "CreateModelJobDto": {
+      "StartImageEditByPromptIdDto": {
         "type": "object",
         "properties": {
           "model": {
             "$ref": "#/components/schemas/ModelType"
           },
-          "prompt": {
+          "promptId": {
+            "type": "string"
+          },
+          "text": {
             "type": "string",
             "example": "Мягкое освещение, крупный план"
           },
           "inputFileId": {
-            "type": "string",
-            "format": "uuid",
-            "example": "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+            "type": "string"
           }
         },
         "required": [
           "model",
-          "prompt",
+          "promptId",
+          "text",
           "inputFileId"
+        ]
+      },
+      "StartImageEditByPromptTextDto": {
+        "type": "object",
+        "properties": {
+          "model": {
+            "$ref": "#/components/schemas/ModelType"
+          },
+          "text": {
+            "type": "string",
+            "example": "Мягкое освещение, крупный план"
+          },
+          "inputFileId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "model",
+          "text",
+          "inputFileId"
+        ]
+      },
+      "StartImageGenerateByPromptTextDto": {
+        "type": "object",
+        "properties": {
+          "model": {
+            "$ref": "#/components/schemas/ModelType"
+          },
+          "text": {
+            "type": "string",
+            "example": "Мягкое освещение, крупный план"
+          }
+        },
+        "required": [
+          "model",
+          "text"
         ]
       },
       "CreateCategoryDto": {

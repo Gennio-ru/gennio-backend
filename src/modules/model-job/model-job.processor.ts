@@ -5,12 +5,11 @@ import { Repository } from "typeorm";
 import { ModelJob } from "./model-job.entity";
 import { ModelJobStatusType } from "./types/model-job.enum";
 import { ModelJobService } from "./model-job.service";
-import { FilesService } from "../files/files.service";
-import { CreateModelJobDto } from "./dto/create-model-job.dto";
+import { IModelJobCreate } from "./types/model-job-mutations.interface";
 
 type JobMessage = {
   modelJobId: string;
-  payload: CreateModelJobDto;
+  payload: IModelJobCreate;
 };
 
 @Controller()
@@ -32,7 +31,7 @@ export class ModelJobsProcessor {
     }
 
     try {
-      await this.modelJobService.processJob(data.modelJobId, data.payload);
+      await this.modelJobService.modelJobProcess(data.modelJobId, data.payload);
       channel.ack(msg);
     } catch (e) {
       await this.repository.update(data.modelJobId, {

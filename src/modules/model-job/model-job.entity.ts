@@ -1,18 +1,28 @@
 import { IModelJob } from "./types/model-job.interface";
 import { Entity, Column } from "typeorm";
 import { BaseEntity } from "src/common/base/base.entity";
-import { ModelJobStatusType, ModelType } from "./types/model-job.enum";
+import {
+  ModelJobStatusType,
+  ModelJobType,
+  ModelType,
+} from "./types/model-job.enum";
 
 @Entity("model_jobs")
 export class ModelJob extends BaseEntity implements IModelJob {
   @Column({ type: "enum", enum: ModelType })
   model: ModelType;
 
+  @Column({ type: "enum", enum: ModelJobType })
+  type: ModelJobType;
+
   @Column({ type: "enum", enum: ModelJobStatusType, default: "queued" })
   status: ModelJobStatusType;
 
   @Column({ type: "text" })
-  prompt: string;
+  text: string;
+
+  @Column({ type: "uuid" })
+  promptId: string;
 
   @Column({ type: "uuid" })
   userId: string;

@@ -2,15 +2,14 @@ import { Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { ModelJob } from "./model-job.entity";
-import { CreateModelJobDto } from "./dto/create-model-job.dto";
-import { GenerateImageDto } from "./dto/generate-image.dto";
 import { OpenAiImageService } from "./neuromodels/openai/openai.service";
 import { ClientProxy } from "@nestjs/microservices";
 import { MODEL_JOB_CLIENT } from "./model-job.constants";
 import { IModelJobCreate } from "./types/model-job-mutations.interface";
-import { ModelJobStatusType } from "./types/model-job.enum";
+import { ModelJobStatusType, ModelJobType } from "./types/model-job.enum";
 import { FilesService } from "../files/files.service";
 import { ModelJobDto } from "./dto/model-job.dto";
+import { PromptsService } from "../prompts/prompts.service";
 
 @Injectable()
 export class ModelJobService {
@@ -19,6 +18,7 @@ export class ModelJobService {
     private readonly repository: Repository<ModelJob>,
     private readonly openaiService: OpenAiImageService,
     private readonly filesService: FilesService,
+    private readonly promptsService: PromptsService,
     @Inject(MODEL_JOB_CLIENT) private readonly client: ClientProxy
   ) {}
 
@@ -73,7 +73,7 @@ export class ModelJobService {
   }
 
   // Обработка изображения
-  async modelJobProcess(modelJobId: string, dto: CreateModelJobDto) {
+  async modelJobProcess(modelJobId: string, data: IModelJobCreate) {
     const startRes = await this.repository.update(
       { id: modelJobId, status: ModelJobStatusType.queued },
       {
@@ -88,7 +88,7 @@ export class ModelJobService {
     }
 
     try {
-      const { outputFileId } = await this.fileProcess(dto);
+      const { outputFileId } = await this.fileProcess(data);
 
       await this.repository.update(modelJobId, {
         status: ModelJobStatusType.succeeded,
@@ -105,23 +105,58 @@ export class ModelJobService {
   }
 
   private async fileProcess(
-    payload: CreateModelJobDto
+    payload: IModelJobCreate
   ): Promise<{ outputFileId: string }> {
     let resultPngBuffer: Buffer<ArrayBufferLike>;
 
-    if (payload.inputFileId) {
-      const fileBuffer = await this.filesService.getFileBufferById(
-        payload.inputFileId
-      );
+    switch (payload.type) {
+      case ModelJobType.ImageEditByPromptId: {
+        if (!payload.inputFileId) {
+          throw new Error("не указан inputFileId");
+        }
 
-      resultPngBuffer = await this.openaiService.editImage({
-        image: fileBuffer,
-        prompt: payload.prompt,
-      });
-    } else {
-      resultPngBuffer = await this.openaiService.generateImage({
-        prompt: payload.prompt,
-      });
+        const fileBuffer = await this.filesService.getFileBufferById(
+          payload.inputFileId
+        );
+
+        if (!payload.promptId) {
+          throw new Error("не указан promptId");
+        }
+
+        const promptData = await this.promptsService.findOne(payload.promptId);
+
+        resultPngBuffer = await this.openaiService.editImage({
+          image: fileBuffer,
+          prompt: promptData.text,
+        });
+      }
+      case ModelJobType.ImageEditByPromptText: {
+        if (!payload.inputFileId) {
+          throw new Error("не указан inputFileId");
+        }
+
+        if (!payload.text) {
+          throw new Error("не указан text");
+        }
+
+        const fileBuffer = await this.filesService.getFileBufferById(
+          payload.inputFileId
+        );
+
+        resultPngBuffer = await this.openaiService.editImage({
+          image: fileBuffer,
+          prompt: payload.text,
+        });
+      }
+      case ModelJobType.ImageGenerateByPromptText: {
+        if (!payload.text) {
+          throw new Error("Не указан text");
+        }
+
+        resultPngBuffer = await this.openaiService.generateImage({
+          prompt: payload.text,
+        });
+      }
     }
 
     const outputFile = await this.filesService.uploadBuffer(

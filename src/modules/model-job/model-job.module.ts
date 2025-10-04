@@ -9,6 +9,7 @@ import { RabbitmqModule } from "src/rabbitmq/rabbitmq.module";
 import { MODEL_JOB_CLIENT } from "./model-job.constants";
 import { ModelJobsProcessor } from "./model-job.processor";
 import { FilesModule } from "../files/files.module";
+import { PromptsModule } from "../prompts/prompts.module";
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { FilesModule } from "../files/files.module";
       name: MODEL_JOB_CLIENT,
     }),
     FilesModule,
+    PromptsModule,
   ],
   controllers: [ModelJobController, ModelJobsProcessor],
   providers: [ModelJobService],

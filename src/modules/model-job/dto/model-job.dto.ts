@@ -10,8 +10,19 @@ export class ModelJobBaseDto implements IModelJobBase {
   @ApiProperty({ enum: ModelJobStatusType, enumName: "ModelJobStatusType" })
   status!: ModelJobStatusType;
 
-  @ApiProperty({ example: "Мягкое освещение, крупный план" })
-  prompt!: string;
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    example: "Мягкое освещение, крупный план",
+  })
+  text: string | null;
+
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    example: "Мягкое освещение, крупный план",
+  })
+  promptId: string | null;
 
   @ApiProperty({ example: "user-123" })
   userId!: string;

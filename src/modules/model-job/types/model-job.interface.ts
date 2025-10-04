@@ -4,7 +4,8 @@ import { ModelJobStatusType, ModelType } from "./model-job.enum";
 export interface IModelJobBase {
   model: ModelType;
   status: ModelJobStatusType;
-  prompt: string;
+  text: string | null;
+  promptId: string | null;
   userId: string;
   inputFileId: string | null;
   outputFileId: string | null;
