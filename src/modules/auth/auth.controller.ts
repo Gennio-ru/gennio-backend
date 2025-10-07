@@ -107,8 +107,7 @@ export class AuthController {
   ): Promise<AuthResponseDto> {
     const { accessToken, refreshToken, user } =
       await this.authService.loginByEmail(dto);
-    console.log("accessToken", accessToken);
-    console.log("refreshToken", refreshToken);
+
     this.setRefreshCookie(res, refreshToken);
     return { accessToken, user };
   }

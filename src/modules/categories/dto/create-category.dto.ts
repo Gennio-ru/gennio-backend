@@ -8,7 +8,7 @@ export class CreateCategoryDto implements ICategoryCreate {
   @IsNotEmpty()
   name!: string;
 
-  @ApiProperty()
+  @ApiProperty({ required: false })
   @IsString()
   @IsOptional()
   description?: string;

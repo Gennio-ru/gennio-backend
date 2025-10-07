@@ -849,6 +849,38 @@
       }
     },
     "/api/categories/{id}": {
+      "get": {
+        "operationId": "CategoriesController_findOne",
+        "summary": "Получить один промпт по id",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Найденная категория",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoryDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Категория не найдена"
+          }
+        },
+        "tags": [
+          "categories"
+        ]
+      },
       "patch": {
         "operationId": "CategoriesController_update",
         "summary": "Обновить категорию (только админ)",
@@ -1744,8 +1776,7 @@
           }
         },
         "required": [
-          "name",
-          "description"
+          "name"
         ]
       },
       "UpdateCategoryDto": {

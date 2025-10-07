@@ -7,9 +7,9 @@ import {
   Patch,
   Delete,
   UseGuards,
-  Query,
   HttpCode,
   ParseUUIDPipe,
+  Query,
 } from "@nestjs/common";
 import { CategoriesService } from "./categories.service";
 import { ApiTags, ApiOperation, ApiResponse } from "@nestjs/swagger";
@@ -20,6 +20,7 @@ import { Roles } from "src/modules/users/user-roles.decorator";
 import { CreateCategoryDto } from "./dto/create-category.dto";
 import { CategoryDto } from "./dto/category.dto";
 import { UpdateCategoryDto } from "./dto/update-category.dto";
+import { FindPromptsDto } from "../prompts/dto/find-prompts.dto";
 
 @ApiTags("categories")
 @Controller("categories")
@@ -31,8 +32,22 @@ export class CategoriesController {
     summary: "Получить список категорий",
   })
   @ApiResponse({ status: 200, type: [CategoryDto] })
-  async findMany(): Promise<CategoryDto[]> {
-    return this.categoriesService.findMany();
+  async findMany(@Query() query: FindPromptsDto): Promise<CategoryDto[]> {
+    return this.categoriesService.findMany(query);
+  }
+
+  @Get(":id")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.Admin)
+  @ApiOperation({ summary: "Получить один промпт по id" })
+  @ApiResponse({
+    status: 200,
+    description: "Найденная категория",
+    type: CategoryDto,
+  })
+  @ApiResponse({ status: 404, description: "Категория не найдена" })
+  async findOne(@Param("id", ParseUUIDPipe) id: string): Promise<CategoryDto> {
+    return this.categoriesService.findOne(id);
   }
 
   @Post()

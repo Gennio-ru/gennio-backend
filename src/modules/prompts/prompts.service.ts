@@ -57,7 +57,7 @@ export class PromptsService {
   }
 
   async create(data: CreatePromptDto): Promise<Prompt> {
-    const prompt = this.repository.create(data);
+    const prompt = await this.repository.create(data);
     return this.repository.save(prompt);
   }
 
