@@ -21,8 +21,8 @@ export class ModelJob extends BaseEntity implements IModelJob {
   @Column({ type: "text" })
   text: string;
 
-  @Column({ type: "uuid" })
-  promptId: string;
+  @Column({ type: "uuid", nullable: true })
+  promptId: string | null;
 
   @Column({ type: "uuid" })
   userId: string;

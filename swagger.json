@@ -709,7 +709,63 @@
         }
       }
     },
-    "/api/model-job": {
+    "/api/model-job/start-image-edit-by-prompt-id": {
+      "post": {
+        "operationId": "ModelJobController_startImageEditByPromptId",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartImageEditByPromptIdDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Генерация запущена",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelJobDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/model-job/start-image-edit-by-prompt-text": {
+      "post": {
+        "operationId": "ModelJobController_startImageEditByPromptText",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartImageEditByPromptTextDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Генерация запущена",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelJobDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/model-job/start-image-generate": {
       "post": {
         "operationId": "ModelJobController_startImageGenerateByPromptText",
         "parameters": [],
@@ -1504,6 +1560,14 @@
           "OPENAI"
         ]
       },
+      "ModelJobType": {
+        "type": "string",
+        "enum": [
+          "image-edit-by-prompt-id",
+          "image-edit-by-prompt-text",
+          "image-generate-by-prompt-text"
+        ]
+      },
       "ModelJobStatusType": {
         "type": "string",
         "enum": [
@@ -1518,6 +1582,9 @@
         "properties": {
           "model": {
             "$ref": "#/components/schemas/ModelType"
+          },
+          "type": {
+            "$ref": "#/components/schemas/ModelJobType"
           },
           "status": {
             "$ref": "#/components/schemas/ModelJobStatusType"
@@ -1588,6 +1655,7 @@
         },
         "required": [
           "model",
+          "type",
           "status",
           "text",
           "promptId",

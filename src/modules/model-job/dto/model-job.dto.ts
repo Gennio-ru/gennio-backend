@@ -1,11 +1,18 @@
 import { ApiProperty, IntersectionType } from "@nestjs/swagger";
 import { IModelJob, IModelJobBase } from "../types/model-job.interface";
-import { ModelJobStatusType, ModelType } from "../types/model-job.enum";
+import {
+  ModelJobStatusType,
+  ModelJobType,
+  ModelType,
+} from "../types/model-job.enum";
 import { BaseDto } from "src/common/base/base.dto";
 
 export class ModelJobBaseDto implements IModelJobBase {
   @ApiProperty({ enum: ModelType, enumName: "ModelType" })
   model!: ModelType;
+
+  @ApiProperty({ enum: ModelJobType, enumName: "ModelJobType" })
+  type!: ModelJobType;
 
   @ApiProperty({ enum: ModelJobStatusType, enumName: "ModelJobStatusType" })
   status!: ModelJobStatusType;

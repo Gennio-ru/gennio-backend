@@ -38,7 +38,7 @@ export class ModelJobController {
     return this.modelJobService.findOne(id);
   }
 
-  @Post()
+  @Post("/start-image-edit-by-prompt-id")
   @UseGuards(JwtAuthGuard)
   @ApiResponse({
     status: 201,
@@ -57,7 +57,7 @@ export class ModelJobController {
     return data;
   }
 
-  @Post()
+  @Post("/start-image-edit-by-prompt-text")
   @UseGuards(JwtAuthGuard)
   @ApiResponse({
     status: 201,
@@ -76,7 +76,7 @@ export class ModelJobController {
     return data;
   }
 
-  @Post()
+  @Post("start-image-generate")
   @UseGuards(JwtAuthGuard)
   @ApiResponse({
     status: 201,
