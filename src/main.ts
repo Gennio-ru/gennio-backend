@@ -1,6 +1,6 @@
-import { NestFactory, Reflector } from "@nestjs/core";
+import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module";
-import { ClassSerializerInterceptor, ValidationPipe } from "@nestjs/common";
+import { ValidationPipe } from "@nestjs/common";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
@@ -23,7 +23,7 @@ async function bootstrap() {
 
   // Глобальные настройки
   app.use(cookieParser());
-  app.setGlobalPrefix("api"); // опционально
+  app.setGlobalPrefix("api");
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -33,17 +33,16 @@ async function bootstrap() {
     })
   );
 
-  app.enableCors({
-    origin: ["http://localhost:5173"],
-    credentials: true,
-  });
+  // --- RMQ microservice: fixed host to rabbitmq:5672, only user/pass from env ---
+  const user = process.env.RABBIT_USER;
+  const pass = process.env.RABBIT_PASS;
+  if (!user || !pass) throw new Error("rabbitMQ user or pass not found");
+  const amqpUrl = `amqp://${user}:${pass}@rabbitmq:5672/`;
 
   app.connectMicroservice<MicroserviceOptions>({
     transport: Transport.RMQ,
     options: {
-      urls: [
-        `amqp://${process.env.RABBIT_USER}:${process.env.RABBIT_PASS}@localhost:5672/`,
-      ],
+      urls: [amqpUrl],
       queue: "jobs",
       queueOptions: { durable: true },
       noAck: false,
@@ -51,6 +50,7 @@ async function bootstrap() {
     },
   });
 
+  // Swagger
   const config = new DocumentBuilder()
     .setTitle("AI Platform API")
     .setDescription("Prompts / Generations / Users")
@@ -60,21 +60,19 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup("docs", app, document);
 
-  // === Автогенерация swagger.json ===
+  // Генерация swagger.json + типов
   const swaggerPath = join(process.cwd(), "swagger.json");
   writeFileSync(swaggerPath, JSON.stringify(document, null, 2));
   console.log(`✅ Swagger JSON saved to ${swaggerPath}`);
-
-  // === Автогенерация типов для фронта ===
-  const frontendPath = join(
-    process.cwd(),
-    "..",
-    "gennio-frontend",
-    "src",
-    "api",
-    "types.gen.ts"
-  );
   try {
+    const frontendPath = join(
+      process.cwd(),
+      "..",
+      "gennio-frontend",
+      "src",
+      "api",
+      "types.gen.ts"
+    );
     execSync(`npx openapi-typescript ${swaggerPath} --output ${frontendPath}`, {
       stdio: "inherit",
     });
@@ -85,8 +83,6 @@ async function bootstrap() {
 
   await app.startAllMicroservices();
   const port = Number(process.env.PORT) || 3000;
-  await app.listen(port);
-  console.log(`🚀 API:   http://localhost:${port}/api`);
-  console.log(`📘 Docs:  http://localhost:${port}/docs`);
+  await app.listen(port, "0.0.0.0"); // в контейнере слушаем на всех интерфейсах
 }
 bootstrap();
