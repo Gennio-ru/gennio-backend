@@ -33,6 +33,7 @@
     "@types/multer": "^2.0.0",
     "amqp-connection-manager": "^4.1.14",
     "amqplib": "^0.10.9",
+    "axios": "^1.12.2",
     "bcryptjs": "^2.4.3",
     "bull": "^4.16.5",
     "bullmq": "^5.58.5",

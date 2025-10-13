@@ -18,6 +18,9 @@ export class User {
   @Column({ type: "varchar", length: 255, nullable: true, unique: true })
   email!: string | null;
 
+  @Column({ type: "varchar", length: 64, nullable: true, unique: true })
+  yandexId!: string | null;
+
   @Index({ unique: true })
   @Column({ type: "varchar", length: 32, nullable: true, unique: true })
   phone!: string | null;

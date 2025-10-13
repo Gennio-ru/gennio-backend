@@ -3,6 +3,7 @@ import { UserRole } from "./user-role.enum";
 
 export interface IUserBase {
   email: string | null;
+  yandexId: string | null;
   phone: string | null;
   passwordHash: string | null;
   role: UserRole;

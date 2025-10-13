@@ -93,6 +93,35 @@ export class MailService {
     }
   }
 
+  async sendEmailConfirmLink({
+    to,
+    link,
+    project = "Gennio",
+    expireHours = 24,
+    supportEmail = "support@gennio.ru",
+    subject = "Подтверждение email",
+    replyTo,
+    template = "email-confirm",
+  }: {
+    to: Recipient;
+    link: string;
+    project?: string;
+    expireHours?: number;
+    supportEmail?: string;
+    subject?: string;
+    replyTo?: string | Address;
+    template?: string; // имя файла без .hbs
+  }) {
+    return this.sendTemplate({
+      to,
+      subject,
+      template, // ==> src/mail/templates/email-confirm.hbs
+      context: { link, project, expireHours, supportEmail },
+      from: this.config.get<string>("MAIL_FROM"),
+      replyTo,
+    });
+  }
+
   async sendOtpEmail({
     to,
     code,

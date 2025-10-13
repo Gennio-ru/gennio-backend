@@ -80,6 +80,51 @@
         ]
       }
     },
+    "/api/auth/email/confirm": {
+      "get": {
+        "operationId": "AuthController_confirmEmail",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "token",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/email/confirm/resend": {
+      "post": {
+        "operationId": "AuthController_resendConfirmLink",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "auth"
+        ]
+      }
+    },
     "/api/auth/login/email": {
       "post": {
         "operationId": "AuthController_loginByEmail",
@@ -144,40 +189,6 @@
         ]
       }
     },
-    "/api/auth/login/email/otp/request": {
-      "post": {
-        "operationId": "AuthController_requestEmailOtp",
-        "summary": "Запросить OTP-код для email",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RequestEmailOtpDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "example": {
-                    "ok": true
-                  }
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "auth"
-        ]
-      }
-    },
     "/api/auth/login/phone/otp/request": {
       "post": {
         "operationId": "AuthController_requestPhoneOtp",
@@ -222,30 +233,6 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/VerifyPhoneOtpDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "auth"
-        ]
-      }
-    },
-    "/api/auth/login/email/otp/verify": {
-      "post": {
-        "operationId": "AuthController_verifyEmailOtp",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/VerifyEmailOtpDto"
               }
             }
           }
@@ -335,6 +322,43 @@
           {
             "cookie": []
           }
+        ]
+      }
+    },
+    "/api/auth/yandex": {
+      "get": {
+        "operationId": "AuthController_redirectToYandex",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/yandex/callback": {
+      "get": {
+        "operationId": "AuthController_yandexCallback",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "auth"
         ]
       }
     },
@@ -994,6 +1018,10 @@
             "example": "user@example.com",
             "nullable": true
           },
+          "yandexId": {
+            "type": "string",
+            "nullable": true
+          },
           "phone": {
             "type": "string",
             "example": "+79998887766",
@@ -1122,18 +1150,6 @@
           "password"
         ]
       },
-      "RequestEmailOtpDto": {
-        "type": "object",
-        "properties": {
-          "email": {
-            "type": "string",
-            "example": "user@example.com"
-          }
-        },
-        "required": [
-          "email"
-        ]
-      },
       "RequestPhoneOtpDto": {
         "type": "object",
         "properties": {
@@ -1160,23 +1176,6 @@
         },
         "required": [
           "phone",
-          "code"
-        ]
-      },
-      "VerifyEmailOtpDto": {
-        "type": "object",
-        "properties": {
-          "email": {
-            "type": "string",
-            "example": "user@example.com"
-          },
-          "code": {
-            "type": "string",
-            "example": "123456"
-          }
-        },
-        "required": [
-          "email",
           "code"
         ]
       },

@@ -19,6 +19,12 @@ export class UserBaseDto extends BaseDto implements IUserBase {
 
   @ApiPropertyOptional({
     type: String,
+    nullable: true,
+  })
+  yandexId!: string | null;
+
+  @ApiPropertyOptional({
+    type: String,
     example: "+79998887766",
     nullable: true,
   })

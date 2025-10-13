@@ -23,6 +23,10 @@ export class UsersService {
     return user;
   }
 
+  async findByYandexId(yandexId: string): Promise<User | null> {
+    return this.userRepository.findOne({ where: { yandexId } });
+  }
+
   async findByEmail(email: string): Promise<User | null> {
     return this.userRepository.findOne({ where: { email } });
   }
@@ -64,6 +68,47 @@ export class UsersService {
       isEmailVerified: false,
       isPhoneVerified: false,
     });
+    return this.userRepository.save(newUser);
+  }
+
+  async createByYandexId(data: {
+    yandexId: string;
+    email: string | null;
+    isEmailVerified: boolean;
+  }): Promise<User> {
+    const { yandexId, email, isEmailVerified } = data;
+
+    // Проверяем — вдруг пользователь с таким Яндекс-ID уже есть
+    const existingByYandex = await this.userRepository.findOne({
+      where: { yandexId },
+    });
+    if (existingByYandex) {
+      throw new ConflictException("Yandex account already registered");
+    }
+
+    // Проверяем — если у нас пришёл email, нет ли уже пользователя с ним
+    if (email) {
+      const existingByEmail = await this.userRepository.findOne({
+        where: { email },
+      });
+      if (existingByEmail) {
+        throw new ConflictException("Email already in use");
+      }
+    }
+
+    // Создаём нового пользователя
+    const newUser = this.userRepository.create({
+      yandexId,
+      email,
+      phone: null,
+      passwordHash: null, // пароля нет — вход только через OAuth
+      role: UserRole.User,
+      credits: 0,
+      isActive: true,
+      isEmailVerified,
+      isPhoneVerified: false,
+    });
+
     return this.userRepository.save(newUser);
   }
 

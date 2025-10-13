@@ -9,6 +9,8 @@ import {
   HttpCode,
   ClassSerializerInterceptor,
   UseInterceptors,
+  Query,
+  BadRequestException,
 } from "@nestjs/common";
 import {
   ApiTags,
@@ -22,14 +24,13 @@ import { RegisterByPhoneDto } from "./dto/register-by-phone.dto";
 import { LoginByEmailDto } from "./dto/login-by-email.dto";
 import { LoginByPhoneDto } from "./dto/login-by-phone.dto";
 import { RequestPhoneOtpDto } from "./dto/request-otp-by-phone.dto";
-import { VerifyEmailOtpDto } from "./dto/verify-otp-by-email.dto";
 import { AuthResponseDto } from "./dto/auth-response.dto";
 import { JwtAuthGuard } from "./guards/jwt-auth.guard";
 import { UserDto } from "src/modules/users/dto/user.dto";
-import { RequestEmailOtpDto } from "./dto/request-otp-by-email.dto";
 import { VerifyPhoneOtpDto } from "./dto/verify-otp-by-phone.dto";
 import { Response } from "express";
 import { UserId } from "src/common/decorators/user-id.decorator";
+import { ConfigService } from "@nestjs/config";
 
 @ApiTags("auth")
 @Controller("auth")
@@ -37,7 +38,10 @@ import { UserId } from "src/common/decorators/user-id.decorator";
 export class AuthController {
   private readonly refreshCookieName = "refresh_token";
 
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly configService: ConfigService
+  ) {}
 
   private parseTtl(s: string): number {
     const m = /^(\d+)([smhd])$/.exec(s);
@@ -98,6 +102,42 @@ export class AuthController {
     return { accessToken, user };
   }
 
+  @Get("email/confirm")
+  async confirmEmail(
+    @Query("userId") userId: string,
+    @Query("token") token: string,
+    @Res({ passthrough: true }) res: Response
+  ): Promise<void> {
+    if (!userId || !token) throw new BadRequestException("Missing parameters");
+
+    const user = await this.authService.confirmEmailByLink(userId, token);
+
+    // Авто-логин после подтверждения (можно выключить, если не надо)
+    const { accessToken, refreshToken } = await (
+      this.authService as any
+    ).issueTokensAndPersistSession(user);
+    this.setRefreshCookie(res, refreshToken);
+
+    const frontendUrl =
+      this.configService.get<string>("FRONTEND_URL") ??
+      "http://localhost:5173/";
+    const url = new URL(frontendUrl);
+    url.hash = "email-confirmed";
+    res.redirect(url.toString());
+  }
+
+  // По желанию: повторная отправка (защити rate-limit'ом)
+  @Post("email/confirm/resend")
+  @UseGuards(JwtAuthGuard)
+  async resendConfirmLink(@UserId() userId: string): Promise<{ ok: true }> {
+    const user = await this.authService.me(userId);
+    if (!user?.email) throw new BadRequestException("Email is not set");
+    if (user.isEmailVerified) return { ok: true };
+
+    await (this.authService as any).sendEmailConfirmForUser(user);
+    return { ok: true };
+  }
+
   @Post("login/email")
   @ApiOperation({ summary: "Логин по email + пароль" })
   @ApiResponse({ status: 200, type: AuthResponseDto })
@@ -125,15 +165,6 @@ export class AuthController {
     return { accessToken, user };
   }
 
-  @Post("login/email/otp/request")
-  @ApiOperation({ summary: "Запросить OTP-код для email" })
-  @ApiResponse({ status: 200, schema: { example: { ok: true } } })
-  async requestEmailOtp(
-    @Body() dto: RequestEmailOtpDto
-  ): Promise<{ ok: boolean }> {
-    return this.authService.requestEmailOtp(dto);
-  }
-
   @Post("login/phone/otp/request")
   @ApiOperation({ summary: "Запросить OTP-код для телефона" })
   @ApiResponse({ status: 200, schema: { example: { ok: true } } })
@@ -150,17 +181,6 @@ export class AuthController {
   ): Promise<AuthResponseDto> {
     const { accessToken, refreshToken, user } =
       await this.authService.verifyPhoneOtp(dto);
-    this.setRefreshCookie(res, refreshToken);
-    return { accessToken, user };
-  }
-
-  @Post("login/email/otp/verify")
-  async verifyEmailOtp(
-    @Body() dto: VerifyEmailOtpDto,
-    @Res({ passthrough: true }) res: Response
-  ): Promise<AuthResponseDto> {
-    const { accessToken, refreshToken, user } =
-      await this.authService.verifyEmailOtp(dto);
     this.setRefreshCookie(res, refreshToken);
     return { accessToken, user };
   }
@@ -205,5 +225,44 @@ export class AuthController {
     await this.authService.logout(token);
     this.clearRefreshCookie(res);
     return { ok: true };
+  }
+
+  // OAuth Yandex
+  // шаг 1 — редиректим пользователя на Яндекс
+  @Get("yandex")
+  redirectToYandex(@Res() res: Response): void {
+    const clientId = this.configService.get<string>("YANDEX_CLIENT_ID");
+    const redirectUri = this.configService.get<string>("YANDEX_REDIRECT_URI");
+    if (!clientId || !redirectUri) {
+      throw new BadRequestException("Yandex OAuth is not configured");
+    }
+
+    const url = new URL("https://oauth.yandex.ru/authorize");
+    url.searchParams.set("response_type", "code");
+    url.searchParams.set("client_id", clientId);
+    url.searchParams.set("redirect_uri", redirectUri);
+    url.searchParams.set("scope", "login:email");
+
+    res.redirect(url.toString());
+  }
+
+  // шаг 2 — Яндекс возвращает code, обмениваем на токен
+  @Get("yandex/callback")
+  async yandexCallback(
+    @Query("code") code: string,
+    @Res({ passthrough: true }) res: Response
+  ): Promise<void> {
+    if (!code) {
+      throw new BadRequestException("Missing code");
+    }
+
+    const { refreshToken } = await this.authService.handleYandexCallback(code);
+
+    this.setRefreshCookie(res, refreshToken);
+
+    const frontendUrl =
+      this.configService.get<string>("FRONTEND_URL") ??
+      "http://localhost:5173/";
+    res.redirect(frontendUrl);
   }
 }

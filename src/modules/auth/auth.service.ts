@@ -13,14 +13,14 @@ import { RegisterByPhoneDto } from "./dto/register-by-phone.dto";
 import { LoginByEmailDto } from "./dto/login-by-email.dto";
 import { LoginByPhoneDto } from "./dto/login-by-phone.dto";
 import { RequestPhoneOtpDto } from "./dto/request-otp-by-phone.dto";
-import { VerifyEmailOtpDto } from "./dto/verify-otp-by-email.dto";
 import { MailService } from "../mail/mail.service";
-import { RequestEmailOtpDto } from "./dto/request-otp-by-email.dto";
 import { VerifyPhoneOtpDto } from "./dto/verify-otp-by-phone.dto";
 import { OtpStore } from "./otp.store";
 import { Session } from "./session.entity";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
+import { ConfigService } from "@nestjs/config";
+import axios from "axios";
 
 @Injectable()
 export class AuthService {
@@ -31,9 +31,23 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly mailService: MailService,
     private readonly otpStore: OtpStore,
+    private readonly configService: ConfigService,
     @InjectRepository(Session)
     private readonly sessionsRepository: Repository<Session>
   ) {}
+
+  private parseTtl(s: string): number {
+    const m = /^(\d+)([smhd])$/.exec(s);
+    if (!m) return 24 * 60 * 60 * 1000;
+    const n = Number(m[1]);
+    const mult =
+      m[2] === "s" ? 1e3 : m[2] === "m" ? 6e4 : m[2] === "h" ? 3.6e6 : 8.64e7;
+    return n * mult;
+  }
+
+  private hmacSha256Hex(token: string, secret: string) {
+    return crypto.createHmac("sha256", secret).update(token).digest("hex");
+  }
 
   private signAccessToken(user: User): string {
     const payload = {
@@ -90,9 +104,28 @@ export class AuthService {
     return { accessToken, refreshToken, user };
   }
 
+  // === Регистрация по email+пароль, с отправкой письма ===
   async registerByEmail(dto: RegisterByEmailDto) {
     const user = await this.usersService.createByEmail(dto.email, dto.password);
     await this.usersService.markLastLogin(user.id);
+
+    await this.sendEmailConfirmForUser(user);
+
+    // Управляем поведением флагом:
+    const requireConfirm =
+      (this.configService.get("REQUIRE_EMAIL_CONFIRM_BEFORE_LOGIN") ??
+        "false") === "true";
+
+    if (requireConfirm) {
+      // Ничего не выдаём, пока не подтвердит почту (фронт покажет экран “проверьте почту”)
+      return {
+        accessToken: undefined as any,
+        refreshToken: undefined as any,
+        user,
+      };
+    }
+
+    // Иначе — логиним как раньше
     return this.issueTokensAndPersistSession(user);
   }
 
@@ -122,40 +155,6 @@ export class AuthService {
 
     await this.usersService.markLastLogin(user.id);
     return this.issueTokensAndPersistSession(user);
-  }
-
-  /** Запрос OTP на e-mail (SMTP Яндекс). Код хранится в Redis с TTL. */
-  async requestEmailOtp({ email }: RequestEmailOtpDto) {
-    const code = crypto.randomInt(100000, 999999).toString();
-    const ttlSec = this.OTP_TTL_MIN * 60;
-
-    console.log(`Generated code is - ${code}`);
-
-    // Положили код в Redis
-    await this.otpStore.set("email", email, code, ttlSec);
-
-    try {
-      const info = await this.mailService.sendOtpEmail({
-        to: email,
-        code,
-        project: "Gennio",
-        expireMinutes: this.OTP_TTL_MIN,
-        supportEmail: "support@gennio.ru",
-      });
-
-      const isDev = process.env.NODE_ENV !== "production";
-      return {
-        ok: true,
-        provider: { messageId: info?.messageId },
-        ...(isDev ? { debugCode: code } : {}),
-      };
-    } catch {
-      // Если отправка не удалась — аккуратно гасим именно этот код (если он актуален)
-      await this.otpStore
-        .compareAndConsume("email", email, code)
-        .catch(() => {});
-      throw new BadRequestException("Не удалось отправить письмо с кодом");
-    }
   }
 
   /** Запрос OTP по телефону (пока заглушка SMS). */
@@ -190,28 +189,6 @@ export class AuthService {
 
     if (!user.isPhoneVerified) {
       await this.usersService.setPhoneVerified(user.id, true);
-      user = await this.usersService.findById(user.id);
-    }
-
-    await this.usersService.markLastLogin(user.id);
-    return this.issueTokensAndPersistSession(user);
-  }
-
-  /** Верификация OTP по e-mail (атомарная проверка + одноразовое погашение). */
-  async verifyEmailOtp(dto: VerifyEmailOtpDto) {
-    const res = await this.otpStore.compareAndConsume(
-      "email",
-      dto.email,
-      dto.code
-    );
-    if (res === -1) throw new BadRequestException("OTP not requested");
-    if (res === 0) throw new BadRequestException("Invalid OTP");
-
-    let user = await this.usersService.findByEmail(dto.email);
-    if (!user) user = await this.usersService.createByEmail(dto.email);
-
-    if (!user.isEmailVerified) {
-      await this.usersService.setEmailVerified(user.id, true);
       user = await this.usersService.findById(user.id);
     }
 
@@ -283,5 +260,100 @@ export class AuthService {
     } catch {
       // ignore
     }
+  }
+
+  async handleYandexCallback(code: string) {
+    const tokenUrl = "https://oauth.yandex.ru/token";
+    const infoUrl = "https://login.yandex.ru/info";
+
+    // 1️⃣ Обмен кода на токен
+    const params = new URLSearchParams({
+      grant_type: "authorization_code",
+      code,
+      client_id: this.configService.get("YANDEX_CLIENT_ID") || "",
+      client_secret: this.configService.get("YANDEX_CLIENT_SECRET") || "",
+    });
+
+    const tokenRes = await axios.post(tokenUrl, params, {
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    });
+
+    const accessToken = tokenRes.data.access_token;
+
+    // 2️⃣ Запрашиваем профиль
+    const profileRes = await axios.get(infoUrl, {
+      headers: { Authorization: `OAuth ${accessToken}` },
+    });
+
+    const profile = profileRes.data;
+
+    // 3️⃣ Ищем или создаём пользователя
+    let user = await this.usersService.findByYandexId(profile.id);
+
+    if (!user) {
+      user = await this.usersService.createByYandexId({
+        yandexId: profile.id,
+        email: profile.default_email ?? null,
+        isEmailVerified: !!profile.default_email,
+      });
+    }
+
+    await this.usersService.markLastLogin(user.id);
+    return this.issueTokensAndPersistSession(user);
+  }
+
+  /** Отправить ссылку подтверждения email (Redis) */
+  async sendEmailConfirmForUser(user: User) {
+    if (!user.email) return;
+
+    const raw = crypto.randomBytes(32).toString("hex");
+    const ttlMs = this.parseTtl(
+      this.configService.get("EMAIL_CONFIRM_TTL") || "24h"
+    );
+    const ttlSec = Math.floor(ttlMs / 1000);
+    const expireHours = Math.ceil(ttlSec / 3600);
+    const secret =
+      this.configService.get("EMAIL_CONFIRM_SECRET") || "dev-email-confirm";
+
+    const digest = this.hmacSha256Hex(raw, secret);
+    await this.otpStore.setHashed("email_confirm", user.id, digest, ttlSec);
+
+    const base =
+      this.configService.get("EMAIL_CONFIRM_BASE_URL") ||
+      "http://localhost:3000/api/auth/email/confirm";
+    const url = new URL(base);
+    url.searchParams.set("userId", user.id);
+    url.searchParams.set("token", raw);
+
+    await this.mailService.sendEmailConfirmLink({
+      to: user.email,
+      link: url.toString(),
+      project: "Gennio",
+      expireHours,
+      supportEmail: "support@gennio.ru",
+    });
+  }
+
+  /** Подтвердить email по ссылке */
+  async confirmEmailByLink(userId: string, rawToken: string) {
+    const secret =
+      this.configService.get("EMAIL_CONFIRM_SECRET") || "dev-email-confirm";
+    const digest = this.hmacSha256Hex(rawToken, secret);
+
+    const res = await this.otpStore.compareHashedAndConsume(
+      "email_confirm",
+      userId,
+      digest
+    );
+    if (res === -1) throw new BadRequestException("Ссылка устарела");
+    if (res === 0) throw new BadRequestException("Неверная ссылка");
+
+    const user = await this.usersService.findById(userId);
+    if (!user) throw new BadRequestException("Пользователь не найден");
+
+    if (!user.isEmailVerified) {
+      await this.usersService.setEmailVerified(user.id, true);
+    }
+    return user;
   }
 }
