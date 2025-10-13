@@ -4,7 +4,7 @@ services:
     container_name: gennio-postgres
     restart: unless-stopped
     env_file:
-      - .env.stage
+      - .env
     environment:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASS}
@@ -35,7 +35,7 @@ services:
     container_name: gennio-rabbit
     restart: unless-stopped
     env_file:
-      - .env.stage
+      - .env
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBIT_USER:-admin}
       RABBITMQ_DEFAULT_PASS: ${RABBIT_PASS:-admin}
@@ -55,7 +55,7 @@ services:
     container_name: gennio-backend
     restart: unless-stopped
     env_file:
-      - .env.stage
+      - .env
     ports:
       - "3000:3000"
     depends_on:
