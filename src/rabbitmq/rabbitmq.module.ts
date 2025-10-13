@@ -18,6 +18,8 @@ export class RabbitmqModule {
 
     const stageUrl = `amqp://${user}:${pass}@rabbitmq:5672/`;
 
+    console.log("rabbit URL", stageUrl);
+
     return {
       module: RabbitmqModule,
       imports: [
