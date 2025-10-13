@@ -8,9 +8,29 @@ import { join } from "path";
 import { writeFileSync } from "fs";
 import { execSync } from "child_process";
 import { MicroserviceOptions, Transport } from "@nestjs/microservices";
+import { DataSource } from "typeorm";
+import AppDataSource from "./data-source";
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  // === АВТО-МИГРАЦИИ ===
+  if (process.env.NODE_ENV === "production") {
+    try {
+      const dataSource: DataSource = AppDataSource;
+      if (!dataSource.isInitialized) await dataSource.initialize();
+      const pending = await dataSource.showMigrations();
+      if (pending) {
+        console.log("🧩 Running pending migrations...");
+        await dataSource.runMigrations();
+        console.log("✅ Migrations completed");
+      } else {
+        console.log("✅ No pending migrations");
+      }
+    } catch (err) {
+      console.error("❌ Failed to run migrations:", err);
+    }
+  }
 
   // Security & CORS
   app.use(helmet());
@@ -37,7 +57,8 @@ async function bootstrap() {
   const user = process.env.RABBIT_USER;
   const pass = process.env.RABBIT_PASS;
   if (!user || !pass) throw new Error("rabbitMQ user or pass not found");
-  const amqpUrl = `amqp://${user}:${pass}@rabbitmq:5672/`;
+  const host = process.env.NODE_ENV === "production" ? "rabbitmq" : "localhost";
+  const amqpUrl = `amqp://${user}:${pass}@${host}:5672/`;
 
   app.connectMicroservice<MicroserviceOptions>({
     transport: Transport.RMQ,

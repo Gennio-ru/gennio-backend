@@ -8,7 +8,6 @@ export class RabbitmqModule {
   ): DynamicModule {
     const clientName = options.name || "RABBITMQ_SERVICE";
 
-    // Простой URL для stage в Docker: rabbitmq:5672, vhost = /
     const user = process.env.RABBIT_USER;
     const pass = process.env.RABBIT_PASS;
 
@@ -16,7 +15,10 @@ export class RabbitmqModule {
       throw new Error("rabbitMQ user or pass not found");
     }
 
-    const stageUrl = `amqp://${user}:${pass}@rabbitmq:5672/`;
+    const host =
+      process.env.NODE_ENV === "production" ? "rabbitmq" : "localhost";
+
+    const stageUrl = `amqp://${user}:${pass}@${host}:5672/`;
 
     return {
       module: RabbitmqModule,
