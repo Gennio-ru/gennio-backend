@@ -112,7 +112,7 @@ export class ModelJobService {
     switch (payload.type) {
       case ModelJobType.ImageEditByPromptId: {
         if (!payload.inputFileId) {
-          throw new Error("не указан inputFileId");
+          throw new Error("не указано поле inputFileId");
         }
 
         const fileBuffer = await this.filesService.getFileBufferById(
@@ -120,7 +120,7 @@ export class ModelJobService {
         );
 
         if (!payload.promptId) {
-          throw new Error("не указан promptId");
+          throw new Error("не указано поле promptId");
         }
 
         const promptData = await this.promptsService.findOne(payload.promptId);
@@ -132,11 +132,11 @@ export class ModelJobService {
       }
       case ModelJobType.ImageEditByPromptText: {
         if (!payload.inputFileId) {
-          throw new Error("не указан inputFileId");
+          throw new Error("не указано поле inputFileId");
         }
 
         if (!payload.text) {
-          throw new Error("не указан text");
+          throw new Error("не указано поле text");
         }
 
         const fileBuffer = await this.filesService.getFileBufferById(
@@ -150,7 +150,7 @@ export class ModelJobService {
       }
       case ModelJobType.ImageGenerateByPromptText: {
         if (!payload.text) {
-          throw new Error("Не указан text");
+          throw new Error("Не указано поле text");
         }
 
         resultPngBuffer = await this.openaiService.generateImage({
