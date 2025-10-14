@@ -9,6 +9,7 @@ export interface IModelJobBase {
   userId: string;
   inputFileId: string | null;
   outputFileId: string | null;
+  outputPreviewFileId: string | null;
   error: string | null;
   startedAt: Date | null;
   finishedAt: Date | null;

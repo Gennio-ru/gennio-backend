@@ -36,6 +36,7 @@ export class ModelJobService {
     }
 
     let outputFileUrl: string | null = null;
+    let outputPreviewFileUrl: string | null = null;
     let inputFileUrl: string | null = null;
 
     if (modelJob.outputFileId) {
@@ -47,7 +48,18 @@ export class ModelJobService {
       }
     }
 
-    if (outputFileUrl && modelJob.inputFileId) {
+    if (modelJob.outputPreviewFileId) {
+      try {
+        const file = await this.filesService.getMeta(
+          modelJob.outputPreviewFileId
+        );
+        outputPreviewFileUrl = await this.filesService.getFileUrl(file);
+      } catch {
+        outputPreviewFileUrl = null;
+      }
+    }
+
+    if (outputFileUrl && outputPreviewFileUrl && modelJob.inputFileId) {
       try {
         const file = await this.filesService.getMeta(modelJob.inputFileId);
         inputFileUrl = await this.filesService.getFileUrl(file);
@@ -56,7 +68,7 @@ export class ModelJobService {
       }
     }
 
-    return { ...modelJob, outputFileUrl, inputFileUrl };
+    return { ...modelJob, outputFileUrl, outputPreviewFileUrl, inputFileUrl };
   }
 
   async create(data: IModelJobCreate): Promise<ModelJob> {
@@ -88,11 +100,14 @@ export class ModelJobService {
     }
 
     try {
-      const { outputFileId } = await this.fileProcess(data);
+      const { outputFileId, outputPreviewFileId } = await this.fileProcess(
+        data
+      );
 
       await this.repository.update(modelJobId, {
         status: ModelJobStatusType.succeeded,
         outputFileId,
+        outputPreviewFileId,
         finishedAt: new Date(),
       });
     } catch (e) {
@@ -106,7 +121,7 @@ export class ModelJobService {
 
   private async fileProcess(
     payload: IModelJobCreate
-  ): Promise<{ outputFileId: string }> {
+  ): Promise<{ outputFileId: string; outputPreviewFileId: string }> {
     let resultPngBuffer: Buffer<ArrayBufferLike>;
 
     switch (payload.type) {
@@ -159,6 +174,10 @@ export class ModelJobService {
       }
     }
 
+    const resultPreviewWebpBuffer = await this.filesService.compressPngToWebp(
+      resultPngBuffer
+    );
+
     const outputFile = await this.filesService.uploadBuffer(
       {
         buffer: resultPngBuffer,
@@ -169,6 +188,19 @@ export class ModelJobService {
       { folder: "jobs", publicRead: true }
     );
 
-    return { outputFileId: outputFile.id };
+    const outputPreviewFile = await this.filesService.uploadBuffer(
+      {
+        buffer: resultPreviewWebpBuffer,
+        originalname: "resultPreview.webp",
+        mimetype: "image/webp",
+        size: resultPreviewWebpBuffer.length,
+      },
+      { folder: "jobs", publicRead: true }
+    );
+
+    return {
+      outputFileId: outputFile.id,
+      outputPreviewFileId: outputPreviewFile.id,
+    };
   }
 }

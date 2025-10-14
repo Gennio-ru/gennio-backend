@@ -33,6 +33,9 @@ export class ModelJob extends BaseEntity implements IModelJob {
   @Column({ type: "uuid", nullable: true })
   outputFileId: string | null;
 
+  @Column({ type: "uuid", nullable: true })
+  outputPreviewFileId: string | null;
+
   @Column({ type: "text", nullable: true })
   error: string | null;
 

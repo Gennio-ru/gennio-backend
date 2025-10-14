@@ -1646,13 +1646,24 @@
             "example": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
             "nullable": true
           },
+          "outputPreviewFileId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+            "nullable": true
+          },
           "inputFileUrl": {
-            "type": "object",
+            "type": "string",
             "example": "https://cdn.example.com/jobs/2025/09/19/5139b0d6-f38d-4af1.png",
             "nullable": true
           },
           "outputFileUrl": {
-            "type": "object",
+            "type": "string",
+            "example": "https://cdn.example.com/jobs/2025/09/19/5139b0d6-f38d-4af1.png",
+            "nullable": true
+          },
+          "outputPreviewFileUrl": {
+            "type": "string",
             "example": "https://cdn.example.com/jobs/2025/09/19/5139b0d6-f38d-4af1.png",
             "nullable": true
           },
@@ -1693,8 +1704,10 @@
           "userId",
           "inputFileId",
           "outputFileId",
+          "outputPreviewFileId",
           "inputFileUrl",
           "outputFileUrl",
+          "outputPreviewFileUrl",
           "error",
           "startedAt",
           "finishedAt",

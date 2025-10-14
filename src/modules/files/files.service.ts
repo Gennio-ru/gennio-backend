@@ -14,6 +14,7 @@ import { FileEntity } from "./files.entity";
 import { S3_CLIENT } from "./s3.module";
 import { DeleteFileResponseDto } from "./dto/delete-file-response.dto";
 import { Readable } from "typeorm/platform/PlatformTools";
+import sharp from "sharp";
 
 type UploadOpts = {
   folder?: string;
@@ -195,5 +196,35 @@ export class FilesService {
         console.warn(`Не удалось удалить старый файл ${oldFile.id}`, err);
       }
     }
+  }
+
+  async compressPngToWebp(
+    inputBuffer: Buffer,
+    targetKb: number = 150
+  ): Promise<Buffer> {
+    let quality = 75;
+    let output: Buffer = inputBuffer;
+
+    // Итеративно уменьшаем качество, пока не достигнем целевого размера
+    for (; quality >= 40; quality -= 5) {
+      const candidate = await sharp(inputBuffer)
+        .webp({
+          quality,
+          effort: 6, // максимум качества сжатия
+          smartSubsample: true,
+          nearLossless: false,
+        })
+        .toBuffer();
+
+      const sizeKb = candidate.length / 1024;
+      if (sizeKb <= targetKb) {
+        output = candidate;
+        break;
+      }
+
+      output = candidate; // если не достигли — запоминаем последнее
+    }
+
+    return output;
   }
 }
