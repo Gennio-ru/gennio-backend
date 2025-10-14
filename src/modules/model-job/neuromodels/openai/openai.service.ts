@@ -19,13 +19,13 @@ type ImageQuality = "low" | "medium" | "high";
 export class OpenAiImageService {
   constructor(@Inject(OPENAI_CLIENT) private readonly client: OpenAI) {}
 
-  private ensurePngFilename(name?: string) {
+  private ensureJpegFilename(name?: string) {
     const base = (name || "image").replace(/\.[^.]+$/g, "");
-    return `${base}.png`;
+    return `${base}.jpeg`;
   }
 
-  /** Берём первый результат из ImagesResponse и приводим к PNG Buffer */
-  private async toPngBufferFromImagesResponse(
+  /** Берём первый результат из ImagesResponse и приводим к JPEG Buffer */
+  private async toJpegBufferFromImagesResponse(
     res: OpenAI.ImagesResponse
   ): Promise<Buffer> {
     const item = res?.data?.[0];
@@ -35,7 +35,7 @@ export class OpenAiImageService {
 
     if (item.b64_json) {
       const buf = Buffer.from(item.b64_json, "base64");
-      return sharp(buf).png().toBuffer();
+      return sharp(buf).jpeg().toBuffer();
     }
 
     if (item.url) {
@@ -44,7 +44,7 @@ export class OpenAiImageService {
         throw new Error(`Fetch image failed: ${r.status} ${r.statusText}`);
       }
       const ab = await r.arrayBuffer();
-      return sharp(Buffer.from(ab)).png().toBuffer();
+      return sharp(Buffer.from(ab)).jpeg().toBuffer();
     }
 
     throw new Error("No b64_json or url in image response item");
@@ -65,10 +65,10 @@ export class OpenAiImageService {
       stream: false,
     });
 
-    return this.toPngBufferFromImagesResponse(res);
+    return this.toJpegBufferFromImagesResponse(res);
   }
 
-  /** Обработка входного изображения -> PNG Buffer результата */
+  /** Обработка входного изображения -> JPEG Buffer результата */
   async editImage(params: {
     image: Buffer;
     prompt: string;
@@ -79,13 +79,13 @@ export class OpenAiImageService {
     const {
       image,
       prompt,
-      imageFilename = "image.png",
+      imageFilename = "image.jpeg",
       mode = "contain",
     } = params;
 
-    const safeName = this.ensurePngFilename(imageFilename);
+    const safeName = this.ensureJpegFilename(imageFilename);
     const imageFile = await toFile(image, safeName, {
-      type: "image/png",
+      type: "image/jpeg",
     });
 
     const res = await this.client.images.edit({
@@ -99,6 +99,6 @@ export class OpenAiImageService {
       input_fidelity: "high",
     });
 
-    return this.toPngBufferFromImagesResponse(res);
+    return this.toJpegBufferFromImagesResponse(res);
   }
 }

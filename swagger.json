@@ -1654,17 +1654,17 @@
           },
           "inputFileUrl": {
             "type": "string",
-            "example": "https://cdn.example.com/jobs/2025/09/19/5139b0d6-f38d-4af1.png",
+            "example": "https://cdn.example.com/jobs/2025/09/19/5139b0d6-f38d-4af1.jpeg",
             "nullable": true
           },
           "outputFileUrl": {
             "type": "string",
-            "example": "https://cdn.example.com/jobs/2025/09/19/5139b0d6-f38d-4af1.png",
+            "example": "https://cdn.example.com/jobs/2025/09/19/5139b0d6-f38d-4af1.jpeg",
             "nullable": true
           },
           "outputPreviewFileUrl": {
             "type": "string",
-            "example": "https://cdn.example.com/jobs/2025/09/19/5139b0d6-f38d-4af1.png",
+            "example": "https://cdn.example.com/jobs/2025/09/19/5139b0d6-f38d-4af1.jpeg",
             "nullable": true
           },
           "error": {

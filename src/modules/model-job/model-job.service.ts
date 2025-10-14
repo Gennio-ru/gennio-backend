@@ -122,7 +122,7 @@ export class ModelJobService {
   private async fileProcess(
     payload: IModelJobCreate
   ): Promise<{ outputFileId: string; outputPreviewFileId: string }> {
-    let resultPngBuffer: Buffer<ArrayBufferLike>;
+    let resultJpegBuffer: Buffer<ArrayBufferLike>;
 
     switch (payload.type) {
       case ModelJobType.ImageEditByPromptId: {
@@ -140,7 +140,7 @@ export class ModelJobService {
 
         const promptData = await this.promptsService.findOne(payload.promptId);
 
-        resultPngBuffer = await this.openaiService.editImage({
+        resultJpegBuffer = await this.openaiService.editImage({
           image: fileBuffer,
           prompt: promptData.text,
         });
@@ -158,7 +158,7 @@ export class ModelJobService {
           payload.inputFileId
         );
 
-        resultPngBuffer = await this.openaiService.editImage({
+        resultJpegBuffer = await this.openaiService.editImage({
           image: fileBuffer,
           prompt: payload.text,
         });
@@ -168,22 +168,22 @@ export class ModelJobService {
           throw new Error("Не указано поле text");
         }
 
-        resultPngBuffer = await this.openaiService.generateImage({
+        resultJpegBuffer = await this.openaiService.generateImage({
           prompt: payload.text,
         });
       }
     }
 
-    const resultPreviewWebpBuffer = await this.filesService.compressPngToWebp(
-      resultPngBuffer
+    const resultPreviewWebpBuffer = await this.filesService.compressToWebp(
+      resultJpegBuffer
     );
 
     const outputFile = await this.filesService.uploadBuffer(
       {
-        buffer: resultPngBuffer,
-        originalname: "result.png",
-        mimetype: "image/png",
-        size: resultPngBuffer.length,
+        buffer: resultJpegBuffer,
+        originalname: "result.jpeg",
+        mimetype: "image/jpeg",
+        size: resultJpegBuffer.length,
       },
       { folder: "jobs", publicRead: true }
     );

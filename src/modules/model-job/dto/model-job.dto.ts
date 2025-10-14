@@ -60,21 +60,21 @@ export class ModelJobBaseDto implements IModelJobBase {
 
   @ApiProperty({
     type: String,
-    example: "https://cdn.example.com/jobs/2025/09/19/5139b0d6-f38d-4af1.png",
+    example: "https://cdn.example.com/jobs/2025/09/19/5139b0d6-f38d-4af1.jpeg",
     nullable: true,
   })
   inputFileUrl!: string | null;
 
   @ApiProperty({
     type: String,
-    example: "https://cdn.example.com/jobs/2025/09/19/5139b0d6-f38d-4af1.png",
+    example: "https://cdn.example.com/jobs/2025/09/19/5139b0d6-f38d-4af1.jpeg",
     nullable: true,
   })
   outputFileUrl!: string | null;
 
   @ApiProperty({
     type: String,
-    example: "https://cdn.example.com/jobs/2025/09/19/5139b0d6-f38d-4af1.png",
+    example: "https://cdn.example.com/jobs/2025/09/19/5139b0d6-f38d-4af1.jpeg",
     nullable: true,
   })
   outputPreviewFileUrl!: string | null;

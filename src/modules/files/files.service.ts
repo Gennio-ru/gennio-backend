@@ -198,31 +198,31 @@ export class FilesService {
     }
   }
 
-  async compressPngToWebp(
+  async compressToWebp(
     inputBuffer: Buffer,
     targetKb: number = 150
   ): Promise<Buffer> {
     let quality = 75;
     let output: Buffer = inputBuffer;
 
-    // Итеративно уменьшаем качество, пока не достигнем целевого размера
     for (; quality >= 40; quality -= 5) {
       const candidate = await sharp(inputBuffer)
         .webp({
           quality,
-          effort: 6, // максимум качества сжатия
+          effort: 6,
           smartSubsample: true,
           nearLossless: false,
         })
         .toBuffer();
 
       const sizeKb = candidate.length / 1024;
+
       if (sizeKb <= targetKb) {
         output = candidate;
         break;
       }
 
-      output = candidate; // если не достигли — запоминаем последнее
+      output = candidate;
     }
 
     return output;
