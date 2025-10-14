@@ -1,0 +1,26 @@
+name: 🚀 Deploy to Stage Server
+
+on:
+  push:
+    branches:
+      - stage
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout repo
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Connect to server and deploy
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            cd /opt/gennio/gennio-backend
+            git pull origin stage
+            docker compose -f docker-compose.stage.yml down
+            docker compose -f docker-compose.stage.yml up -d --build
