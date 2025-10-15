@@ -72,33 +72,6 @@ export class ModelJobService {
   }
 
   async create(data: IModelJobCreate): Promise<ModelJob> {
-    // Обрабатываем изображение пользователя, если оно есть
-    if (data.inputFileId) {
-      const inputFileId = data.inputFileId;
-
-      const inputFileBuffer = await this.filesService.getFileBufferById(
-        data.inputFileId
-      );
-      const compressedInputFileBuffer = await this.filesService.compressToWebp(
-        inputFileBuffer
-      );
-
-      const compressedInputFile = await this.filesService.uploadBuffer(
-        {
-          buffer: compressedInputFileBuffer,
-          originalname: "result.webp",
-          mimetype: "image/webp",
-          size: compressedInputFileBuffer.length,
-        },
-        { folder: "jobs", publicRead: true }
-      );
-
-      data.inputFileId = compressedInputFile.id;
-
-      // Удаляем исходное изображение пользователя
-      await this.filesService.removeById(inputFileId);
-    }
-
     const modelJob = this.repository.create(data);
 
     await this.repository.save(modelJob);
@@ -127,14 +100,14 @@ export class ModelJobService {
     }
 
     try {
-      const { outputFileId, outputPreviewFileId } = await this.fileProcess(
-        data
-      );
+      const { outputFileId, outputPreviewFileId, inputFileId } =
+        await this.fileProcess(data);
 
       await this.repository.update(modelJobId, {
         status: ModelJobStatusType.succeeded,
         outputFileId,
         outputPreviewFileId,
+        inputFileId,
         finishedAt: new Date(),
       });
     } catch (e) {
@@ -146,59 +119,96 @@ export class ModelJobService {
     }
   }
 
-  private async fileProcess(
-    payload: IModelJobCreate
-  ): Promise<{ outputFileId: string; outputPreviewFileId: string }> {
+  private async fileProcess(payload: IModelJobCreate): Promise<{
+    outputFileId: string;
+    outputPreviewFileId: string;
+    inputFileId: string | undefined;
+  }> {
     let resultJpegBuffer: Buffer<ArrayBufferLike>;
 
+    // Обрабатываем изображение пользователя, если оно есть
+    if (payload.inputFileId) {
+      const inputFileId = payload.inputFileId;
+
+      const inputFileBuffer = await this.filesService.getFileBufferById(
+        payload.inputFileId
+      );
+      const compressedInputFileBuffer = await this.filesService.compressToWebp(
+        inputFileBuffer
+      );
+
+      const compressedInputFile = await this.filesService.uploadBuffer(
+        {
+          buffer: compressedInputFileBuffer,
+          originalname: "result.webp",
+          mimetype: "image/webp",
+          size: compressedInputFileBuffer.length,
+        },
+        { folder: "jobs", publicRead: true }
+      );
+
+      payload.inputFileId = compressedInputFile.id;
+
+      // Удаляем исходное изображение пользователя
+      await this.filesService.removeById(inputFileId);
+    }
+
     switch (payload.type) {
-      case ModelJobType.ImageEditByPromptId: {
-        if (!payload.inputFileId) {
-          throw new Error("не указано поле inputFileId");
+      case ModelJobType.ImageEditByPromptId:
+        {
+          if (!payload.inputFileId) {
+            throw new Error("не указано поле inputFileId");
+          }
+
+          const fileBuffer = await this.filesService.getFileBufferById(
+            payload.inputFileId
+          );
+
+          if (!payload.promptId) {
+            throw new Error("не указано поле promptId");
+          }
+
+          const promptData = await this.promptsService.findOne(
+            payload.promptId
+          );
+
+          resultJpegBuffer = await this.openaiService.editImage({
+            image: fileBuffer,
+            prompt: promptData.text,
+          });
         }
+        break;
+      case ModelJobType.ImageEditByPromptText:
+        {
+          if (!payload.inputFileId) {
+            throw new Error("не указано поле inputFileId");
+          }
 
-        const fileBuffer = await this.filesService.getFileBufferById(
-          payload.inputFileId
-        );
+          if (!payload.text) {
+            throw new Error("не указано поле text");
+          }
 
-        if (!payload.promptId) {
-          throw new Error("не указано поле promptId");
+          const fileBuffer = await this.filesService.getFileBufferById(
+            payload.inputFileId
+          );
+
+          resultJpegBuffer = await this.openaiService.editImage({
+            image: fileBuffer,
+            prompt: payload.text,
+          });
         }
+        break;
+      case ModelJobType.ImageGenerateByPromptText:
+        {
+          if (!payload.text) {
+            throw new Error("Не указано поле text");
+          }
 
-        const promptData = await this.promptsService.findOne(payload.promptId);
-
-        resultJpegBuffer = await this.openaiService.editImage({
-          image: fileBuffer,
-          prompt: promptData.text,
-        });
-      }
-      case ModelJobType.ImageEditByPromptText: {
-        if (!payload.inputFileId) {
-          throw new Error("не указано поле inputFileId");
+          resultJpegBuffer = await this.openaiService.generateImage({
+            prompt: payload.text,
+          });
         }
-
-        if (!payload.text) {
-          throw new Error("не указано поле text");
-        }
-
-        const fileBuffer = await this.filesService.getFileBufferById(
-          payload.inputFileId
-        );
-
-        resultJpegBuffer = await this.openaiService.editImage({
-          image: fileBuffer,
-          prompt: payload.text,
-        });
-      }
-      case ModelJobType.ImageGenerateByPromptText: {
-        if (!payload.text) {
-          throw new Error("Не указано поле text");
-        }
-
-        resultJpegBuffer = await this.openaiService.generateImage({
-          prompt: payload.text,
-        });
-      }
+        break;
     }
 
     const resultPreviewWebpBuffer = await this.filesService.compressToWebp(
@@ -228,6 +238,7 @@ export class ModelJobService {
     return {
       outputFileId: outputFile.id,
       outputPreviewFileId: outputPreviewFile.id,
+      inputFileId: payload.inputFileId,
     };
   }
 }
