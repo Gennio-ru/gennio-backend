@@ -10,7 +10,6 @@ import { ModelJobStatusType, ModelJobType } from "./types/model-job.enum";
 import { FilesService } from "../files/files.service";
 import { ModelJobDto } from "./dto/model-job.dto";
 import { PromptsService } from "../prompts/prompts.service";
-import { FileEntity } from "../files/files.entity";
 
 @Injectable()
 export class ModelJobService {

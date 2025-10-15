@@ -63,12 +63,14 @@ export class FilesController {
       await this.filesService.clearOldUserFile(userId);
     }
 
+    const compressed = await this.filesService.compressKeepFormat(file.buffer);
+
     const saved = await this.filesService.uploadBuffer(
       {
-        buffer: file.buffer,
+        buffer: compressed,
         originalname: file.originalname,
         mimetype: file.mimetype,
-        size: file.size,
+        size: compressed.length,
       },
       {
         folder,

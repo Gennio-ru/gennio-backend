@@ -227,4 +227,48 @@ export class FilesService {
 
     return output;
   }
+
+  async compressKeepFormat(
+    inputBuffer: Buffer,
+    targetKb: number = 150
+  ): Promise<Buffer> {
+    // Определяем формат входного файла
+    const metadata = await sharp(inputBuffer).metadata();
+    const format = metadata.format as keyof sharp.FormatEnum;
+
+    if (!format) {
+      throw new Error("Невозможно определить формат входного изображения");
+    }
+
+    let quality = 75;
+    let output: Buffer = inputBuffer;
+
+    for (; quality >= 40; quality -= 5) {
+      const transformer = sharp(inputBuffer);
+
+      // выбираем нужный метод компрессии под формат
+      if (format === "jpeg" || format === "jpg") {
+        transformer.jpeg({ quality, mozjpeg: true });
+      } else if (format === "png") {
+        transformer.png({ quality, compressionLevel: 9 });
+      } else if (format === "webp") {
+        transformer.webp({ quality, effort: 6 });
+      } else {
+        // если формат не поддерживается — просто вернуть оригинал
+        return inputBuffer;
+      }
+
+      const candidate = await transformer.toBuffer();
+      const sizeKb = candidate.length / 1024;
+
+      if (sizeKb <= targetKb) {
+        output = candidate;
+        break;
+      }
+
+      output = candidate;
+    }
+
+    return output;
+  }
 }
