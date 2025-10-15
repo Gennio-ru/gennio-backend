@@ -10,6 +10,7 @@ import { ModelJobStatusType, ModelJobType } from "./types/model-job.enum";
 import { FilesService } from "../files/files.service";
 import { ModelJobDto } from "./dto/model-job.dto";
 import { PromptsService } from "../prompts/prompts.service";
+import { FileEntity } from "../files/files.entity";
 
 @Injectable()
 export class ModelJobService {
@@ -72,6 +73,33 @@ export class ModelJobService {
   }
 
   async create(data: IModelJobCreate): Promise<ModelJob> {
+    // Обрабатываем изображение пользователя, если оно есть
+    if (data.inputFileId) {
+      const inputFileId = data.inputFileId;
+
+      const inputFileBuffer = await this.filesService.getFileBufferById(
+        data.inputFileId
+      );
+      const compressedInputFileBuffer = await this.filesService.compressToWebp(
+        inputFileBuffer
+      );
+
+      const compressedInputFile = await this.filesService.uploadBuffer(
+        {
+          buffer: compressedInputFileBuffer,
+          originalname: "result.webp",
+          mimetype: "image/webp",
+          size: compressedInputFileBuffer.length,
+        },
+        { folder: "jobs", publicRead: true }
+      );
+
+      data.inputFileId = compressedInputFile.id;
+
+      // Удаляем исходное изображение пользователя
+      await this.filesService.removeById(inputFileId);
+    }
+
     const modelJob = this.repository.create(data);
 
     await this.repository.save(modelJob);
