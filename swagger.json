@@ -1460,10 +1460,6 @@
             "type": "string",
             "example": "Мягкое освещение, крупный план"
           },
-          "beforeImageId": {
-            "type": "string",
-            "example": "f47ac10b-58cc-4372-a567-0e02b2c3d479"
-          },
           "afterImageId": {
             "type": "string",
             "example": "f47ac10b-58cc-4372-a567-0e02b2c3d479"
@@ -1480,7 +1476,6 @@
         "required": [
           "title",
           "description",
-          "beforeImageId",
           "afterImageId",
           "text",
           "categoryId"
@@ -1496,10 +1491,6 @@
           "description": {
             "type": "string",
             "example": "Мягкое освещение, крупный план"
-          },
-          "beforeImageId": {
-            "type": "string",
-            "example": "f47ac10b-58cc-4372-a567-0e02b2c3d479"
           },
           "afterImageId": {
             "type": "string",

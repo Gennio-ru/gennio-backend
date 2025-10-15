@@ -20,13 +20,13 @@ export class PromptBaseDto implements IPromptBase {
   description!: string;
 
   @Expose()
-  @ApiProperty()
-  beforeImageId!: string;
+  @ApiProperty({ type: String })
+  beforeImageId!: string | null;
 
   @Type(() => FileDto)
   @Expose()
   @ApiProperty()
-  beforeImage!: FileDto;
+  beforeImage?: FileDto;
 
   @Expose()
   @ApiProperty()
