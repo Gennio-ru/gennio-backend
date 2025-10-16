@@ -165,6 +165,14 @@ export class ModelJobService {
           );
 
           if (!payload.promptId) {
+            throw new Error("promptId is not found");
+          }
+
+          const prompt = await this.promptsService.findOne(payload.promptId);
+          const referencedImageFileBuffer =
+            await this.filesService.getFileBufferById(prompt.afterImageId);
+
+          if (!payload.promptId) {
             throw new Error("не указано поле promptId");
           }
 
@@ -174,6 +182,7 @@ export class ModelJobService {
 
           resultJpegBuffer = await this.openaiService.editImage({
             image: fileBuffer,
+            referencedImages: [referencedImageFileBuffer],
             prompt: promptData.text,
           });
         }

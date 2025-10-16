@@ -2,6 +2,8 @@ import { Inject, Injectable } from "@nestjs/common";
 import OpenAI from "openai";
 import { toFile } from "openai";
 import sharp from "sharp";
+import fs from "fs";
+
 import { OPENAI_CLIENT } from "./openai.constants";
 
 // НЕ светим типы SDK наружу — свои юнионы/интерфейсы
@@ -50,6 +52,16 @@ export class OpenAiImageService {
     throw new Error("No b64_json or url in image response item");
   }
 
+  private async prepareImageFile(
+    image: Buffer,
+    imageFilename = "image.jpeg"
+  ): Promise<File> {
+    const safeName = this.ensureJpegFilename(imageFilename);
+    return await toFile(image, safeName, {
+      type: "image/jpeg",
+    });
+  }
+
   async generateImage(params: {
     prompt: string;
     size?: AllowedSize;
@@ -71,6 +83,7 @@ export class OpenAiImageService {
   /** Обработка входного изображения -> JPEG Buffer результата */
   async editImage(params: {
     image: Buffer;
+    referencedImages?: Buffer[];
     prompt: string;
     imageFilename?: string;
     mode?: "contain" | "cover";
@@ -78,19 +91,33 @@ export class OpenAiImageService {
   }): Promise<Buffer> {
     const {
       image,
+      referencedImages = [],
       prompt,
       imageFilename = "image.jpeg",
       mode = "contain",
     } = params;
 
-    const safeName = this.ensureJpegFilename(imageFilename);
-    const imageFile = await toFile(image, safeName, {
-      type: "image/jpeg",
+    const imageFile = await this.prepareImageFile(image, imageFilename);
+    const referencedImageFiles = await Promise.all(
+      referencedImages.map((image, i) =>
+        this.prepareImageFile(image, `reference_${i}.jpeg`)
+      )
+    );
+
+    console.log({
+      model: "gpt-image-1",
+      image: [imageFile, ...referencedImageFiles],
+      prompt,
+      size: "auto",
+      n: 1,
+      quality: "medium",
+      stream: false,
+      input_fidelity: "high",
     });
 
     const res = await this.client.images.edit({
       model: "gpt-image-1",
-      image: imageFile,
+      image: [imageFile, ...referencedImageFiles],
       prompt,
       size: "auto",
       n: 1,

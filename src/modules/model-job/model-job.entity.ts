@@ -18,8 +18,8 @@ export class ModelJob extends BaseEntity implements IModelJob {
   @Column({ type: "enum", enum: ModelJobStatusType, default: "queued" })
   status: ModelJobStatusType;
 
-  @Column({ type: "text" })
-  text: string;
+  @Column({ type: "text", nullable: true })
+  text: string | null;
 
   @Column({ type: "uuid", nullable: true })
   promptId: string | null;
