@@ -162,8 +162,6 @@ export class AuthService {
     const code = crypto.randomInt(100000, 999999).toString();
     const ttlSec = this.OTP_TTL_MIN * 60;
 
-    console.log(`Generated code is - ${code}`);
-
     await this.otpStore.set("phone", phone, code, ttlSec);
 
     // TODO: отправка через SMS-провайдера; пока лог:

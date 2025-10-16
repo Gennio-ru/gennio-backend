@@ -83,8 +83,6 @@ export class OpenAiImageService {
       mode = "contain",
     } = params;
 
-    console.log("EDIT");
-
     const safeName = this.ensureJpegFilename(imageFilename);
     const imageFile = await toFile(image, safeName, {
       type: "image/jpeg",

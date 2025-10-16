@@ -158,7 +158,7 @@ export class FilesService {
   async getFileBuffer(key: string): Promise<Buffer> {
     const cmd = new GetObjectCommand({ Bucket: this.bucket, Key: key });
     const res = await this.s3.send(cmd);
-    console.log({ Bucket: this.bucket, Key: key });
+
     if (!res.Body) {
       throw new NotFoundException("File body is empty");
     }
