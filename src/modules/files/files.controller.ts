@@ -11,6 +11,7 @@ import {
   UseGuards,
   NotFoundException,
   ParseUUIDPipe,
+  Req,
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { memoryStorage } from "multer";
@@ -25,6 +26,7 @@ import { UserId } from "src/common/decorators/user-id.decorator";
 import { ReqUser } from "src/common/decorators/req-user.decorator";
 import { ReqUserData } from "../auth/strategies/jwt-access.strategy";
 import { UserRole } from "../users/types/user-role.enum";
+import { Request } from "express";
 
 @ApiTags("files")
 @Controller("files")
@@ -36,7 +38,7 @@ export class FilesController {
   @UseInterceptors(
     FileInterceptor("file", {
       storage: memoryStorage(),
-      limits: { fileSize: 10 * 1024 * 1024 },
+      limits: { fileSize: 30 * 1024 * 1024 },
       fileFilter: (req, file, cb) => {
         const allowed = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
         if (allowed.includes(file.mimetype)) cb(null, true);
@@ -52,11 +54,34 @@ export class FilesController {
   })
   async upload(
     @UploadedFile() file: Express.Multer.File,
+    @Req() req: Request,
     @UserId() userId: string,
     @ReqUser() user: ReqUserData,
     @Query("folder") folder?: string,
     @Query("public") publicQ?: string
   ): Promise<UploadFileResponseDto> {
+    const contentType = req.headers["content-type"];
+    const contentLength = req.headers["content-length"]; // вес всего multipart
+    const fileSize = file?.size; // из part-заголовка
+    const bufSize = file?.buffer?.length; // реальный размер буфера
+    const overhead =
+      contentLength && fileSize
+        ? Number(contentLength) - Number(fileSize)
+        : undefined;
+
+    console.log("[UPLOAD DEBUG]", {
+      ua: req.headers["user-agent"],
+      contentType,
+      contentLength, // байты всего HTTP-запроса
+      file: {
+        origName: file?.originalname,
+        mime: file?.mimetype,
+        fileSize, // размер файла по данным Multer
+        bufSize, // размер буфера
+      },
+      overhead, // разница multipart − fileSize
+    });
+
     if (!file) throw new BadRequestException("No file");
 
     if (user.role === UserRole.User) {
