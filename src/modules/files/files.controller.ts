@@ -38,7 +38,6 @@ export class FilesController {
       storage: memoryStorage(),
       limits: { fileSize: 6 * 1024 * 1024 },
       fileFilter: (req, file, cb) => {
-        console.log(req);
         const allowed = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
         if (allowed.includes(file.mimetype)) cb(null, true);
         else cb(new BadRequestException("Unsupported file type"), false);
