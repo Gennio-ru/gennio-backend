@@ -184,6 +184,7 @@ export class ModelJobService {
             image: fileBuffer,
             referencedImages: [referencedImageFileBuffer],
             prompt: promptData.text,
+            quality: "medium",
           });
         }
         break;
@@ -204,6 +205,7 @@ export class ModelJobService {
           resultJpegBuffer = await this.openaiService.editImage({
             image: fileBuffer,
             prompt: payload.text,
+            quality: "medium",
           });
         }
         break;
@@ -215,6 +217,7 @@ export class ModelJobService {
 
           resultJpegBuffer = await this.openaiService.generateImage({
             prompt: payload.text,
+            quality: "medium",
           });
         }
         break;
