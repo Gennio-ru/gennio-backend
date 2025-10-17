@@ -10,6 +10,7 @@ import { ModelJobStatusType, ModelJobType } from "./types/model-job.enum";
 import { FilesService } from "../files/files.service";
 import { ModelJobDto } from "./dto/model-job.dto";
 import { PromptsService } from "../prompts/prompts.service";
+import sharp from "sharp";
 
 @Injectable()
 export class ModelJobService {
@@ -124,7 +125,7 @@ export class ModelJobService {
     outputPreviewFileId: string;
     inputFileId: string | undefined;
   }> {
-    let resultJpegBuffer: Buffer<ArrayBufferLike>;
+    let resultBuffer: Buffer<ArrayBufferLike>;
 
     // Обрабатываем изображение пользователя, если оно есть
     if (payload.inputFileId) {
@@ -180,7 +181,7 @@ export class ModelJobService {
             payload.promptId
           );
 
-          resultJpegBuffer = await this.openaiService.editImage({
+          resultBuffer = await this.openaiService.editImage({
             image: fileBuffer,
             referencedImages: [referencedImageFileBuffer],
             prompt: promptData.text,
@@ -202,7 +203,7 @@ export class ModelJobService {
             payload.inputFileId
           );
 
-          resultJpegBuffer = await this.openaiService.editImage({
+          resultBuffer = await this.openaiService.editImage({
             image: fileBuffer,
             prompt: payload.text,
             quality: "medium",
@@ -215,13 +216,18 @@ export class ModelJobService {
             throw new Error("Не указано поле text");
           }
 
-          resultJpegBuffer = await this.openaiService.generateImage({
+          resultBuffer = await this.openaiService.generateImage({
             prompt: payload.text,
             quality: "medium",
           });
         }
         break;
     }
+
+    // Конвертируем результат в Jpeg с минимальним сжатием
+    const resultJpegBuffer = await sharp(resultBuffer)
+      .jpeg({ quality: 90 })
+      .toBuffer();
 
     const resultPreviewWebpBuffer = await this.filesService.compressToWebp(
       resultJpegBuffer
