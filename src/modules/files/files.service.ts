@@ -16,6 +16,8 @@ import { DeleteFileResponseDto } from "./dto/delete-file-response.dto";
 import { Readable } from "typeorm/platform/PlatformTools";
 import sharp from "sharp";
 
+type Format = "jpeg" | "png" | "webp";
+
 type UploadOpts = {
   folder?: string;
   publicRead?: boolean;
@@ -228,47 +230,60 @@ export class FilesService {
     return output;
   }
 
-  async compressKeepFormat(
-    inputBuffer: Buffer,
-    targetKb: number = 150
-  ): Promise<Buffer> {
-    // Определяем формат входного файла
-    const metadata = await sharp(inputBuffer).metadata();
-    const format = metadata.format as keyof sharp.FormatEnum;
+  async compressKeepFormat(input: Buffer, targetKb = 150): Promise<Buffer> {
+    const meta = await sharp(input).metadata();
+    const format0 = (meta.format || "").toLowerCase();
+    const format: Format | null =
+      format0 === "jpg"
+        ? "jpeg"
+        : ["jpeg", "png", "webp"].includes(format0)
+        ? (format0 as Format)
+        : null;
 
-    if (!format) {
-      throw new Error("Невозможно определить формат входного изображения");
+    if (!format) return input; // другие форматы не трогаем
+
+    const needsRotate =
+      typeof meta.orientation === "number" && meta.orientation !== 1;
+
+    // если уже маленькое — просто нормализуем ориентацию
+    if (input.length / 1024 <= targetKb) {
+      let img = sharp(input);
+      if (needsRotate) img = img.rotate();
+      return this.encode(img, format, 80);
     }
 
-    let quality = 75;
-    let output: Buffer = inputBuffer;
-
-    for (; quality >= 40; quality -= 5) {
-      const transformer = sharp(inputBuffer);
-
-      // выбираем нужный метод компрессии под формат
-      if (format === "jpeg" || format === "jpg") {
-        transformer.jpeg({ quality, mozjpeg: true });
-      } else if (format === "png") {
-        transformer.png({ quality, compressionLevel: 9 });
-      } else if (format === "webp") {
-        transformer.webp({ quality, effort: 6 });
-      } else {
-        // если формат не поддерживается — просто вернуть оригинал
-        return inputBuffer;
-      }
-
-      const candidate = await transformer.toBuffer();
-      const sizeKb = candidate.length / 1024;
-
-      if (sizeKb <= targetKb) {
-        output = candidate;
-        break;
-      }
-
-      output = candidate;
+    // простой цикл качества
+    let last: Buffer = input;
+    for (let q = 80; q >= 50; q -= 10) {
+      let img = sharp(input);
+      if (needsRotate) img = img.rotate();
+      const buf = await this.encode(img, format, q);
+      last = buf;
+      if (buf.length / 1024 <= targetKb) break;
     }
 
-    return output;
+    return last;
+  }
+
+  private encode(img: sharp.Sharp, format: Format, q: number): Promise<Buffer> {
+    if (format === "jpeg") {
+      return img
+        .jpeg({ quality: q, mozjpeg: true, progressive: true })
+        .withMetadata({ orientation: 1 })
+        .toBuffer();
+    }
+
+    if (format === "webp") {
+      return img
+        .webp({ quality: q, effort: 5 })
+        .withMetadata({ orientation: 1 })
+        .toBuffer();
+    }
+
+    // PNG
+    return img
+      .png({ compressionLevel: 9, palette: true, quality: q })
+      .withMetadata({ orientation: 1 })
+      .toBuffer();
   }
 }
