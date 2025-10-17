@@ -106,7 +106,7 @@ export class OpenAiImageService {
     // );
 
     const res = await this.client.images.edit({
-      model: "gpt-image-1",
+      model: "gpt-image-1-mini",
       image: [imageFile],
       prompt,
       size: "auto",
