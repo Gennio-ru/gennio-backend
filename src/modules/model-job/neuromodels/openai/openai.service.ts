@@ -5,6 +5,7 @@ import sharp from "sharp";
 import fs from "fs";
 
 import { OPENAI_CLIENT } from "./openai.constants";
+import { FilesService } from "src/modules/files/files.service";
 
 // НЕ светим типы SDK наружу — свои юнионы/интерфейсы
 type AllowedSize =
@@ -19,7 +20,10 @@ type ImageQuality = "low" | "medium" | "high";
 
 @Injectable()
 export class OpenAiImageService {
-  constructor(@Inject(OPENAI_CLIENT) private readonly client: OpenAI) {}
+  constructor(
+    @Inject(OPENAI_CLIENT) private readonly client: OpenAI,
+    private readonly filesService: FilesService
+  ) {}
 
   private ensureJpegFilename(name?: string) {
     const base = (name || "image").replace(/\.[^.]+$/g, "");
@@ -71,7 +75,7 @@ export class OpenAiImageService {
     const res = await this.client.images.generate({
       model: "gpt-image-1",
       prompt: params.prompt,
-      size: params.size,
+      size: "1024x1024",
       n: params.n,
       quality: params.quality ?? "low",
       stream: false,
@@ -98,7 +102,13 @@ export class OpenAiImageService {
       mode = "contain",
     } = params;
 
-    const imageFile = await this.prepareImageFile(image, imageFilename);
+    const optimizedImage = await this.filesService.downscaleImageIfNeeded(
+      image
+    );
+    const imageFile = await this.prepareImageFile(
+      optimizedImage,
+      imageFilename
+    );
     // const referencedImageFiles = await Promise.all(
     //   referencedImages.map((image, i) =>
     //     this.prepareImageFile(image, `reference_${i}.jpeg`)
@@ -106,14 +116,14 @@ export class OpenAiImageService {
     // );
 
     const res = await this.client.images.edit({
-      model: "gpt-image-1-mini",
+      model: "gpt-image-1",
       image: [imageFile],
       prompt,
-      size: "auto",
+      size: "1024x1024",
       n: 1,
       quality: params.quality ?? "low",
       stream: false,
-      // input_fidelity: "high",
+      input_fidelity: "high",
     });
 
     return this.toJpegBufferFromImagesResponse(res);

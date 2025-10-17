@@ -286,4 +286,45 @@ export class FilesService {
       .withMetadata({ orientation: 1 })
       .toBuffer();
   }
+
+  /**
+   * Уменьшает изображение до указанного лимита по длинной стороне,
+   * сохраняя пропорции. Оптимально для дешёвой обработки gpt-image-1.
+   *
+   * @param buffer - исходный буфер изображения
+   * @param maxSide - максимальный размер длинной стороны (по умолчанию 1024)
+   * @returns новый буфер (JPEG)
+   */
+  async downscaleImageIfNeeded(
+    buffer: Buffer,
+    maxSide = 1024
+  ): Promise<Buffer> {
+    const image = sharp(buffer);
+    const metadata = await image.metadata();
+
+    if (!metadata.width || !metadata.height) {
+      throw new Error("Не удалось определить размер изображения");
+    }
+
+    const { width, height } = metadata;
+    const longerSide = Math.max(width, height);
+
+    // Если картинка и так меньше лимита — возвращаем как есть
+    if (longerSide <= maxSide) {
+      return buffer;
+    }
+
+    // Вычисляем новые размеры с сохранением пропорций
+    const resizeOptions =
+      width >= height
+        ? { width: maxSide } // без height
+        : { height: maxSide }; // без width
+
+    const resized = await image
+      .resize(resizeOptions)
+      .jpeg({ quality: 90 })
+      .toBuffer();
+
+    return resized;
+  }
 }

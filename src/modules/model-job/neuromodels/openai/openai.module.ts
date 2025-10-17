@@ -3,9 +3,10 @@ import { ConfigModule, ConfigService } from "@nestjs/config";
 import OpenAI from "openai";
 import { OPENAI_CLIENT } from "./openai.constants";
 import { OpenAiImageService } from "./openai.service";
+import { FilesModule } from "src/modules/files/files.module";
 
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true })],
+  imports: [ConfigModule.forRoot({ isGlobal: true }), FilesModule],
   providers: [
     OpenAiImageService,
     {
