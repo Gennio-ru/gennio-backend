@@ -91,6 +91,7 @@ export class OpenAiImageService {
   }): Promise<Buffer> {
     const {
       image,
+      // Референсные изображения (на будущее)
       referencedImages = [],
       prompt,
       imageFilename = "image.jpeg",
@@ -98,26 +99,15 @@ export class OpenAiImageService {
     } = params;
 
     const imageFile = await this.prepareImageFile(image, imageFilename);
-    const referencedImageFiles = await Promise.all(
-      referencedImages.map((image, i) =>
-        this.prepareImageFile(image, `reference_${i}.jpeg`)
-      )
-    );
-
-    console.log({
-      model: "gpt-image-1",
-      image: [imageFile, ...referencedImageFiles],
-      prompt,
-      size: "auto",
-      n: 1,
-      quality: "medium",
-      stream: false,
-      input_fidelity: "high",
-    });
+    // const referencedImageFiles = await Promise.all(
+    //   referencedImages.map((image, i) =>
+    //     this.prepareImageFile(image, `reference_${i}.jpeg`)
+    //   )
+    // );
 
     const res = await this.client.images.edit({
       model: "gpt-image-1",
-      image: [imageFile, ...referencedImageFiles],
+      image: [imageFile],
       prompt,
       size: "auto",
       n: 1,
