@@ -113,7 +113,7 @@ export class OpenAiImageService {
       n: 1,
       quality: params.quality ?? "low",
       stream: false,
-      input_fidelity: "high",
+      // input_fidelity: "high",
     });
 
     return this.toJpegBufferFromImagesResponse(res);
