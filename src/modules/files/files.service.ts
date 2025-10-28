@@ -292,13 +292,10 @@ export class FilesService {
    * сохраняя пропорции. Оптимально для дешёвой обработки gpt-image-1.
    *
    * @param buffer - исходный буфер изображения
-   * @param maxSide - максимальный размер длинной стороны (по умолчанию 1024)
+   * @param maxSide - максимальный размер длинной стороны (по умолчанию 640)
    * @returns новый буфер (JPEG)
    */
-  async downscaleImageIfNeeded(
-    buffer: Buffer,
-    maxSide = 1024
-  ): Promise<Buffer> {
+  async downscaleImageIfNeeded(buffer: Buffer, maxSide = 512): Promise<Buffer> {
     const image = sharp(buffer);
     const metadata = await image.metadata();
 

@@ -2,10 +2,11 @@ import { Inject, Injectable } from "@nestjs/common";
 import OpenAI from "openai";
 import { toFile } from "openai";
 import sharp from "sharp";
-import fs from "fs";
+import { promises as fs } from "fs";
 
 import { OPENAI_CLIENT } from "./openai.constants";
 import { FilesService } from "src/modules/files/files.service";
+import path from "path";
 
 // НЕ светим типы SDK наружу — свои юнионы/интерфейсы
 type AllowedSize =
@@ -81,6 +82,8 @@ export class OpenAiImageService {
       stream: false,
     });
 
+    console.log(res.usage);
+
     return this.toJpegBufferFromImagesResponse(res);
   }
 
@@ -103,7 +106,8 @@ export class OpenAiImageService {
     } = params;
 
     const optimizedImage = await this.filesService.downscaleImageIfNeeded(
-      image
+      image,
+      512
     );
     const imageFile = await this.prepareImageFile(
       optimizedImage,
@@ -116,15 +120,17 @@ export class OpenAiImageService {
     // );
 
     const res = await this.client.images.edit({
-      model: "gpt-image-1",
-      image: [imageFile],
+      model: "gpt-image-1-mini",
+      image: imageFile,
       prompt,
       size: "1024x1024",
       n: 1,
       quality: params.quality ?? "low",
       stream: false,
-      input_fidelity: "high",
+      // input_fidelity: "high",
     });
+
+    console.log(res.usage);
 
     return this.toJpegBufferFromImagesResponse(res);
   }
