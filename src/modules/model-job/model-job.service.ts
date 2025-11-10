@@ -11,6 +11,11 @@ import { FilesService } from "../files/files.service";
 import { ModelJobDto } from "./dto/model-job.dto";
 import { PromptsService } from "../prompts/prompts.service";
 import sharp from "sharp";
+import { ModelJobGateway } from "./model-job.gateway";
+import {
+  MODEL_JOB_RMQ_EVENTS,
+  ModelJobCreatedPayload,
+} from "./types/model-job.rmq-events";
 
 @Injectable()
 export class ModelJobService {
@@ -20,7 +25,8 @@ export class ModelJobService {
     private readonly openaiService: OpenAiImageService,
     private readonly filesService: FilesService,
     private readonly promptsService: PromptsService,
-    @Inject(MODEL_JOB_CLIENT) private readonly client: ClientProxy
+    @Inject(MODEL_JOB_CLIENT) private readonly client: ClientProxy,
+    private readonly gateway: ModelJobGateway
   ) {}
 
   async findOne(
@@ -76,11 +82,16 @@ export class ModelJobService {
     const modelJob = this.repository.create(data);
 
     await this.repository.save(modelJob);
-    console.log("EMIT MODEL JOB 2", modelJob.id);
-    this.client.emit("model_job_created", {
+
+    const payload: ModelJobCreatedPayload = {
       modelJobId: modelJob.id,
       payload: data,
-    });
+    };
+
+    this.client.emit<ModelJobCreatedPayload>(
+      MODEL_JOB_RMQ_EVENTS.CREATED,
+      payload
+    );
 
     return modelJob;
   }
@@ -111,11 +122,20 @@ export class ModelJobService {
         inputFileId,
         finishedAt: new Date(),
       });
+
+      const jobWithUrls = await this.findOne(modelJobId);
+
+      this.gateway.sendJobUpdate(modelJobId, jobWithUrls);
     } catch (e) {
       await this.repository.update(modelJobId, {
         status: ModelJobStatusType.failed,
         error: e instanceof Error ? e.message : String(e),
         finishedAt: new Date(),
+      });
+
+      this.gateway.sendJobUpdate(modelJobId, {
+        status: ModelJobStatusType.failed,
+        error: e instanceof Error ? e.message : String(e),
       });
     }
   }

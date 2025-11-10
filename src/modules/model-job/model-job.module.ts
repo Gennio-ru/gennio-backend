@@ -10,6 +10,7 @@ import { MODEL_JOB_CLIENT } from "./model-job.constants";
 import { ModelJobsProcessor } from "./model-job.processor";
 import { FilesModule } from "../files/files.module";
 import { PromptsModule } from "../prompts/prompts.module";
+import { ModelJobGateway } from "./model-job.gateway";
 
 @Module({
   imports: [
@@ -23,7 +24,7 @@ import { PromptsModule } from "../prompts/prompts.module";
     PromptsModule,
   ],
   controllers: [ModelJobController, ModelJobsProcessor],
-  providers: [ModelJobService],
+  providers: [ModelJobService, ModelJobGateway],
   exports: [ModelJobService],
 })
 export class ModelJobModule {}
