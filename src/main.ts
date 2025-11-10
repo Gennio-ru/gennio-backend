@@ -10,9 +10,16 @@ import { execSync } from "child_process";
 import { MicroserviceOptions, Transport } from "@nestjs/microservices";
 import { DataSource } from "typeorm";
 import AppDataSource from "./data-source";
+import { Logger } from "nestjs-pino";
+import { AllExceptionsFilter } from "./common/filters/http-exception.filter";
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    bufferLogs: true,
+  });
+
+  app.useLogger(app.get(Logger));
+  app.useGlobalFilters(new AllExceptionsFilter(app.get(Logger)));
 
   // === АВТО-МИГРАЦИИ ===
   if (process.env.NODE_ENV === "production") {
@@ -57,7 +64,7 @@ async function bootstrap() {
   const user = process.env.RABBIT_USER;
   const pass = process.env.RABBIT_PASS;
   if (!user || !pass) throw new Error("rabbitMQ user or pass not found");
-  const host = process.env.NODE_ENV === "production" ? "rabbitmq" : "localhost";
+  const host = process.env.RABBIT_HOST || "localhost";
   const amqpUrl = `amqp://${user}:${pass}@${host}:5672/`;
 
   app.connectMicroservice<MicroserviceOptions>({
@@ -80,27 +87,6 @@ async function bootstrap() {
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup("docs", app, document);
-
-  // Генерация swagger.json + типов
-  const swaggerPath = join(process.cwd(), "swagger.json");
-  writeFileSync(swaggerPath, JSON.stringify(document, null, 2));
-  console.log(`✅ Swagger JSON saved to ${swaggerPath}`);
-  try {
-    const frontendPath = join(
-      process.cwd(),
-      "..",
-      "gennio-frontend",
-      "src",
-      "api",
-      "types.gen.ts"
-    );
-    execSync(`npx openapi-typescript ${swaggerPath} --output ${frontendPath}`, {
-      stdio: "inherit",
-    });
-    console.log(`✅ Types generated in ${frontendPath}`);
-  } catch (e) {
-    console.error("❌ Failed to generate types:", e);
-  }
 
   await app.startAllMicroservices();
   const port = Number(process.env.PORT) || 3000;

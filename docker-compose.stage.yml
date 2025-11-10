@@ -77,7 +77,41 @@ services:
     depends_on:
       - backend
 
+  loki:
+    image: grafana/loki:2.9.2
+    container_name: gennio-loki
+    restart: unless-stopped
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - loki_data:/tmp/loki
+
+  promtail:
+    image: grafana/promtail:2.9.2
+    container_name: gennio-promtail
+    restart: unless-stopped
+    volumes:
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./promtail-config.yml:/etc/promtail/config.yml:ro
+    depends_on:
+      - loki
+
+  alerts:
+      build: ./alerts
+      container_name: gennio-alerts
+      restart: unless-stopped
+      env_file:
+        - .env
+      environment:
+        - LOKI_URL=http://loki:3100
+        - POLL_SEC=30
+        - TG_TOKEN=${TG_TOKEN}
+        - TG_CHAT_ID=${TG_CHAT_ID}
+      depends_on:
+        - loki
+
 volumes:
   postgres_data:
   redis_data:
   rabbitmq_data:
+  loki_data:

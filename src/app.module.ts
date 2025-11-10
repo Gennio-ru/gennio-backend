@@ -16,6 +16,11 @@ import { APP_GUARD } from "@nestjs/core";
 import { ThrottlerGuard } from "@nestjs/throttler";
 import { ModelJobModule } from "./modules/model-job/model-job.module";
 import { CategoriesModule } from "./modules/categories/categories.module";
+import { LoggerModule } from "nestjs-pino";
+
+const rawLevel = process.env.LOG_LEVEL || "info";
+const level = rawLevel.toLowerCase();
+const isPretty = level === "debug";
 
 @Module({
   imports: [
@@ -41,6 +46,17 @@ import { CategoriesModule } from "./modules/categories/categories.module";
         };
       },
       inject: [ConfigService],
+    }),
+    LoggerModule.forRoot({
+      pinoHttp: {
+        level,
+        transport: isPretty ? { target: "pino-pretty" } : undefined,
+        formatters: { level: (label) => ({ level: label }) },
+        customProps: (req) => ({
+          service: "backend",
+          requestId: req.headers["x-request-id"],
+        }),
+      },
     }),
     UsersModule,
     AuthModule,
