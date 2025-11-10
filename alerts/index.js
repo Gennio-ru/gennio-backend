@@ -126,6 +126,8 @@ async function poll() {
 
   const streams = await queryErrors(start, end);
 
+  console.log("!!!", streams);
+
   const groups = new Map();
   let maxTs = lastNs || 0n;
 
