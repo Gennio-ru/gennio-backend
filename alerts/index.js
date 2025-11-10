@@ -17,9 +17,8 @@ function nowNs() {
 }
 
 async function queryErrors(startNs, endNs) {
-  // Берём только логи нашего фильтра: msg = "Unhandled exception"
-  const query =
-    '{container="/gennio-backend",level="error"} |= "Unhandled exception"';
+  // Берём только логи нашего фильтра по контейнеру и тексту
+  const query = '{container="/gennio-backend"} |= "Unhandled exception"';
 
   const url = new URL("/loki/api/v1/query_range", LOKI_URL);
   url.searchParams.set("query", query);
@@ -54,7 +53,7 @@ async function sendTelegram(text) {
   }
 }
 
-// Парсим строку Loki → берём только наши логи фильтра
+// Парсим строку Loki → берём только наши логи фильтра 5xx
 function normalizeUnhandled(line, ts) {
   let obj;
   try {
@@ -64,6 +63,11 @@ function normalizeUnhandled(line, ts) {
   }
 
   if (obj.msg !== "Unhandled exception") {
+    return null;
+  }
+
+  // режем всё, что не 5xx
+  if (obj.status && obj.status < 500) {
     return null;
   }
 
@@ -126,8 +130,6 @@ async function poll() {
 
   const streams = await queryErrors(start, end);
 
-  console.log("!!!", streams);
-
   const groups = new Map();
   let maxTs = lastNs || 0n;
 
@@ -141,7 +143,6 @@ async function poll() {
       const normalized = normalizeUnhandled(line, ts);
       if (!normalized) continue;
 
-      // Ключ для группировки одинаковых ошибок
       const key = JSON.stringify({
         msg: normalized.errorMessage,
         method: normalized.method,

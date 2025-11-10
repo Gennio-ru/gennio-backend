@@ -30,15 +30,11 @@ import {
 import { OptionalJwtAuthGuard } from "../auth/guards/optional-jwt-auth.guard";
 import { ReqUser } from "src/common/decorators/req-user.decorator";
 import { ReqUserData } from "../auth/strategies/jwt-access.strategy";
-import { Logger } from "nestjs-pino";
 
 @ApiTags("prompts")
 @Controller("prompts")
 export class PromptsController {
-  constructor(
-    private readonly promptsService: PromptsService,
-    private readonly logger: Logger
-  ) {}
+  constructor(private readonly promptsService: PromptsService) {}
 
   @Get()
   @UseGuards(OptionalJwtAuthGuard)
