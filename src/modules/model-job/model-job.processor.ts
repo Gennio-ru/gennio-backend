@@ -25,6 +25,8 @@ export class ModelJobsProcessor {
     const channel = ctx.getChannelRef();
     const msg = ctx.getMessage();
 
+    console.log("HANDLE MODEL JOB", data);
+
     if (!data?.modelJobId) {
       channel.ack(msg);
       return;

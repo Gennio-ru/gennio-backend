@@ -82,8 +82,6 @@ export class OpenAiImageService {
       stream: false,
     });
 
-    console.log(res.usage);
-
     return this.toJpegBufferFromImagesResponse(res);
   }
 
@@ -129,8 +127,6 @@ export class OpenAiImageService {
       stream: false,
       // input_fidelity: "high",
     });
-
-    console.log(res.usage);
 
     return this.toJpegBufferFromImagesResponse(res);
   }

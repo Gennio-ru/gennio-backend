@@ -76,7 +76,7 @@ export class ModelJobService {
     const modelJob = this.repository.create(data);
 
     await this.repository.save(modelJob);
-
+    console.log("EMIT MODEL JOB 2", modelJob.id);
     this.client.emit("model_job_created", {
       modelJobId: modelJob.id,
       payload: data,

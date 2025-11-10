@@ -15,8 +15,7 @@ export class RabbitmqModule {
       throw new Error("rabbitMQ user or pass not found");
     }
 
-    const host =
-      process.env.NODE_ENV === "production" ? "rabbitmq" : "localhost";
+    const host = process.env.RABBIT_HOST || "localhost";
 
     const stageUrl = `amqp://${user}:${pass}@${host}:5672/`;
 
