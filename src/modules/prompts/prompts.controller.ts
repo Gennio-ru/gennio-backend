@@ -52,8 +52,6 @@ export class PromptsController {
   ): Promise<PaginationResult<PromptDto>> {
     const page = await this.promptsService.findMany(query);
 
-    throw new Error("check stage telegram");
-
     return paginatePlainToInstance(PromptResponseDto, page, {
       groups: user ? [user?.role] : [],
     });
