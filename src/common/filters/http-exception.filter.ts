@@ -15,26 +15,17 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const req = ctx.getRequest<any>();
     const res = ctx.getResponse<any>();
 
-    const status =
-      exception instanceof HttpException ? exception.getStatus() : 500;
+    const isHttp = exception instanceof HttpException;
+    const status = isHttp ? exception.getStatus() : 500;
 
     const errorName =
-      exception instanceof Error
-        ? exception.name
-        : exception instanceof HttpException
-        ? exception.name
-        : "UnknownError";
-
+      exception instanceof Error ? exception.name : "UnknownError";
     const errorMessage =
-      exception instanceof Error || exception instanceof HttpException
-        ? exception.message
-        : String(exception);
-
+      exception instanceof Error ? exception.message : String(exception);
     const stack = exception instanceof Error ? exception.stack : undefined;
 
-    // ВАЖНО: уровень ошибки задаём самим методом .error()
-    this.logger.error({
-      msg: "Unhandled exception", // по нему будем фильтровать
+    const payload = {
+      msg: "Unhandled exception",
       service: "backend",
       status,
       method: req?.method,
@@ -43,8 +34,24 @@ export class AllExceptionsFilter implements ExceptionFilter {
       errorMessage,
       stack,
       requestId: req?.headers["x-request-id"],
-    });
+    };
 
-    res.status(status).json({ statusCode: status, message: "Internal error" });
+    const isServerError = !isHttp || status >= 500;
+
+    if (isServerError) {
+      // только 5xx и не-HttpException — настоящие ошибки
+      this.logger.error(payload);
+    } else {
+      // 4xx — ожидаемое поведение, логируем мягче
+      this.logger.warn(payload);
+    }
+
+    res
+      .status(status)
+      .json(
+        isHttp
+          ? exception.getResponse()
+          : { statusCode: status, message: "Internal error" }
+      );
   }
 }

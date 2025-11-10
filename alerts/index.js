@@ -18,7 +18,8 @@ function nowNs() {
 
 async function queryErrors(startNs, endNs) {
   // Берём только логи нашего фильтра: msg = "Unhandled exception"
-  const query = '{container="/gennio-backend"} |= "Unhandled exception"';
+  const query =
+    '{container="/gennio-backend",level="error"} |= "Unhandled exception"';
 
   const url = new URL("/loki/api/v1/query_range", LOKI_URL);
   url.searchParams.set("query", query);

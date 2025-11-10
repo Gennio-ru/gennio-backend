@@ -30,11 +30,15 @@ import {
 import { OptionalJwtAuthGuard } from "../auth/guards/optional-jwt-auth.guard";
 import { ReqUser } from "src/common/decorators/req-user.decorator";
 import { ReqUserData } from "../auth/strategies/jwt-access.strategy";
+import { Logger } from "nestjs-pino";
 
 @ApiTags("prompts")
 @Controller("prompts")
 export class PromptsController {
-  constructor(private readonly promptsService: PromptsService) {}
+  constructor(
+    private readonly promptsService: PromptsService,
+    private readonly logger: Logger
+  ) {}
 
   @Get()
   @UseGuards(OptionalJwtAuthGuard)
@@ -51,6 +55,8 @@ export class PromptsController {
     @ReqUser() user: ReqUserData
   ): Promise<PaginationResult<PromptDto>> {
     const page = await this.promptsService.findMany(query);
+
+    this.logger.error("check stage telegram");
 
     return paginatePlainToInstance(PromptResponseDto, page, {
       groups: user ? [user?.role] : [],

@@ -51,6 +51,11 @@ const isPretty = level === "debug";
       pinoHttp: {
         level,
         transport: isPretty ? { target: "pino-pretty" } : undefined,
+        customLogLevel(req, res, err) {
+          if (res.statusCode >= 500 || err) return "error";
+          if (res.statusCode >= 400) return "warn";
+          return "info";
+        },
         formatters: { level: (label) => ({ level: label }) },
         customProps: (req) => ({
           service: "backend",
