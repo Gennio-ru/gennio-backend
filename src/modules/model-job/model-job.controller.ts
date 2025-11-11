@@ -12,6 +12,7 @@ import {
   StartImageEditByPromptIdDto,
   StartImageEditByPromptTextDto,
   StartImageGenerateByPromptTextDto,
+  StartTextGenerateDto,
 } from "./dto/create-model-job.dto";
 import { UserId } from "src/common/decorators/user-id.decorator";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
@@ -90,6 +91,25 @@ export class ModelJobController {
     const data = await this.modelJobService.create({
       ...dto,
       type: ModelJobType.ImageGenerateByPromptText,
+      userId,
+    });
+    return data;
+  }
+
+  @Post("start-text-generate")
+  @UseGuards(JwtAuthGuard)
+  @ApiResponse({
+    status: 201,
+    description: "Генерация запущена",
+    type: ModelJobDto,
+  })
+  async startTextGenerate(
+    @Body() dto: StartTextGenerateDto,
+    @UserId() userId: string
+  ) {
+    const data = await this.modelJobService.create({
+      ...dto,
+      type: ModelJobType.TextGenerate,
       userId,
     });
     return data;

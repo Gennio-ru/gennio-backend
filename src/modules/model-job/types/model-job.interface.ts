@@ -10,6 +10,7 @@ export interface IModelJobBase {
   inputFileId: string | null;
   outputFileId: string | null;
   outputPreviewFileId: string | null;
+  outputText: string | null;
   error: string | null;
   startedAt: Date | null;
   finishedAt: Date | null;

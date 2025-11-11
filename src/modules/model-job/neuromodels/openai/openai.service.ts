@@ -2,11 +2,10 @@ import { Inject, Injectable } from "@nestjs/common";
 import OpenAI from "openai";
 import { toFile } from "openai";
 import sharp from "sharp";
-import { promises as fs } from "fs";
 
 import { OPENAI_CLIENT } from "./openai.constants";
 import { FilesService } from "src/modules/files/files.service";
-import path from "path";
+import { GenerateTextOptions } from "./types";
 
 // НЕ светим типы SDK наружу — свои юнионы/интерфейсы
 type AllowedSize =
@@ -96,8 +95,6 @@ export class OpenAiImageService {
   }): Promise<Buffer> {
     const {
       image,
-      // Референсные изображения (на будущее)
-      referencedImages = [],
       prompt,
       imageFilename = "image.jpeg",
       mode = "contain",
@@ -111,11 +108,6 @@ export class OpenAiImageService {
       optimizedImage,
       imageFilename
     );
-    // const referencedImageFiles = await Promise.all(
-    //   referencedImages.map((image, i) =>
-    //     this.prepareImageFile(image, `reference_${i}.jpeg`)
-    //   )
-    // );
 
     const res = await this.client.images.edit({
       model: "gpt-image-1-mini",
@@ -129,5 +121,26 @@ export class OpenAiImageService {
     });
 
     return this.toJpegBufferFromImagesResponse(res);
+  }
+
+  async generateText(options: GenerateTextOptions): Promise<string> {
+    const {
+      prompt,
+      system = "You are a helpful assistant.",
+      maxTokens = 700,
+      // temperature = 0.7,
+    } = options;
+
+    const response = await this.client.chat.completions.create({
+      model: "gpt-5",
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: prompt },
+      ],
+      max_completion_tokens: maxTokens,
+      // temperature,
+    });
+
+    return response.choices[0]?.message?.content?.trim() ?? "";
   }
 }

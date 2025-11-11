@@ -37,6 +37,9 @@ export class ModelJob extends BaseEntity implements IModelJob {
   outputPreviewFileId: string | null;
 
   @Column({ type: "text", nullable: true })
+  outputText: string | null;
+
+  @Column({ type: "text", nullable: true })
   error: string | null;
 
   @Column({ type: "timestamptz", nullable: true })

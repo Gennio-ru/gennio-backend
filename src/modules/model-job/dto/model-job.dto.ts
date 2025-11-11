@@ -79,6 +79,12 @@ export class ModelJobBaseDto implements IModelJobBase {
   })
   outputPreviewFileUrl!: string | null;
 
+  @ApiProperty({
+    type: String,
+    nullable: true,
+  })
+  outputText: string | null;
+
   @ApiProperty({ example: "OpenAI timeout error", nullable: true })
   error!: string | null;
 
