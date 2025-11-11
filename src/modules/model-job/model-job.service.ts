@@ -16,6 +16,10 @@ import {
   MODEL_JOB_RMQ_EVENTS,
   ModelJobCreatedPayload,
 } from "./types/model-job.rmq-events";
+import { PricingService } from "../pricing/pricing.service";
+import { CreditsService } from "../credits/credits.service";
+import { CreditTransactionReason } from "../credits/types/credits.enum";
+import { Logger } from "nestjs-pino";
 
 type ModelJobWithUrls = ModelJobDto & {
   inputFileUrl: string | null;
@@ -39,7 +43,10 @@ export class ModelJobService {
     private readonly filesService: FilesService,
     private readonly promptsService: PromptsService,
     @Inject(MODEL_JOB_CLIENT) private readonly client: ClientProxy,
-    private readonly gateway: ModelJobGateway
+    private readonly gateway: ModelJobGateway,
+    private readonly creditsService: CreditsService,
+    private readonly pricingService: PricingService,
+    private readonly logger: Logger
   ) {}
 
   async findOne(id: string): Promise<ModelJobWithUrls> {
@@ -91,7 +98,20 @@ export class ModelJobService {
   }
 
   async create(data: IModelJobCreate): Promise<ModelJob> {
-    const modelJob = this.repository.create(data);
+    const credits = this.pricingService.getCreditsForJob(data);
+
+    await this.creditsService.chargeForJob({
+      userId: data.userId,
+      credits,
+      reason: CreditTransactionReason.JobCharge,
+      meta: { tariffCode: data.tariffCode, type: data.type },
+    });
+
+    const modelJob = this.repository.create({
+      ...data,
+      creditsCharged: credits,
+    });
+
     await this.repository.save(modelJob);
 
     const payload: ModelJobCreatedPayload = {
@@ -150,15 +170,36 @@ export class ModelJobService {
       const jobWithUrls = await this.findOne(modelJobId);
       this.gateway.sendJobUpdate(modelJobId, jobWithUrls);
     } catch (e) {
+      const errorMessage = e instanceof Error ? e.message : String(e);
+
       await this.repository.update(modelJobId, {
         status: ModelJobStatusType.failed,
-        error: e instanceof Error ? e.message : String(e),
+        error: errorMessage,
         finishedAt: new Date(),
       });
 
+      // пробуем вернуть кредиты
+      try {
+        const job = await this.repository.findOne({
+          where: { id: modelJobId },
+        });
+
+        if (job && job.creditsCharged > 0) {
+          await this.creditsService.addCredits({
+            userId: job.userId,
+            credits: job.creditsCharged,
+            modelJobId: job.id,
+            reason: CreditTransactionReason.JobRefund,
+            meta: { error: errorMessage },
+          });
+        }
+      } catch (refundError) {
+        this.logger.error({ msg: "Refund failed", refundError, modelJobId });
+      }
+
       this.gateway.sendJobUpdate(modelJobId, {
         status: ModelJobStatusType.failed,
-        error: e instanceof Error ? e.message : String(e),
+        error: errorMessage,
       });
     }
   }

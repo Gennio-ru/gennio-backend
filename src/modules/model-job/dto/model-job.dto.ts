@@ -6,6 +6,7 @@ import {
   ModelType,
 } from "../types/model-job.enum";
 import { BaseDto } from "src/common/base/base.dto";
+import { ModelTariffCode } from "src/modules/pricing/types/pricing.enum";
 
 export class ModelJobBaseDto implements IModelJobBase {
   @ApiProperty({ enum: ModelType, enumName: "ModelType" })
@@ -84,6 +85,20 @@ export class ModelJobBaseDto implements IModelJobBase {
     nullable: true,
   })
   outputText: string | null;
+
+  @ApiProperty({
+    enum: ModelTariffCode,
+    enumName: "ModelTariffCode",
+    description: "Тариф, по которому считали стоимость задачи",
+  })
+  tariffCode!: ModelTariffCode;
+
+  @ApiProperty({
+    type: Number,
+    example: 8,
+    description: "Сколько кредитов списано за эту задачу",
+  })
+  creditsCharged!: number;
 
   @ApiProperty({ example: "OpenAI timeout error", nullable: true })
   error!: string | null;

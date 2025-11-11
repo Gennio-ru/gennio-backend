@@ -11,6 +11,8 @@ import { ModelJobsProcessor } from "./model-job.processor";
 import { FilesModule } from "../files/files.module";
 import { PromptsModule } from "../prompts/prompts.module";
 import { ModelJobGateway } from "./model-job.gateway";
+import { PricingModule } from "../pricing/pricing.module";
+import { CreditsModule } from "../credits/credits.module";
 
 @Module({
   imports: [
@@ -22,6 +24,8 @@ import { ModelJobGateway } from "./model-job.gateway";
     }),
     FilesModule,
     PromptsModule,
+    CreditsModule,
+    PricingModule,
   ],
   controllers: [ModelJobController, ModelJobsProcessor],
   providers: [ModelJobService, ModelJobGateway],

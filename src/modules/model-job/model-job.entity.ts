@@ -6,6 +6,7 @@ import {
   ModelJobType,
   ModelType,
 } from "./types/model-job.enum";
+import { ModelTariffCode } from "../pricing/types/pricing.enum";
 
 @Entity("model_jobs")
 export class ModelJob extends BaseEntity implements IModelJob {
@@ -38,6 +39,12 @@ export class ModelJob extends BaseEntity implements IModelJob {
 
   @Column({ type: "text", nullable: true })
   outputText: string | null;
+
+  @Column({ type: "enum", enum: ModelTariffCode })
+  tariffCode: ModelTariffCode;
+
+  @Column({ type: "int" })
+  creditsCharged: number;
 
   @Column({ type: "text", nullable: true })
   error: string | null;

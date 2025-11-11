@@ -11,7 +11,7 @@ import { IModelJobCreate } from "../types/model-job-mutations.interface";
 import { ModelType } from "../types/model-job.enum";
 
 export class StartProcessBaseDto
-  implements Omit<IModelJobCreate, "userId" | "type">
+  implements Omit<IModelJobCreate, "userId" | "type" | "tariffCode">
 {
   @ApiProperty({ enum: ModelType, enumName: "ModelType" })
   @IsEnum(ModelType)
@@ -21,7 +21,7 @@ export class StartProcessBaseDto
 
 export class StartImageEditByPromptIdDto
   extends StartProcessBaseDto
-  implements Omit<IModelJobCreate, "userId" | "type">
+  implements Omit<IModelJobCreate, "userId" | "type" | "tariffCode">
 {
   @ApiProperty()
   @IsUUID()
@@ -45,7 +45,7 @@ export class StartImageEditByPromptIdDto
 
 export class StartImageEditByPromptTextDto
   extends StartProcessBaseDto
-  implements Omit<IModelJobCreate, "userId" | "type">
+  implements Omit<IModelJobCreate, "userId" | "type" | "tariffCode">
 {
   @ApiProperty({
     example: "Мягкое освещение, крупный план",
@@ -64,7 +64,7 @@ export class StartImageEditByPromptTextDto
 
 export class StartImageGenerateByPromptTextDto
   extends StartProcessBaseDto
-  implements Omit<IModelJobCreate, "userId" | "type">
+  implements Omit<IModelJobCreate, "userId" | "type" | "tariffCode">
 {
   @ApiProperty({
     example: "Мягкое освещение, крупный план",
@@ -79,7 +79,7 @@ export class StartImageGenerateByPromptTextDto
 
 export class StartTextGenerateDto
   extends StartProcessBaseDto
-  implements Omit<IModelJobCreate, "userId" | "type">
+  implements Omit<IModelJobCreate, "userId" | "type" | "tariffCode">
 {
   @ApiProperty({
     example: "Сгенерируй текст новогоднего поздравления",

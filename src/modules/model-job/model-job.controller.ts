@@ -22,6 +22,7 @@ import { Roles } from "../users/user-roles.decorator";
 import { ApiOperation, ApiResponse } from "@nestjs/swagger";
 import { ModelJobDto } from "./dto/model-job.dto";
 import { ModelJobType } from "./types/model-job.enum";
+import { ModelTariffCode } from "../pricing/types/pricing.enum";
 
 @Controller("model-job")
 export class ModelJobController {
@@ -54,6 +55,7 @@ export class ModelJobController {
       ...dto,
       type: ModelJobType.ImageEditByPromptId,
       userId,
+      tariffCode: ModelTariffCode.ImageBasicEdit,
     });
     return data;
   }
@@ -73,6 +75,7 @@ export class ModelJobController {
       ...dto,
       type: ModelJobType.ImageEditByPromptText,
       userId,
+      tariffCode: ModelTariffCode.ImageBasicEdit,
     });
     return data;
   }
@@ -92,6 +95,7 @@ export class ModelJobController {
       ...dto,
       type: ModelJobType.ImageGenerateByPromptText,
       userId,
+      tariffCode: ModelTariffCode.ImageBasicGenerate,
     });
     return data;
   }
@@ -111,6 +115,7 @@ export class ModelJobController {
       ...dto,
       type: ModelJobType.TextGenerate,
       userId,
+      tariffCode: ModelTariffCode.TextBasic,
     });
     return data;
   }

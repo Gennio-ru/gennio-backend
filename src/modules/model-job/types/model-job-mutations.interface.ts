@@ -1,3 +1,4 @@
+import { ModelTariffCode } from "src/modules/pricing/types/pricing.enum";
 import { ModelJobType, ModelType } from "./model-job.enum";
 
 export interface IModelJobCreate {
@@ -7,4 +8,5 @@ export interface IModelJobCreate {
   promptId?: string;
   inputFileId?: string;
   userId: string;
+  tariffCode: ModelTariffCode;
 }

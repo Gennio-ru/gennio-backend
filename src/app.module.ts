@@ -17,6 +17,8 @@ import { ThrottlerGuard } from "@nestjs/throttler";
 import { ModelJobModule } from "./modules/model-job/model-job.module";
 import { CategoriesModule } from "./modules/categories/categories.module";
 import { LoggerModule } from "nestjs-pino";
+import { CreditsModule } from "./modules/credits/credits.module";
+import { PricingModule } from "./modules/pricing/pricing.module";
 
 const rawLevel = process.env.LOG_LEVEL || "info";
 const level = rawLevel.toLowerCase();
@@ -72,6 +74,8 @@ const isPretty = level === "debug";
     MailQueueModule,
     ModelJobModule,
     CategoriesModule,
+    CreditsModule,
+    PricingModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
