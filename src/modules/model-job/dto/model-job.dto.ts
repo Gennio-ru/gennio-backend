@@ -100,7 +100,11 @@ export class ModelJobBaseDto implements IModelJobBase {
   })
   creditsCharged!: number;
 
-  @ApiProperty({ example: "OpenAI timeout error", nullable: true })
+  @ApiProperty({
+    type: String,
+    example: "OpenAI timeout error",
+    nullable: true,
+  })
   error!: string | null;
 
   @ApiProperty({ type: String, format: "date-time", nullable: true })

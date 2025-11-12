@@ -70,16 +70,18 @@ export class OpenAiImageService {
     prompt: string;
     size?: AllowedSize;
     n?: number;
-    quality?: ImageQuality;
+    quality: ImageQuality;
   }) {
     const res = await this.client.images.generate({
-      model: "gpt-image-1",
+      model: "gpt-image-1-mini",
       prompt: params.prompt,
       size: "1024x1024",
       n: params.n,
       quality: params.quality ?? "low",
       stream: false,
     });
+
+    console.log("GENERATE_USAGE", res.usage);
 
     return this.toJpegBufferFromImagesResponse(res);
   }
@@ -91,7 +93,7 @@ export class OpenAiImageService {
     prompt: string;
     imageFilename?: string;
     mode?: "contain" | "cover";
-    quality?: ImageQuality;
+    quality: ImageQuality;
   }): Promise<Buffer> {
     const {
       image,

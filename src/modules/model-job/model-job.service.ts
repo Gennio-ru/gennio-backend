@@ -19,7 +19,9 @@ import {
 import { PricingService } from "../pricing/pricing.service";
 import { CreditsService } from "../credits/credits.service";
 import { CreditTransactionReason } from "../credits/types/credits.enum";
-import { Logger } from "nestjs-pino";
+import { Logger, PinoLogger } from "nestjs-pino";
+import { APIError as OpenAIApiError } from "openai";
+import { ErrorCode } from "src/common/errors/error-code.enum";
 
 type ModelJobWithUrls = ModelJobDto & {
   inputFileUrl: string | null;
@@ -170,7 +172,22 @@ export class ModelJobService {
       const jobWithUrls = await this.findOne(modelJobId);
       this.gateway.sendJobUpdate(modelJobId, jobWithUrls);
     } catch (e) {
-      const errorMessage = e instanceof Error ? e.message : String(e);
+      let errorMessage: string;
+      // Отправляем в лог ошибки нейросетей не связанные с модерацией
+      let sendToLog: boolean = true;
+
+      if (e instanceof OpenAIApiError) {
+        if (e.code === "moderation_blocked") {
+          errorMessage = ErrorCode.MODERATION_BLOCKED;
+          sendToLog = false;
+        } else {
+          errorMessage = e.message ?? "Unknown OpenAI error";
+        }
+      } else if (e instanceof Error) {
+        errorMessage = e.message;
+      } else {
+        errorMessage = String(e);
+      }
 
       await this.repository.update(modelJobId, {
         status: ModelJobStatusType.failed,
@@ -197,10 +214,26 @@ export class ModelJobService {
         this.logger.error({ msg: "Refund failed", refundError, modelJobId });
       }
 
-      this.gateway.sendJobUpdate(modelJobId, {
-        status: ModelJobStatusType.failed,
-        error: errorMessage,
-      });
+      const jobWithUrls = await this.findOne(modelJobId);
+      this.gateway.sendJobUpdate(modelJobId, jobWithUrls);
+
+      if (sendToLog) {
+        const openai = e as any;
+        this.logger.error({
+          msg: "ModelJob failed",
+          service: "backend",
+          modelJobId,
+          userId: data.userId,
+          type: data.type,
+          tariffCode: (data as any).tariffCode,
+          provider: "openai",
+          errorCode: openai?.code ?? openai?.error?.code,
+          errorType: openai?.type ?? openai?.error?.type,
+          requestId: openai?.requestID, // из SDK
+          status: openai?.status,
+          errorMessage: e instanceof Error ? e.message : String(e),
+        });
+      }
     }
   }
 
