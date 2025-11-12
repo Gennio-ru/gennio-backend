@@ -16,13 +16,15 @@ import {
 } from "./dto/create-model-job.dto";
 import { UserId } from "src/common/decorators/user-id.decorator";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
-import { RolesGuard } from "../users/user-roles.guard";
-import { UserRole } from "../users/types/user-role.enum";
-import { Roles } from "../users/user-roles.decorator";
-import { ApiOperation, ApiResponse } from "@nestjs/swagger";
+import {
+  ApiBadRequestResponse,
+  ApiOperation,
+  ApiResponse,
+} from "@nestjs/swagger";
 import { ModelJobDto } from "./dto/model-job.dto";
 import { ModelJobType } from "./types/model-job.enum";
 import { ModelTariffCode } from "../pricing/types/pricing.enum";
+import { ErrorResponseDto } from "src/common/errors/error-response.dto";
 
 @Controller("model-job")
 export class ModelJobController {
@@ -47,6 +49,10 @@ export class ModelJobController {
     description: "Генерация запущена",
     type: ModelJobDto,
   })
+  @ApiBadRequestResponse({
+    description: "Бизнес-ошибка (например, не хватает кредитов)",
+    type: ErrorResponseDto,
+  })
   async startImageEditByPromptId(
     @Body() dto: StartImageEditByPromptIdDto,
     @UserId() userId: string
@@ -66,6 +72,10 @@ export class ModelJobController {
     status: 201,
     description: "Генерация запущена",
     type: ModelJobDto,
+  })
+  @ApiBadRequestResponse({
+    description: "Бизнес-ошибка (например, не хватает кредитов)",
+    type: ErrorResponseDto,
   })
   async startImageEditByPromptText(
     @Body() dto: StartImageEditByPromptTextDto,
@@ -87,6 +97,10 @@ export class ModelJobController {
     description: "Генерация запущена",
     type: ModelJobDto,
   })
+  @ApiBadRequestResponse({
+    description: "Бизнес-ошибка (например, не хватает кредитов)",
+    type: ErrorResponseDto,
+  })
   async startImageGenerateByPromptText(
     @Body() dto: StartImageGenerateByPromptTextDto,
     @UserId() userId: string
@@ -106,6 +120,10 @@ export class ModelJobController {
     status: 201,
     description: "Генерация запущена",
     type: ModelJobDto,
+  })
+  @ApiBadRequestResponse({
+    description: "Бизнес-ошибка (например, не хватает кредитов)",
+    type: ErrorResponseDto,
   })
   async startTextGenerate(
     @Body() dto: StartTextGenerateDto,

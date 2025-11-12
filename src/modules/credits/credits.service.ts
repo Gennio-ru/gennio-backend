@@ -1,9 +1,10 @@
-import { Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { DataSource, Repository } from "typeorm";
 import { User } from "../users/user.entity";
 import { UserCreditTransaction } from "./user-credit-transaction.entity";
 import { CreditTransactionReason } from "./types/credits.enum";
+import { ErrorCode } from "src/common/errors/error-code.enum";
 
 @Injectable()
 export class CreditsService {
@@ -46,7 +47,13 @@ export class CreditsService {
         .execute();
 
       if (res.affected !== 1) {
-        throw new Error("Not enough credits");
+        throw new BadRequestException({
+          handled: true,
+          code: ErrorCode.CREDITS_NOT_ENOUGH,
+          details: {
+            required: credits,
+          },
+        });
       }
 
       const tx = this.txRepo.create({

@@ -1,0 +1,18 @@
+export enum ErrorCode {
+  // биллинг / кредиты
+  CREDITS_NOT_ENOUGH = "CREDITS_NOT_ENOUGH",
+
+  // модель / джобы
+  MODEL_JOB_NOT_FOUND = "MODEL_JOB_NOT_FOUND",
+  MODEL_UNAVAILABLE = "MODEL_UNAVAILABLE",
+
+  // доступ
+  UNAUTHORIZED = "UNAUTHORIZED",
+  FORBIDDEN = "FORBIDDEN",
+
+  // валидация
+  VALIDATION_FAILED = "VALIDATION_FAILED",
+
+  // дефолт для необработанных
+  INTERNAL_SERVER_ERROR = "INTERNAL_SERVER_ERROR",
+}
