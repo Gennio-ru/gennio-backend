@@ -28,6 +28,10 @@ import { Logger, PinoLogger } from "nestjs-pino";
 import { APIError as OpenAIApiError } from "openai";
 import { ErrorCode } from "src/common/errors/error-code.enum";
 import { FileEntity } from "../files/files.entity";
+import {
+  ImageProcessingService,
+  ResolvedSize,
+} from "src/common/image/image-processing.service";
 
 type ImageJobPayload = IModelJobCreate & {
   type:
@@ -48,7 +52,8 @@ export class ModelJobService {
     private readonly gateway: ModelJobGateway,
     private readonly creditsService: CreditsService,
     private readonly pricingService: PricingService,
-    private readonly logger: Logger
+    private readonly logger: Logger,
+    private readonly imageProcessingService: ImageProcessingService
   ) {}
 
   async findOne(id: string): Promise<ModelJobFullDto> {
@@ -246,31 +251,6 @@ export class ModelJobService {
     outputPreviewFileId: string;
     inputFileId: string | undefined;
   }> {
-    // Обрабатываем изображение пользователя, если оно есть
-    if (payload.inputFileId) {
-      const inputFileId = payload.inputFileId;
-
-      const inputFileBuffer = await this.filesService.getFileBufferById(
-        payload.inputFileId
-      );
-      const compressedInputFileBuffer = await this.filesService.compressToWebp(
-        inputFileBuffer
-      );
-
-      const compressedInputFile = await this.filesService.uploadBuffer(
-        {
-          buffer: compressedInputFileBuffer,
-          originalname: "result.webp",
-          mimetype: "image/webp",
-          size: compressedInputFileBuffer.length,
-        },
-        { folder: "jobs", publicRead: true }
-      );
-
-      payload.inputFileId = compressedInputFile.id;
-      await this.filesService.removeById(inputFileId);
-    }
-
     const resultBuffer: Buffer = await (async () => {
       switch (payload.type) {
         case ModelJobType.ImageEditByPromptId: {
@@ -281,13 +261,13 @@ export class ModelJobService {
             throw new Error("promptId is not found");
           }
 
+          const inputFile = await this.filesService.getMeta(
+            payload.inputFileId
+          );
           const fileBuffer = await this.filesService.getFileBufferById(
             payload.inputFileId
           );
-
-          const prompt = await this.promptsService.findOne(payload.promptId);
-          const referencedImageFileBuffer =
-            await this.filesService.getFileBufferById(prompt.afterImageId);
+          const resolvedSize = this.getResolvedSizeFromFile(inputFile);
 
           const promptData = await this.promptsService.findOne(
             payload.promptId
@@ -295,9 +275,10 @@ export class ModelJobService {
 
           return this.openaiService.editImage({
             image: fileBuffer,
-            referencedImages: [referencedImageFileBuffer],
             prompt: promptData.text,
             quality: "low",
+            resolvedSize,
+            imageFilename: "input.jpeg",
           });
         }
 
@@ -309,14 +290,20 @@ export class ModelJobService {
             throw new Error("не указано поле text");
           }
 
+          const inputFile = await this.filesService.getMeta(
+            payload.inputFileId
+          );
           const fileBuffer = await this.filesService.getFileBufferById(
             payload.inputFileId
           );
+          const resolvedSize = this.getResolvedSizeFromFile(inputFile);
 
           return this.openaiService.editImage({
             image: fileBuffer,
             prompt: payload.text,
             quality: "low",
+            resolvedSize,
+            imageFilename: "input.jpeg",
           });
         }
 
@@ -338,13 +325,13 @@ export class ModelJobService {
       }
     })();
 
+    // post-processing результата
     const resultJpegBuffer = await sharp(resultBuffer)
       .jpeg({ quality: 90 })
       .toBuffer();
 
-    const resultPreviewWebpBuffer = await this.filesService.compressToWebp(
-      resultJpegBuffer
-    );
+    const resultPreviewWebpBuffer =
+      await this.imageProcessingService.compressToWebp(resultJpegBuffer);
 
     const outputFile = await this.filesService.uploadBuffer(
       {
@@ -371,5 +358,23 @@ export class ModelJobService {
       outputPreviewFileId: outputPreviewFile.id,
       inputFileId: payload.inputFileId,
     };
+  }
+
+  private getResolvedSizeFromFile(file: FileEntity): ResolvedSize {
+    const fromMeta = file.meta?.modelResolvedSize as ResolvedSize | undefined;
+    if (fromMeta) return fromMeta;
+
+    // fallback по размерам — на всякий случай
+    const w = file.widthPx ?? 0;
+    const h = file.heightPx ?? 0;
+
+    if (w === 1024 && h === 1024) return "1024x1024";
+    if (w === 1024 && h === 1536) return "1024x1536";
+    if (w === 1536 && h === 1024) return "1536x1024";
+
+    // если вдруг что-то необычное — выбираем ближнее
+    if (w > h) return "1536x1024";
+    if (h > w) return "1024x1536";
+    return "1024x1024";
   }
 }

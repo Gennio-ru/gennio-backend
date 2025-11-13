@@ -38,6 +38,7 @@ export class FileBaseDto implements IFileBase {
 
   @Expose()
   @ApiPropertyOptional({
+    type: Number,
     example: 1024,
     description: "Ширина файла в пикселях",
     nullable: true,
@@ -46,6 +47,7 @@ export class FileBaseDto implements IFileBase {
 
   @Expose()
   @ApiPropertyOptional({
+    type: Number,
     example: 768,
     description: "Высота файла в пикселях",
     nullable: true,
@@ -56,8 +58,8 @@ export class FileBaseDto implements IFileBase {
   @ApiPropertyOptional({ example: "user-123", nullable: true })
   ownerId!: string | null;
 
-  @Expose()
   @ApiPropertyOptional({
+    type: Object,
     example: { width: 400, height: 300 },
     nullable: true,
   })

@@ -12,7 +12,6 @@ import {
   StartImageEditByPromptIdDto,
   StartImageEditByPromptTextDto,
   StartImageGenerateByPromptTextDto,
-  StartTextGenerateDto,
 } from "./dto/create-model-job.dto";
 import { UserId } from "src/common/decorators/user-id.decorator";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
@@ -21,7 +20,7 @@ import {
   ApiOperation,
   ApiResponse,
 } from "@nestjs/swagger";
-import { ModelJobDto } from "./dto/model-job.dto";
+import { ModelJobDto, ModelJobFullDto } from "./dto/model-job.dto";
 import { ModelJobType } from "./types/model-job.enum";
 import { ModelTariffCode } from "../pricing/types/pricing.enum";
 import { ErrorResponseDto } from "src/common/errors/error-response.dto";
@@ -35,10 +34,12 @@ export class ModelJobController {
   @ApiResponse({
     status: 200,
     description: "Найденный процесс",
-    type: ModelJobDto,
+    type: ModelJobFullDto,
   })
   @ApiResponse({ status: 404, description: "Процесс не найден" })
-  async findOne(@Param("id", ParseUUIDPipe) id: string): Promise<ModelJobDto> {
+  async findOne(
+    @Param("id", ParseUUIDPipe) id: string
+  ): Promise<ModelJobFullDto> {
     return this.modelJobService.findOne(id);
   }
 

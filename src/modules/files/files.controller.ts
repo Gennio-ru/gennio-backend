@@ -24,12 +24,15 @@ import { FileDto } from "./dto/file.dto";
 import { UserId } from "src/common/decorators/user-id.decorator";
 import { ReqUser } from "src/common/decorators/req-user.decorator";
 import { ReqUserData } from "../auth/strategies/jwt-access.strategy";
-import { UserRole } from "../users/types/user-role.enum";
+import { ImageProcessingService } from "src/common/image/image-processing.service";
 
 @ApiTags("files")
 @Controller("files")
 export class FilesController {
-  constructor(private readonly filesService: FilesService) {}
+  constructor(
+    private readonly filesService: FilesService,
+    private readonly imageProcessingService: ImageProcessingService
+  ) {}
 
   @Post("upload")
   @UseGuards(JwtAuthGuard)
@@ -59,23 +62,42 @@ export class FilesController {
   ): Promise<UploadFileResponseDto> {
     if (!file) throw new BadRequestException("No file");
 
-    if (user.role === UserRole.User) {
-      await this.filesService.clearOldUserFile(userId);
-    }
+    // 1) Нормализация под модель: даунскейл + выбор аспекта + crop+resize
+    const {
+      buffer: normalizedBufferJpeg,
+      width,
+      height,
+      resolvedSize,
+    } = await this.imageProcessingService.normalizeForModel(
+      file.buffer, // 👈 сразу из файла, без compressKeepFormat
+      "auto",
+      512
+    );
 
-    const compressed = await this.filesService.compressKeepFormat(file.buffer);
+    console.log(width, height, resolvedSize);
 
+    // 2) Один раз сжать + перевести в WebP
+    const normalizedWebpBuffer =
+      await this.imageProcessingService.compressToWebp(
+        normalizedBufferJpeg,
+        150
+      );
+
+    // 3) Сохранить уже нормализованный webp
     const saved = await this.filesService.uploadBuffer(
       {
-        buffer: compressed,
+        buffer: normalizedWebpBuffer,
         originalname: file.originalname,
-        mimetype: file.mimetype,
-        size: compressed.length,
+        mimetype: "image/jpeg",
+        size: normalizedWebpBuffer.length,
       },
       {
         folder,
         publicRead: publicQ === "true",
         ownerId: userId,
+        meta: {
+          modelResolvedSize: resolvedSize, // "1024x1536" | ...
+        },
       }
     );
 
@@ -86,8 +108,8 @@ export class FilesController {
       key: saved.key,
       contentType: saved.contentType,
       size: saved.size,
-      widthPx: saved.widthPx,
-      heightPx: saved.heightPx,
+      widthPx: saved.widthPx ?? width,
+      heightPx: saved.heightPx ?? height,
       url: fileUrl,
       createdAt: saved.createdAt,
     };

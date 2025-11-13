@@ -13,6 +13,7 @@ import { PromptsModule } from "../prompts/prompts.module";
 import { ModelJobGateway } from "./model-job.gateway";
 import { PricingModule } from "../pricing/pricing.module";
 import { CreditsModule } from "../credits/credits.module";
+import { ImageModule } from "src/common/image/image.module";
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { CreditsModule } from "../credits/credits.module";
     PromptsModule,
     CreditsModule,
     PricingModule,
+    ImageModule,
   ],
   controllers: [ModelJobController, ModelJobsProcessor],
   providers: [ModelJobService, ModelJobGateway],
