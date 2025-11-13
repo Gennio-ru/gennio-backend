@@ -79,15 +79,16 @@ export class FilesController {
       }
     );
 
-    const signedUrl = saved.url
-      ? null
-      : await this.filesService.getSignedGetUrl(saved.key, 10);
+    const fileUrl = await this.filesService.getFileUrl(saved);
+
     return {
       id: saved.id,
       key: saved.key,
-      url: saved.url ?? signedUrl,
       contentType: saved.contentType,
       size: saved.size,
+      widthPx: saved.widthPx,
+      heightPx: saved.heightPx,
+      url: fileUrl,
       createdAt: saved.createdAt,
     };
   }
@@ -101,14 +102,8 @@ export class FilesController {
     @Query("signed") signed?: string
   ): Promise<FileDto> {
     const fileMeta = await this.filesService.getMeta(fileId);
-    if (!fileMeta) {
-      throw new NotFoundException("File not found");
-    }
 
-    const fileUrl =
-      signed === "true" || !fileMeta.url
-        ? await this.filesService.getSignedGetUrl(fileMeta.key, 3600)
-        : fileMeta.url;
+    const fileUrl = await this.filesService.getFileUrl(fileMeta);
 
     return { ...fileMeta, url: fileUrl };
   }

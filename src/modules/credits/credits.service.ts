@@ -9,10 +9,10 @@ import { ErrorCode } from "src/common/errors/error-code.enum";
 @Injectable()
 export class CreditsService {
   constructor(
-    @InjectRepository(User)
-    private readonly usersRepo: Repository<User>,
     @InjectRepository(UserCreditTransaction)
     private readonly txRepo: Repository<UserCreditTransaction>,
+    @InjectRepository(User)
+    private readonly userRepo: Repository<User>,
     private readonly dataSource: DataSource
   ) {}
 
@@ -26,7 +26,7 @@ export class CreditsService {
     modelJobId?: string | null;
     reason?: CreditTransactionReason;
     meta?: any;
-  }): Promise<void> {
+  }): Promise<User> {
     const {
       userId,
       credits,
@@ -35,24 +35,27 @@ export class CreditsService {
       meta = null,
     } = params;
 
-    if (credits <= 0) return;
+    if (credits <= 0) {
+      return this.userRepo.findOneByOrFail({ id: userId });
+    }
 
-    await this.dataSource.transaction(async (manager) => {
-      const res = await manager
+    return await this.dataSource.transaction(async (manager) => {
+      const updateRes = await manager
         .createQueryBuilder()
         .update(User)
         .set({ credits: () => `credits - ${credits}` })
         .where("id = :userId", { userId })
         .andWhere("credits >= :credits", { credits })
+        .returning("*") // 👈 вот это важно
         .execute();
 
-      if (res.affected !== 1) {
+      const updatedUser = updateRes.raw[0];
+
+      if (!updatedUser) {
         throw new BadRequestException({
           handled: true,
           code: ErrorCode.CREDITS_NOT_ENOUGH,
-          details: {
-            required: credits,
-          },
+          details: { required: credits },
         });
       }
 
@@ -63,8 +66,9 @@ export class CreditsService {
         modelJobId,
         meta,
       });
-
       await manager.save(tx);
+
+      return updatedUser as User;
     });
   }
 

@@ -114,27 +114,27 @@ export class ModelJobController {
     return data;
   }
 
-  @Post("start-text-generate")
-  @UseGuards(JwtAuthGuard)
-  @ApiResponse({
-    status: 201,
-    description: "Генерация запущена",
-    type: ModelJobDto,
-  })
-  @ApiBadRequestResponse({
-    description: "Бизнес-ошибка (например, не хватает кредитов)",
-    type: ErrorResponseDto,
-  })
-  async startTextGenerate(
-    @Body() dto: StartTextGenerateDto,
-    @UserId() userId: string
-  ) {
-    const data = await this.modelJobService.create({
-      ...dto,
-      type: ModelJobType.TextGenerate,
-      userId,
-      tariffCode: ModelTariffCode.TextBasic,
-    });
-    return data;
-  }
+  // @Post("start-text-generate")
+  // @UseGuards(JwtAuthGuard)
+  // @ApiResponse({
+  //   status: 201,
+  //   description: "Генерация запущена",
+  //   type: ModelJobDto,
+  // })
+  // @ApiBadRequestResponse({
+  //   description: "Бизнес-ошибка (например, не хватает кредитов)",
+  //   type: ErrorResponseDto,
+  // })
+  // async startTextGenerate(
+  //   @Body() dto: StartTextGenerateDto,
+  //   @UserId() userId: string
+  // ) {
+  //   const data = await this.modelJobService.create({
+  //     ...dto,
+  //     type: ModelJobType.TextGenerate,
+  //     userId,
+  //     tariffCode: ModelTariffCode.TextBasic,
+  //   });
+  //   return data;
+  // }
 }

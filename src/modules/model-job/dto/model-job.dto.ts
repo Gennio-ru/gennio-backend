@@ -7,6 +7,8 @@ import {
 } from "../types/model-job.enum";
 import { BaseDto } from "src/common/base/base.dto";
 import { ModelTariffCode } from "src/modules/pricing/types/pricing.enum";
+import { User } from "src/modules/users/user.entity";
+import { UserDto } from "src/modules/users/dto/user.dto";
 
 export class ModelJobBaseDto implements IModelJobBase {
   @ApiProperty({ enum: ModelType, enumName: "ModelType" })
@@ -35,6 +37,9 @@ export class ModelJobBaseDto implements IModelJobBase {
   @ApiProperty({ example: "user-123" })
   userId!: string;
 
+  @ApiProperty({ type: () => UserDto, nullable: true })
+  user!: UserDto | null;
+
   @ApiProperty({
     type: String,
     format: "uuid",
@@ -58,27 +63,6 @@ export class ModelJobBaseDto implements IModelJobBase {
     nullable: true,
   })
   outputPreviewFileId!: string | null;
-
-  @ApiProperty({
-    type: String,
-    example: "https://cdn.example.com/jobs/2025/09/19/5139b0d6-f38d-4af1.jpeg",
-    nullable: true,
-  })
-  inputFileUrl!: string | null;
-
-  @ApiProperty({
-    type: String,
-    example: "https://cdn.example.com/jobs/2025/09/19/5139b0d6-f38d-4af1.jpeg",
-    nullable: true,
-  })
-  outputFileUrl!: string | null;
-
-  @ApiProperty({
-    type: String,
-    example: "https://cdn.example.com/jobs/2025/09/19/5139b0d6-f38d-4af1.jpeg",
-    nullable: true,
-  })
-  outputPreviewFileUrl!: string | null;
 
   @ApiProperty({
     type: String,
@@ -112,6 +96,32 @@ export class ModelJobBaseDto implements IModelJobBase {
 
   @ApiProperty({ type: String, format: "date-time", nullable: true })
   finishedAt!: Date | null;
+}
+
+export class ModelJobFullDto
+  extends IntersectionType(ModelJobBaseDto, BaseDto)
+  implements IModelJobBase
+{
+  @ApiProperty({
+    type: String,
+    example: "https://cdn.example.com/jobs/2025/09/19/5139b0d6-f38d-4af1.jpeg",
+    nullable: true,
+  })
+  inputFileUrl!: string | null;
+
+  @ApiProperty({
+    type: String,
+    example: "https://cdn.example.com/jobs/2025/09/19/5139b0d6-f38d-4af1.jpeg",
+    nullable: true,
+  })
+  outputFileUrl!: string | null;
+
+  @ApiProperty({
+    type: String,
+    example: "https://cdn.example.com/jobs/2025/09/19/5139b0d6-f38d-4af1.jpeg",
+    nullable: true,
+  })
+  outputPreviewFileUrl!: string | null;
 }
 
 export class ModelJobDto

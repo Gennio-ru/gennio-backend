@@ -1,5 +1,5 @@
 import { IModelJob } from "./types/model-job.interface";
-import { Entity, Column } from "typeorm";
+import { Entity, Column, ManyToOne, JoinColumn, RelationId } from "typeorm";
 import { BaseEntity } from "src/common/base/base.entity";
 import {
   ModelJobStatusType,
@@ -7,6 +7,8 @@ import {
   ModelType,
 } from "./types/model-job.enum";
 import { ModelTariffCode } from "../pricing/types/pricing.enum";
+import { FileEntity } from "../files/files.entity";
+import { User } from "../users/user.entity";
 
 @Entity("model_jobs")
 export class ModelJob extends BaseEntity implements IModelJob {
@@ -28,14 +30,39 @@ export class ModelJob extends BaseEntity implements IModelJob {
   @Column({ type: "uuid" })
   userId: string;
 
-  @Column({ type: "uuid", nullable: true })
-  inputFileId: string | null;
+  @ManyToOne(() => User, { onDelete: "NO ACTION" })
+  @JoinColumn({ name: "userId" })
+  user!: User;
 
   @Column({ type: "uuid", nullable: true })
-  outputFileId: string | null;
+  inputFileId!: string | null;
+
+  @ManyToOne(() => FileEntity, {
+    onDelete: "SET NULL",
+    nullable: true,
+  })
+  @JoinColumn({ name: "inputFileId" })
+  inputFile!: FileEntity | null;
 
   @Column({ type: "uuid", nullable: true })
-  outputPreviewFileId: string | null;
+  outputFileId!: string | null;
+
+  @ManyToOne(() => FileEntity, {
+    onDelete: "SET NULL",
+    nullable: true,
+  })
+  @JoinColumn({ name: "outputFileId" })
+  outputFile!: FileEntity | null;
+
+  @Column({ type: "uuid", nullable: true })
+  outputPreviewFileId!: string | null;
+
+  @ManyToOne(() => FileEntity, {
+    onDelete: "SET NULL",
+    nullable: true,
+  })
+  @JoinColumn({ name: "outputPreviewFileId" })
+  outputPreviewFile!: FileEntity | null;
 
   @Column({ type: "text", nullable: true })
   outputText: string | null;

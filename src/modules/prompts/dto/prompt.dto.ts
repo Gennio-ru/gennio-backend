@@ -6,7 +6,6 @@ import { Expose, Transform, Type } from "class-transformer";
 import { buildPublicUrl } from "src/common/utils/file-url.util";
 import { CategoryDto } from "src/modules/categories/dto/category.dto";
 import { FileDto } from "src/modules/files/dto/file.dto";
-import { UserRole } from "src/modules/users/types/user-role.enum";
 
 export class PromptBaseDto implements IPromptBase {
   @Expose()

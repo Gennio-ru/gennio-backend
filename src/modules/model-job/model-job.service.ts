@@ -1,4 +1,9 @@
-import { Inject, Injectable, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { ModelJob } from "./model-job.entity";
@@ -8,7 +13,7 @@ import { MODEL_JOB_CLIENT } from "./model-job.constants";
 import { IModelJobCreate } from "./types/model-job-mutations.interface";
 import { ModelJobStatusType, ModelJobType } from "./types/model-job.enum";
 import { FilesService } from "../files/files.service";
-import { ModelJobDto } from "./dto/model-job.dto";
+import { ModelJobDto, ModelJobFullDto } from "./dto/model-job.dto";
 import { PromptsService } from "../prompts/prompts.service";
 import sharp from "sharp";
 import { ModelJobGateway } from "./model-job.gateway";
@@ -22,12 +27,7 @@ import { CreditTransactionReason } from "../credits/types/credits.enum";
 import { Logger, PinoLogger } from "nestjs-pino";
 import { APIError as OpenAIApiError } from "openai";
 import { ErrorCode } from "src/common/errors/error-code.enum";
-
-type ModelJobWithUrls = ModelJobDto & {
-  inputFileUrl: string | null;
-  outputFileUrl: string | null;
-  outputPreviewFileUrl: string | null;
-};
+import { FileEntity } from "../files/files.entity";
 
 type ImageJobPayload = IModelJobCreate & {
   type:
@@ -51,45 +51,32 @@ export class ModelJobService {
     private readonly logger: Logger
   ) {}
 
-  async findOne(id: string): Promise<ModelJobWithUrls> {
-    const modelJob = await this.repository.findOne({ where: { id } });
+  async findOne(id: string): Promise<ModelJobFullDto> {
+    const modelJob = await this.repository.findOne({
+      where: { id },
+      relations: {
+        inputFile: true,
+        outputFile: true,
+        outputPreviewFile: true,
+        user: true,
+      },
+    });
 
     if (!modelJob) {
       throw new NotFoundException("Model job not found");
     }
 
-    let outputFileUrl: string | null = null;
-    let outputPreviewFileUrl: string | null = null;
-    let inputFileUrl: string | null = null;
+    const safeUrl = (file?: FileEntity | null) =>
+      file
+        ? this.filesService.getFileUrl(file).catch(() => null)
+        : Promise.resolve(null);
 
-    if (modelJob.outputFileId) {
-      try {
-        const file = await this.filesService.getMeta(modelJob.outputFileId);
-        outputFileUrl = await this.filesService.getFileUrl(file);
-      } catch {
-        outputFileUrl = null;
-      }
-    }
-
-    if (modelJob.outputPreviewFileId) {
-      try {
-        const file = await this.filesService.getMeta(
-          modelJob.outputPreviewFileId
-        );
-        outputPreviewFileUrl = await this.filesService.getFileUrl(file);
-      } catch {
-        outputPreviewFileUrl = null;
-      }
-    }
-
-    if (outputFileUrl && outputPreviewFileUrl && modelJob.inputFileId) {
-      try {
-        const file = await this.filesService.getMeta(modelJob.inputFileId);
-        inputFileUrl = await this.filesService.getFileUrl(file);
-      } catch {
-        inputFileUrl = null;
-      }
-    }
+    const [outputFileUrl, outputPreviewFileUrl, inputFileUrl] =
+      await Promise.all([
+        safeUrl(modelJob.outputFile),
+        safeUrl(modelJob.outputPreviewFile),
+        safeUrl(modelJob.inputFile),
+      ]);
 
     return {
       ...modelJob,
@@ -99,10 +86,10 @@ export class ModelJobService {
     };
   }
 
-  async create(data: IModelJobCreate): Promise<ModelJob> {
+  async create(data: IModelJobCreate): Promise<ModelJobDto> {
     const credits = this.pricingService.getCreditsForJob(data);
 
-    await this.creditsService.chargeForJob({
+    const user = await this.creditsService.chargeForJob({
       userId: data.userId,
       credits,
       reason: CreditTransactionReason.JobCharge,
@@ -126,7 +113,7 @@ export class ModelJobService {
       payload
     );
 
-    return modelJob;
+    return { ...modelJob, user };
   }
 
   // Обработка задачи (универсально для всех типов)
@@ -147,14 +134,18 @@ export class ModelJobService {
 
     try {
       if (data.type === ModelJobType.TextGenerate) {
-        // 🔤 текстовая генерация
-        const outputText = await this.processTextJob(data);
-
-        await this.repository.update(modelJobId, {
-          status: ModelJobStatusType.succeeded,
-          outputText,
-          finishedAt: new Date(),
+        throw new BadRequestException({
+          handled: true,
+          code: ErrorCode.MODEJ_JOB_TYPE_NOT_FOUND,
         });
+        // 🔤 текстовая генерация
+        // const outputText = await this.processTextJob(data);
+
+        // await this.repository.update(modelJobId, {
+        //   status: ModelJobStatusType.succeeded,
+        //   outputText,
+        //   finishedAt: new Date(),
+        // });
       } else {
         // 🖼 все остальные типы — про изображения
         const { outputFileId, outputPreviewFileId, inputFileId } =
@@ -238,17 +229,17 @@ export class ModelJobService {
   }
 
   // 🔤 Текстовая задача
-  private async processTextJob(payload: IModelJobCreate): Promise<string> {
-    if (!payload.text) {
-      throw new Error("Не указано поле text");
-    }
+  // private async processTextJob(payload: IModelJobCreate): Promise<string> {
+  //   if (!payload.text) {
+  //     throw new Error("Не указано поле text");
+  //   }
 
-    const resultText = await this.openaiService.generateText({
-      prompt: payload.text,
-    });
+  //   const resultText = await this.openaiService.generateText({
+  //     prompt: payload.text,
+  //   });
 
-    return resultText;
-  }
+  //   return resultText;
+  // }
 
   private async processImageJob(payload: ImageJobPayload): Promise<{
     outputFileId: string;
@@ -306,7 +297,7 @@ export class ModelJobService {
             image: fileBuffer,
             referencedImages: [referencedImageFileBuffer],
             prompt: promptData.text,
-            quality: "medium",
+            quality: "low",
           });
         }
 
@@ -325,7 +316,7 @@ export class ModelJobService {
           return this.openaiService.editImage({
             image: fileBuffer,
             prompt: payload.text,
-            quality: "medium",
+            quality: "low",
           });
         }
 
@@ -336,7 +327,7 @@ export class ModelJobService {
 
           return this.openaiService.generateImage({
             prompt: payload.text,
-            quality: "medium",
+            quality: "low",
           });
         }
 

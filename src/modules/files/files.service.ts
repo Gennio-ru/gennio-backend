@@ -15,6 +15,7 @@ import { S3_CLIENT } from "./s3.module";
 import { DeleteFileResponseDto } from "./dto/delete-file-response.dto";
 import { Readable } from "typeorm/platform/PlatformTools";
 import sharp from "sharp";
+import { buildPublicUrl } from "src/common/utils/file-url.util";
 
 type Format = "jpeg" | "png" | "webp";
 
@@ -27,8 +28,8 @@ type UploadOpts = {
 
 @Injectable()
 export class FilesService {
+  private readonly baseUrl: string;
   private readonly bucket: string;
-  private readonly publicBase?: string;
   private readonly defaultPublic: boolean;
 
   constructor(
@@ -38,37 +39,31 @@ export class FilesService {
     private readonly repository: Repository<FileEntity>
   ) {
     this.bucket = this.cfg.get<string>("YANDEX_S3_BUCKET")!;
-    this.publicBase =
-      this.cfg.get<string>("YANDEX_S3_PUBLIC_BASE") || undefined;
+    this.baseUrl = this.cfg.get<string>("YANDEX_S3_ENDPOINT")!;
     this.defaultPublic =
       (this.cfg.get<string>("FILES_DEFAULT_PUBLIC") ?? "false") === "true";
   }
 
   /**
-   * Собирает публичный URL (если `publicBase` указан в .env).
+   * Постоянный публичный URL для объекта в Yandex Object Storage.
+   * Работает, если объект доступен public-read.
    */
-  private buildPublicUrl(key: string): string | null {
-    return this.publicBase
-      ? `${this.publicBase.replace(/\/$/, "")}/${key}`
-      : null;
+  getPublicUrl(fileOrKey: FileEntity | string): string {
+    const key = typeof fileOrKey === "string" ? fileOrKey : fileOrKey.key;
+    return buildPublicUrl(key, this.bucket) || "";
+  }
+
+  async getSignedUrl(file: FileEntity, expiresSec = 86400): Promise<string> {
+    const cmd = new GetObjectCommand({ Bucket: file.bucket, Key: file.key });
+    return getSignedUrl(this.s3, cmd, { expiresIn: expiresSec });
   }
 
   /**
-   * Универсальный метод для получения URL (public или signed).
+   * Универсальный метод — сам решаешь, что хочешь использовать в коде.
+   * Можно вообще удалить, если не нужен.
    */
-  async getFileUrl(
-    file: FileEntity,
-    expiresSec = 86400
-  ): Promise<string | null> {
-    // если явно сохранён url (публичный) → возвращаем его
-    if (file.url) return file.url;
-
-    // если `publicBase` настроен → собираем линк
-    if (this.publicBase) return this.buildPublicUrl(file.key);
-
-    // иначе генерим временный signed URL
-    const cmd = new GetObjectCommand({ Bucket: file.bucket, Key: file.key });
-    return getSignedUrl(this.s3, cmd, { expiresIn: expiresSec });
+  async getFileUrl(file: FileEntity): Promise<string> {
+    return this.getPublicUrl(file);
   }
 
   private buildKey(originalName: string, folder?: string): string {
@@ -104,13 +99,28 @@ export class FilesService {
       })
     );
 
+    let widthPx: number | null = null;
+    let heightPx: number | null = null;
+
+    const mime = file.mimetype ?? "";
+
+    if (mime.startsWith("image/")) {
+      try {
+        const meta = await sharp(file.buffer).metadata();
+        widthPx = meta.width ?? null;
+        heightPx = meta.height ?? null;
+      } catch (err) {
+        console.warn("Не удалось прочитать размеры изображения:", err);
+      }
+    }
+
     const entity = this.repository.create({
       bucket: this.bucket,
       key,
-      // тут заменил на buildPublicUrl
-      url: publicRead ? this.buildPublicUrl(key) : null,
-      contentType: file.mimetype ?? null,
-      size: file.size ?? null,
+      contentType: file.mimetype,
+      size: file.size,
+      widthPx,
+      heightPx,
       ownerId: opts.ownerId ?? null,
       meta: opts.meta ?? null,
     });
@@ -144,9 +154,11 @@ export class FilesService {
   }
 
   async getMeta(id: string) {
-    const f = await this.repository.findOne({ where: { id } });
-    if (!f) throw new NotFoundException("File not found");
-    return f;
+    const file = await this.repository.findOne({ where: { id } });
+
+    if (!file) throw new NotFoundException("File not found");
+
+    return file;
   }
 
   private async streamToBuffer(stream: Readable): Promise<Buffer> {

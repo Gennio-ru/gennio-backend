@@ -11,14 +11,22 @@ export class FileEntity extends BaseEntity implements IFile {
   @Column({ length: 2048 })
   key!: string; // путь внутри бакета
 
-  @Column({ type: "text", nullable: true })
-  url!: string | null;
+  url!: string;
 
-  @Column({ type: "text", nullable: true })
-  contentType!: string | null;
+  @Column({
+    type: "text",
+    default: "application/octet-stream",
+  })
+  contentType!: string;
 
-  @Column({ type: "int", nullable: true })
-  size!: number | null;
+  @Column({ type: "int" })
+  size!: number;
+
+  @Column({ type: "int", name: "width_px", nullable: true })
+  widthPx!: number | null;
+
+  @Column({ type: "int", name: "height_px", nullable: true })
+  heightPx!: number | null;
 
   @Index()
   @Column({ type: "uuid", nullable: true })
