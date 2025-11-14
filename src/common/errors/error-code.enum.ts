@@ -1,5 +1,5 @@
 export enum ErrorCode {
-  // биллинг / кредиты
+  // биллинг / токены
   CREDITS_NOT_ENOUGH = "CREDITS_NOT_ENOUGH",
 
   // модель / джобы

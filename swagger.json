@@ -1034,7 +1034,7 @@
           "credits": {
             "type": "number",
             "example": 100,
-            "description": "Баланс кредитов"
+            "description": "Баланс токенов"
           },
           "isActive": {
             "type": "boolean",
