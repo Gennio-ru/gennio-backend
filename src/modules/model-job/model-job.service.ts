@@ -24,7 +24,7 @@ import {
 import { PricingService } from "../pricing/pricing.service";
 import { CreditsService } from "../credits/credits.service";
 import { CreditTransactionReason } from "../credits/types/credits.enum";
-import { Logger, PinoLogger } from "nestjs-pino";
+import { Logger } from "nestjs-pino";
 import { APIError as OpenAIApiError } from "openai";
 import { ErrorCode } from "src/common/errors/error-code.enum";
 import { FileEntity } from "../files/files.entity";
@@ -153,14 +153,14 @@ export class ModelJobService {
         // });
       } else {
         // 🖼 все остальные типы — про изображения
-        const { outputFileId, outputPreviewFileId, inputFileId } =
+        const { outputFileId, outputPreviewFileId, usedTokens } =
           await this.processImageJob(data as ImageJobPayload);
 
         await this.repository.update(modelJobId, {
           status: ModelJobStatusType.succeeded,
           outputFileId,
           outputPreviewFileId,
-          inputFileId,
+          usedTokens,
           finishedAt: new Date(),
         });
       }
@@ -249,9 +249,9 @@ export class ModelJobService {
   private async processImageJob(payload: ImageJobPayload): Promise<{
     outputFileId: string;
     outputPreviewFileId: string;
-    inputFileId: string | undefined;
+    usedTokens: Record<string, any>;
   }> {
-    const resultBuffer: Buffer = await (async () => {
+    const { imageBuffer, usedTokens } = await (async () => {
       switch (payload.type) {
         case ModelJobType.ImageEditByPromptId: {
           if (!payload.inputFileId) {
@@ -326,7 +326,7 @@ export class ModelJobService {
     })();
 
     // post-processing результата
-    const resultJpegBuffer = await sharp(resultBuffer)
+    const resultJpegBuffer = await sharp(imageBuffer)
       .jpeg({ quality: 90 })
       .toBuffer();
 
@@ -356,7 +356,7 @@ export class ModelJobService {
     return {
       outputFileId: outputFile.id,
       outputPreviewFileId: outputPreviewFile.id,
-      inputFileId: payload.inputFileId,
+      usedTokens,
     };
   }
 

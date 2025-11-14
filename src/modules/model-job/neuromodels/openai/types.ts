@@ -1,6 +1,6 @@
-export interface GenerateTextOptions {
-  prompt: string;
-  system?: string;
-  maxTokens?: number;
-  temperature?: number;
+export interface GenerateImageResult {
+  imageBuffer: Buffer;
+  usedTokens: Record<string, any>;
 }
+
+export type ImageQuality = "low" | "medium" | "high";

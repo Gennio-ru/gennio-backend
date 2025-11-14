@@ -73,6 +73,9 @@ export class ModelJob extends BaseEntity implements IModelJob {
   @Column({ type: "int" })
   creditsCharged: number;
 
+  @Column({ type: "jsonb", nullable: true })
+  usedTokens!: Record<string, any> | null;
+
   @Column({ type: "text", nullable: true })
   error: string | null;
 

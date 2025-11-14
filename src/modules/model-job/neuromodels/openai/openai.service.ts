@@ -8,8 +8,7 @@ import {
   AllowedSize,
   ResolvedSize,
 } from "src/common/image/image-processing.service";
-
-type ImageQuality = "low" | "medium" | "high";
+import { GenerateImageResult, ImageQuality } from "./types";
 
 @Injectable()
 export class OpenAiImageService {
@@ -62,7 +61,7 @@ export class OpenAiImageService {
     size?: AllowedSize;
     n?: number;
     quality: ImageQuality;
-  }) {
+  }): Promise<GenerateImageResult> {
     const resolvedSize: ResolvedSize =
       params.size && params.size !== "auto" ? params.size : "1024x1024";
 
@@ -77,7 +76,9 @@ export class OpenAiImageService {
 
     console.log("GENERATE_IMAGE_USAGE", res.usage);
 
-    return this.toJpegBufferFromImagesResponse(res);
+    const imageBuffer = await this.toJpegBufferFromImagesResponse(res);
+
+    return { imageBuffer, usedTokens: res.usage || {} };
   }
 
   /** Обработка входного изображения -> JPEG Buffer результата */
@@ -87,7 +88,7 @@ export class OpenAiImageService {
     imageFilename?: string;
     resolvedSize: ResolvedSize;
     quality: ImageQuality;
-  }): Promise<Buffer> {
+  }): Promise<GenerateImageResult> {
     const {
       image,
       prompt,
@@ -111,6 +112,8 @@ export class OpenAiImageService {
     console.log("EDIT_IMAGE_USAGE", res.usage);
 
     // 3) Приводим результат к JPEG и отдаём буффер
-    return this.toJpegBufferFromImagesResponse(res);
+    const imageBuffer = await this.toJpegBufferFromImagesResponse(res);
+
+    return { imageBuffer, usedTokens: res.usage || {} };
   }
 }

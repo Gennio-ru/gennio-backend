@@ -14,6 +14,7 @@ export interface IModelJobBase {
   outputText: string | null;
   tariffCode: ModelTariffCode;
   creditsCharged: number;
+  usedTokens: Record<string, any> | null;
   error: string | null;
   startedAt: Date | null;
   finishedAt: Date | null;
