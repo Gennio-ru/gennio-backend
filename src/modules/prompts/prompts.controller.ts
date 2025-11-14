@@ -30,6 +30,8 @@ import {
 import { OptionalJwtAuthGuard } from "../auth/guards/optional-jwt-auth.guard";
 import { ReqUser } from "src/common/decorators/req-user.decorator";
 import { ReqUserData } from "../auth/strategies/jwt-access.strategy";
+import { VerifiedEmailGuard } from "../auth/guards/verified-email.guard";
+import { RequireVerifiedEmail } from "../auth/decorators/require-verified-email.decorator";
 
 @ApiTags("prompts")
 @Controller("prompts")

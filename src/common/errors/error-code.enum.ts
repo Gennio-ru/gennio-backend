@@ -12,6 +12,7 @@ export enum ErrorCode {
 
   // доступ
   UNAUTHORIZED = "UNAUTHORIZED",
+  EMAIL_NOT_CONFIRMED = "EMAIL_NOT_CONFIRMED",
   FORBIDDEN = "FORBIDDEN",
 
   // валидация
