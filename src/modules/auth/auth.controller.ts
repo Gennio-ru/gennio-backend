@@ -230,7 +230,10 @@ export class AuthController {
   // OAuth Yandex
   // шаг 1 — редиректим пользователя на Яндекс
   @Get("yandex")
-  redirectToYandex(@Res() res: Response): void {
+  redirectToYandex(
+    @Res() res: Response,
+    @Query("returnUrl") returnUrl?: string
+  ): void {
     const clientId = this.configService.get<string>("YANDEX_CLIENT_ID");
     const redirectUri = this.configService.get<string>("YANDEX_REDIRECT_URI");
     if (!clientId || !redirectUri) {
@@ -243,6 +246,12 @@ export class AuthController {
     url.searchParams.set("redirect_uri", redirectUri);
     url.searchParams.set("scope", "login:email");
 
+    // берём безопасный путь или корень
+    const safeReturnPath = this.authService.getSafeReturnPath(returnUrl) ?? "/";
+
+    // кладём в state (можно без encode, но так нагляднее)
+    url.searchParams.set("state", encodeURIComponent(safeReturnPath));
+
     res.redirect(url.toString());
   }
 
@@ -250,6 +259,7 @@ export class AuthController {
   @Get("yandex/callback")
   async yandexCallback(
     @Query("code") code: string,
+    @Query("state") state: string | undefined,
     @Res({ passthrough: true }) res: Response
   ): Promise<void> {
     if (!code) {
@@ -260,9 +270,17 @@ export class AuthController {
 
     this.setRefreshCookie(res, refreshToken);
 
-    const frontendUrl =
-      this.configService.get<string>("FRONTEND_URL") ??
-      "http://localhost:5173/";
-    res.redirect(frontendUrl);
+    const frontendBase =
+      this.configService.get<string>("FRONTEND_URL") ?? "http://localhost:5173";
+
+    // достаём безопасный путь из state
+    const decodedState = state ? decodeURIComponent(state) : undefined;
+    const safeReturnPath =
+      this.authService.getSafeReturnPath(decodedState) ?? "/";
+
+    // аккуратно собираем полный URL
+    const redirectUrl = new URL(safeReturnPath, frontendBase).toString();
+
+    res.redirect(redirectUrl);
   }
 }

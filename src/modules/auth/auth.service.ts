@@ -300,6 +300,23 @@ export class AuthService {
     return this.issueTokensAndPersistSession(user);
   }
 
+  // Для умного редиректа yandex OAuth
+  getSafeReturnPath(raw?: string | null): string | null {
+    if (!raw) return null;
+
+    try {
+      raw = decodeURIComponent(raw);
+    } catch {}
+
+    // разрешаем только относительные пути вида "/something"
+    if (!raw.startsWith("/")) return null;
+
+    // не даём протокол-relative URLs типа "//evil.com"
+    if (raw.startsWith("//")) return null;
+
+    return raw;
+  }
+
   /** Отправить ссылку подтверждения email (Redis) */
   async sendEmailConfirmForUser(user: User) {
     if (!user.email) return;
