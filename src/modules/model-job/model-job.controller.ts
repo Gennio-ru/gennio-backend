@@ -24,6 +24,8 @@ import { ModelJobDto, ModelJobFullDto } from "./dto/model-job.dto";
 import { ModelJobType } from "./types/model-job.enum";
 import { ModelTariffCode } from "../pricing/types/pricing.enum";
 import { ErrorResponseDto } from "src/common/errors/error-response.dto";
+import { RequireTokens } from "src/common/decorators/require-tokens.decorator";
+import { RequireTokensGuard } from "src/common/guards/require-tokens.guard";
 
 @Controller("model-job")
 export class ModelJobController {
@@ -44,7 +46,8 @@ export class ModelJobController {
   }
 
   @Post("/start-image-edit-by-prompt-id")
-  @UseGuards(JwtAuthGuard)
+  @RequireTokens(7)
+  @UseGuards(JwtAuthGuard, RequireTokensGuard)
   @ApiResponse({
     status: 201,
     description: "Генерация запущена",
@@ -68,7 +71,8 @@ export class ModelJobController {
   }
 
   @Post("/start-image-edit-by-prompt-text")
-  @UseGuards(JwtAuthGuard)
+  @RequireTokens(7)
+  @UseGuards(JwtAuthGuard, RequireTokensGuard)
   @ApiResponse({
     status: 201,
     description: "Генерация запущена",
@@ -92,7 +96,8 @@ export class ModelJobController {
   }
 
   @Post("start-image-generate")
-  @UseGuards(JwtAuthGuard)
+  @RequireTokens(7)
+  @UseGuards(JwtAuthGuard, RequireTokensGuard)
   @ApiResponse({
     status: 201,
     description: "Генерация запущена",

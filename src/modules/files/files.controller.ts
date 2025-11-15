@@ -25,6 +25,8 @@ import { UserId } from "src/common/decorators/user-id.decorator";
 import { ReqUser } from "src/common/decorators/req-user.decorator";
 import { ReqUserData } from "../auth/strategies/jwt-access.strategy";
 import { ImageProcessingService } from "src/common/image/image-processing.service";
+import { RequireTokens } from "src/common/decorators/require-tokens.decorator";
+import { RequireTokensGuard } from "src/common/guards/require-tokens.guard";
 
 @ApiTags("files")
 @Controller("files")
@@ -35,7 +37,8 @@ export class FilesController {
   ) {}
 
   @Post("upload")
-  @UseGuards(JwtAuthGuard)
+  @RequireTokens(7)
+  @UseGuards(JwtAuthGuard, RequireTokensGuard)
   @UseInterceptors(
     FileInterceptor("file", {
       storage: memoryStorage(),
@@ -69,12 +72,10 @@ export class FilesController {
       height,
       resolvedSize,
     } = await this.imageProcessingService.normalizeForModel(
-      file.buffer, // 👈 сразу из файла, без compressKeepFormat
+      file.buffer,
       "auto",
       512
     );
-
-    console.log(width, height, resolvedSize);
 
     // 2) Один раз сжать + перевести в WebP
     const normalizedWebpBuffer =
