@@ -13,7 +13,7 @@ import { MailService } from "./mail.service";
       useFactory: (config: ConfigService) => {
         const templatesDir =
           process.env.NODE_ENV === "production"
-            ? join(__dirname, "mail", "templates")
+            ? join(__dirname, "templates")
             : join(process.cwd(), "src", "mail", "templates");
 
         return {
