@@ -31,6 +31,8 @@ import { VerifyPhoneOtpDto } from "./dto/verify-otp-by-phone.dto";
 import { Response } from "express";
 import { UserId } from "src/common/decorators/user-id.decorator";
 import { ConfigService } from "@nestjs/config";
+import { Throttle } from "@nestjs/throttler";
+import { ResendConfirmEmailDto } from "./dto/resend-confirm-email.dto";
 
 @ApiTags("auth")
 @Controller("auth")
@@ -126,15 +128,13 @@ export class AuthController {
     res.redirect(url.toString());
   }
 
-  // По желанию: повторная отправка (защити rate-limit'ом)
   @Post("email/confirm/resend")
-  @UseGuards(JwtAuthGuard)
-  async resendConfirmLink(@UserId() userId: string): Promise<{ ok: true }> {
-    const user = await this.authService.me(userId);
-    if (!user?.email) throw new BadRequestException("Email is not set");
-    if (user.isEmailVerified) return { ok: true };
-
-    await (this.authService as any).sendEmailConfirmForUser(user);
+  @HttpCode(200)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } }) // не чаще 5 раз в минуту
+  async resendConfirmLink(
+    @Body() body: ResendConfirmEmailDto
+  ): Promise<{ ok: true }> {
+    await this.authService.resendConfirmEmail(body.email);
     return { ok: true };
   }
 

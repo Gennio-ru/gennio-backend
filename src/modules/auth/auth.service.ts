@@ -21,6 +21,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { ConfigService } from "@nestjs/config";
 import axios from "axios";
+import { ErrorCode } from "src/common/errors/error-code.enum";
 
 @Injectable()
 export class AuthService {
@@ -141,6 +142,13 @@ export class AuthService {
       throw new UnauthorizedException("Invalid credentials");
     const isMatch = await bcrypt.compare(dto.password, user.passwordHash);
     if (!isMatch) throw new UnauthorizedException("Invalid credentials");
+
+    if (!user.isEmailVerified) {
+      throw new BadRequestException({
+        handled: true,
+        code: ErrorCode.EMAIL_NOT_CONFIRMED,
+      });
+    }
 
     await this.usersService.markLastLogin(user.id);
     return this.issueTokensAndPersistSession(user);
@@ -370,5 +378,17 @@ export class AuthService {
       await this.usersService.setEmailVerified(user.id, true);
     }
     return user;
+  }
+
+  async resendConfirmEmail(rawEmail: string): Promise<void> {
+    const email = rawEmail.trim().toLowerCase();
+
+    const user = await this.usersService.findByEmail(email);
+
+    if (!user || user.isEmailVerified) {
+      return;
+    }
+
+    await this.sendEmailConfirmForUser(user);
   }
 }
