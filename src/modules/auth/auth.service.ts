@@ -410,13 +410,9 @@ export class AuthService {
     const digest = this.hmacSha256Hex(raw, secret);
     await this.otpStore.setHashed("password_reset", user.id, digest, ttlSec);
 
-    // ссылка, на которую будет кликать пользователь
-    // логичнее сразу вести на фронт, где есть страница смены пароля
-    const base =
-      this.configService.get("PASSWORD_RESET_BASE_URL") ||
-      "http://localhost:5173/auth/password-reset";
-
+    const base = this.configService.get("FRONTEND_URL");
     const url = new URL(base);
+    url.pathname = "/auth/password-reset";
     url.searchParams.set("userId", user.id);
     url.searchParams.set("token", raw);
 

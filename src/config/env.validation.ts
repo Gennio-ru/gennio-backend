@@ -10,13 +10,11 @@ export const envValidationSchema = Joi.object({
 
   // ==== PostgreSQL ====
   DATABASE_URL: Joi.string().uri().optional(),
-  DB_HOST: Joi.string()
-    .hostname()
-    .when("DATABASE_URL", {
-      is: Joi.exist(),
-      then: Joi.optional(),
-      otherwise: Joi.required(),
-    }),
+  DB_HOST: Joi.string().hostname().when("DATABASE_URL", {
+    is: Joi.exist(),
+    then: Joi.optional(),
+    otherwise: Joi.required(),
+  }),
   DB_PORT: Joi.number().port().default(5432),
   DB_USER: Joi.string().default("postgres"),
   DB_PASS: Joi.string().allow("").default("postgres"),
@@ -45,6 +43,10 @@ export const envValidationSchema = Joi.object({
     .truthy("true")
     .falsy("false")
     .default(false),
+
+  // ==== Password reset ====
+  PASSWORD_RESET_TTL: Joi.string().default("1h"),
+  PASSWORD_RESET_SECRET: Joi.string().min(32).required(),
 
   // ==== CORS / Cookies ====
   CORS_ORIGIN: Joi.string().optional(),
