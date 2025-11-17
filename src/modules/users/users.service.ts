@@ -143,4 +143,11 @@ export class UsersService {
   async markLastLogin(userId: string): Promise<void> {
     await this.userRepository.update(userId, { lastLoginAt: new Date() });
   }
+
+  async updatePasswordHash(
+    userId: string,
+    passwordHash: string
+  ): Promise<void> {
+    await this.userRepository.update(userId, { passwordHash });
+  }
 }

@@ -391,4 +391,85 @@ export class AuthService {
 
     await this.sendEmailConfirmForUser(user);
   }
+
+  /** Отправить ссылку для восстановления пароля */
+  async sendPasswordResetForUser(user: User) {
+    if (!user.email) return;
+
+    const raw = crypto.randomBytes(32).toString("hex");
+
+    const ttlMs = this.parseTtl(
+      this.configService.get("PASSWORD_RESET_TTL") || "1h"
+    );
+    const ttlSec = Math.floor(ttlMs / 1000);
+    const expireHours = Math.ceil(ttlSec / 3600);
+
+    const secret =
+      this.configService.get("PASSWORD_RESET_SECRET") || "dev-password-reset";
+
+    const digest = this.hmacSha256Hex(raw, secret);
+    await this.otpStore.setHashed("password_reset", user.id, digest, ttlSec);
+
+    // ссылка, на которую будет кликать пользователь
+    // логичнее сразу вести на фронт, где есть страница смены пароля
+    const base =
+      this.configService.get("PASSWORD_RESET_BASE_URL") ||
+      "http://localhost:5173/auth/password-reset";
+
+    const url = new URL(base);
+    url.searchParams.set("userId", user.id);
+    url.searchParams.set("token", raw);
+
+    await this.mailService.sendPasswordResetLink({
+      to: user.email,
+      link: url.toString(),
+      project: "Gennio",
+      expireHours,
+      supportEmail: "support@gennio.ru",
+    });
+  }
+
+  /** Публичный запрос на восстановление пароля по email */
+  async requestPasswordReset(rawEmail: string): Promise<void> {
+    const email = rawEmail.trim().toLowerCase();
+
+    // Не светим наличие/отсутствие пользователя
+    const user = await this.usersService.findByEmail(email);
+    if (!user) return;
+
+    await this.sendPasswordResetForUser(user);
+  }
+
+  /** Подтвердить восстановление пароля по ссылке и установить новый пароль */
+  async confirmPasswordReset(params: {
+    userId: string;
+    rawToken: string;
+    newPassword: string;
+  }): Promise<void> {
+    const { userId, rawToken, newPassword } = params;
+
+    const secret =
+      this.configService.get("PASSWORD_RESET_SECRET") || "dev-password-reset";
+    const digest = this.hmacSha256Hex(rawToken, secret);
+
+    const res = await this.otpStore.compareHashedAndConsume(
+      "password_reset",
+      userId,
+      digest
+    );
+
+    if (res === -1) {
+      throw new BadRequestException("Ссылка устарела");
+    }
+    if (res === 0) {
+      throw new BadRequestException("Неверная ссылка");
+    }
+
+    const user = await this.usersService.findById(userId);
+    if (!user) throw new BadRequestException("Пользователь не найден");
+
+    // Меняем пароль
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await this.usersService.updatePasswordHash(user.id, passwordHash);
+  }
 }

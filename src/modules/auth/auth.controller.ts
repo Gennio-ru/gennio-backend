@@ -33,6 +33,8 @@ import { UserId } from "src/common/decorators/user-id.decorator";
 import { ConfigService } from "@nestjs/config";
 import { Throttle } from "@nestjs/throttler";
 import { ResendConfirmEmailDto } from "./dto/resend-confirm-email.dto";
+import { RequestPasswordResetDto } from "./dto/request-password-reset.dto";
+import { ConfirmPasswordResetDto } from "./dto/confirm-password-reset.dto";
 
 @ApiTags("auth")
 @Controller("auth")
@@ -282,5 +284,33 @@ export class AuthController {
     const redirectUrl = new URL(safeReturnPath, frontendBase).toString();
 
     res.redirect(redirectUrl);
+  }
+
+  @Post("password/reset/request")
+  @HttpCode(200)
+  @ApiOperation({ summary: "Запросить письмо для восстановления пароля" })
+  @ApiResponse({ status: 200, schema: { example: { ok: true } } })
+  @Throttle({ default: { limit: 5, ttl: 60_000 } }) // 5 раз в минуту с IP
+  async requestPasswordReset(
+    @Body() body: RequestPasswordResetDto
+  ): Promise<{ ok: true }> {
+    await this.authService.requestPasswordReset(body.email);
+    // Не раскрываем, есть пользователь или нет
+    return { ok: true };
+  }
+
+  @Post("password/reset/confirm")
+  @HttpCode(200)
+  @ApiOperation({ summary: "Подтвердить восстановление пароля" })
+  @ApiResponse({ status: 200, schema: { example: { ok: true } } })
+  async confirmPasswordReset(
+    @Body() body: ConfirmPasswordResetDto
+  ): Promise<{ ok: true }> {
+    await this.authService.confirmPasswordReset({
+      userId: body.userId,
+      rawToken: body.token,
+      newPassword: body.password,
+    });
+    return { ok: true };
   }
 }

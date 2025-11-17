@@ -2,7 +2,7 @@ import { Inject, Injectable } from "@nestjs/common";
 import type { Redis } from "ioredis";
 import { REDIS } from "../redis/redis.module";
 
-type Scope = "email" | "phone" | "email_confirm";
+type Scope = "email" | "phone" | "email_confirm" | "password_reset";
 
 @Injectable()
 export class OtpStore {
@@ -37,7 +37,7 @@ export class OtpStore {
     await this.redis.set(this.key(scope, id), tokenHash, "EX", ttlSec);
   }
 
-  /** Атомарно сравнить ХЭШ и погасить (для email_confirm) */
+  /** Атомарно сравнить ХЭШ и погасить (для email_confirm / password_reset) */
   async compareHashedAndConsume(
     scope: Scope,
     id: string,
@@ -58,7 +58,7 @@ export class OtpStore {
       this.key(scope, id),
       providedHash
     );
-    return Number(res) as any;
+    return Number(res) as -1 | 0 | 1;
   }
 
   /** Простейший рейт-лимит */
