@@ -22,8 +22,8 @@ import {
   ModelJobCreatedPayload,
 } from "./types/model-job.rmq-events";
 import { PricingService } from "../pricing/pricing.service";
-import { CreditsService } from "../credits/credits.service";
-import { CreditTransactionReason } from "../credits/types/credits.enum";
+import { TokensService } from "../tokens/tokens.service";
+import { TokenTransactionReason } from "../tokens/types/tokens.enum";
 import { Logger } from "nestjs-pino";
 import { APIError as OpenAIApiError } from "openai";
 import { ErrorCode } from "src/common/errors/error-code.enum";
@@ -50,7 +50,7 @@ export class ModelJobService {
     private readonly promptsService: PromptsService,
     @Inject(MODEL_JOB_CLIENT) private readonly client: ClientProxy,
     private readonly gateway: ModelJobGateway,
-    private readonly creditsService: CreditsService,
+    private readonly tokensService: TokensService,
     private readonly pricingService: PricingService,
     private readonly logger: Logger,
     private readonly imageProcessingService: ImageProcessingService
@@ -92,18 +92,18 @@ export class ModelJobService {
   }
 
   async create(data: IModelJobCreate): Promise<ModelJobDto> {
-    const credits = this.pricingService.getCreditsForJob(data);
+    const tokens = this.pricingService.getTokensForJob(data);
 
-    const user = await this.creditsService.chargeForJob({
+    const user = await this.tokensService.chargeForJob({
       userId: data.userId,
-      credits,
-      reason: CreditTransactionReason.JobCharge,
+      tokens,
+      reason: TokenTransactionReason.JobCharge,
       meta: { tariffCode: data.tariffCode, type: data.type },
     });
 
     const modelJob = this.repository.create({
       ...data,
-      creditsCharged: credits,
+      tokensCharged: tokens,
     });
 
     await this.repository.save(modelJob);
@@ -197,12 +197,12 @@ export class ModelJobService {
           where: { id: modelJobId },
         });
 
-        if (job && job.creditsCharged > 0) {
-          await this.creditsService.addCredits({
+        if (job && job.tokensCharged > 0) {
+          await this.tokensService.addTokens({
             userId: job.userId,
-            credits: job.creditsCharged,
+            tokens: job.tokensCharged,
             modelJobId: job.id,
-            reason: CreditTransactionReason.JobRefund,
+            reason: TokenTransactionReason.JobRefund,
             meta: { error: errorMessage },
           });
         }

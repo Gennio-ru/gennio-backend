@@ -28,22 +28,22 @@ export class RequireTokensGuard implements CanActivate {
     // 0️⃣ Админ всегда пропускается
     if (user?.role === UserRole.Admin) return true;
 
-    const credits = user?.credits ?? 0;
+    const tokens = user?.tokens ?? 0;
 
     // 1️⃣ Если токенов 0 — сразу ошибка
-    if (credits <= 0) {
+    if (tokens <= 0) {
       throw new BadRequestException({
         handled: true,
-        code: ErrorCode.CREDITS_NOT_ENOUGH,
+        code: ErrorCode.TOKENS_NOT_ENOUGH,
         details: { required: required ?? 1 },
       });
     }
 
     // 2️⃣ Если required указан — проверяем недостаток
-    if (required !== undefined && credits < required) {
+    if (required !== undefined && tokens < required) {
       throw new BadRequestException({
         handled: true,
-        code: ErrorCode.CREDITS_NOT_ENOUGH,
+        code: ErrorCode.TOKENS_NOT_ENOUGH,
         details: { required },
       });
     }

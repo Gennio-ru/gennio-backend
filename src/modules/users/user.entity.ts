@@ -33,7 +33,7 @@ export class User {
   role!: UserRole;
 
   @Column({ type: "int", default: 0 })
-  credits!: number;
+  tokens!: number;
 
   @Column({ type: "boolean", default: true })
   isActive!: boolean;

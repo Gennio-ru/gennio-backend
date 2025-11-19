@@ -3,6 +3,7 @@ import {
   Catch,
   ArgumentsHost,
   HttpException,
+  BadRequestException,
 } from "@nestjs/common";
 import { PinoLogger } from "nestjs-pino";
 import { ErrorCode } from "../errors/error-code.enum";
@@ -39,6 +40,15 @@ export class AllExceptionsFilter implements ExceptionFilter {
             ? ErrorCode.FORBIDDEN
             : ErrorCode.INTERNAL_SERVER_ERROR);
         details = r.details;
+
+        if (
+          status === 400 &&
+          exception instanceof BadRequestException &&
+          Array.isArray(r.message)
+        ) {
+          // NestJS validation error → r.message содержит массив ошибок
+          details = r.message;
+        }
       } else {
         // строковый респонс от стандартных HttpException
         code =

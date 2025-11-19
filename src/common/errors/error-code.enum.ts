@@ -1,6 +1,6 @@
 export enum ErrorCode {
   // биллинг / токены
-  CREDITS_NOT_ENOUGH = "CREDITS_NOT_ENOUGH",
+  TOKENS_NOT_ENOUGH = "TOKENS_NOT_ENOUGH",
 
   // модель / джобы
   MODEJ_JOB_TYPE_NOT_FOUND = "MODEJ_JOB_TYPE_NOT_FOUND",

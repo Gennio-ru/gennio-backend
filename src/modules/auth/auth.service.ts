@@ -56,7 +56,7 @@ export class AuthService {
       role: user.role,
       email: user.email,
       phone: user.phone,
-      credits: user.credits,
+      tokens: user.tokens,
       isActive: user.isActive,
     };
     return this.jwtService.sign(payload, {

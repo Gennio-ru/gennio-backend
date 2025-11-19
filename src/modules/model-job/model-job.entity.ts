@@ -71,7 +71,7 @@ export class ModelJob extends BaseEntity implements IModelJob {
   tariffCode: ModelTariffCode;
 
   @Column({ type: "int" })
-  creditsCharged: number;
+  tokensCharged: number;
 
   @Column({ type: "jsonb", nullable: true })
   usedTokens!: Record<string, any> | null;

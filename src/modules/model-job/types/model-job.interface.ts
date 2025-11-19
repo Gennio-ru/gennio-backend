@@ -13,7 +13,7 @@ export interface IModelJobBase {
   outputPreviewFileId: string | null;
   outputText: string | null;
   tariffCode: ModelTariffCode;
-  creditsCharged: number;
+  tokensCharged: number;
   usedTokens: Record<string, any> | null;
   error: string | null;
   startedAt: Date | null;

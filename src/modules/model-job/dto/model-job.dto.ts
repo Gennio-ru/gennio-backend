@@ -83,7 +83,7 @@ export class ModelJobBaseDto implements IModelJobBase {
     example: 8,
     description: "Сколько кредитов списано за эту задачу",
   })
-  creditsCharged!: number;
+  tokensCharged!: number;
 
   @ApiProperty({
     type: Object,

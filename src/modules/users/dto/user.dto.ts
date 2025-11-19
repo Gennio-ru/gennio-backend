@@ -38,7 +38,7 @@ export class UserBaseDto extends BaseDto implements IUserBase {
   role!: UserRole;
 
   @ApiProperty({ example: 100, description: "Баланс кредитов" })
-  credits!: number;
+  tokens!: number;
 
   @ApiProperty({ example: true, description: "Активен ли пользователь" })
   isActive!: boolean;

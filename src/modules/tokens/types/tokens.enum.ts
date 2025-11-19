@@ -1,4 +1,4 @@
-export enum CreditTransactionReason {
+export enum TokenTransactionReason {
   JobCharge = "JOB_CHARGE", // списание за задачу
   JobRefund = "JOB_REFUND", // возврат за упавшую задачу
   ManualAdd = "MANUAL_ADD", // ручное начисление / бонус

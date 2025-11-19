@@ -5,10 +5,10 @@ import {
   CreateDateColumn,
   Index,
 } from "typeorm";
-import { CreditTransactionReason } from "./types/credits.enum";
+import { TokenTransactionReason } from "./types/tokens.enum";
 
-@Entity("user_credit_transactions")
-export class UserCreditTransaction {
+@Entity("user_token_transactions")
+export class UserTokenTransaction {
   @PrimaryGeneratedColumn("uuid")
   id: string;
 
@@ -20,8 +20,8 @@ export class UserCreditTransaction {
   @Column({ type: "int" })
   delta: number;
 
-  @Column({ type: "enum", enum: CreditTransactionReason })
-  reason: CreditTransactionReason;
+  @Column({ type: "enum", enum: TokenTransactionReason })
+  reason: TokenTransactionReason;
 
   // привязка к задаче (если есть)
   @Column({ type: "uuid", nullable: true })

@@ -1031,7 +1031,7 @@
             "example": "user",
             "$ref": "#/components/schemas/UserRole"
           },
-          "credits": {
+          "tokens": {
             "type": "number",
             "example": 100,
             "description": "Баланс токенов"
@@ -1060,7 +1060,7 @@
           "createdAt",
           "updatedAt",
           "role",
-          "credits",
+          "tokens",
           "isActive",
           "isEmailVerified",
           "isPhoneVerified"
