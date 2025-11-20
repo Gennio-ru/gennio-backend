@@ -12,13 +12,18 @@ export class UploadFileResponseDto {
   })
   url: string;
 
-  @ApiProperty({ example: "image/png", nullable: true })
+  @ApiProperty({ type: String, example: "image/png", nullable: true })
   contentType: string | null;
 
-  @ApiProperty({ example: 204800, description: "Размер файла в байтах" })
+  @ApiProperty({
+    type: Number,
+    example: 204800,
+    description: "Размер файла в байтах",
+  })
   size: number | null;
 
   @ApiPropertyOptional({
+    type: Number,
     example: 1024,
     description: "Ширина файла в пикселях",
     nullable: true,
@@ -26,6 +31,7 @@ export class UploadFileResponseDto {
   widthPx!: number | null;
 
   @ApiPropertyOptional({
+    type: Number,
     example: 768,
     description: "Высота файла в пикселях",
     nullable: true,
