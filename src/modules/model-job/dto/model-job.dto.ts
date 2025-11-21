@@ -7,7 +7,6 @@ import {
 } from "../types/model-job.enum";
 import { BaseDto } from "src/common/base/base.dto";
 import { ModelTariffCode } from "src/modules/pricing/types/pricing.enum";
-import { User } from "src/modules/users/user.entity";
 import { UserDto } from "src/modules/users/dto/user.dto";
 import { FileDto } from "src/modules/files/dto/file.dto";
 

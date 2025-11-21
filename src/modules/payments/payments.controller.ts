@@ -1,5 +1,13 @@
 // src/modules/payments/payments.controller.ts
-import { Body, Controller, Get, Param, Post, UseGuards } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from "@nestjs/common";
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
@@ -7,21 +15,32 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiParam,
+  ApiQuery,
   ApiTags,
 } from "@nestjs/swagger";
 import { PaymentsService } from "./payments.service";
 import {
   PaymentDto,
+  PaymentFullDto,
   PaymentShortDto,
   YookassaWebhookResponseDto,
 } from "./dto/payments.dto";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { UserId } from "src/common/decorators/user-id.decorator";
 import { ErrorResponseDto } from "src/common/errors/error-response.dto";
+import { CreateTokensPaymentDto } from "./dto/create-payment.dto";
+import { ApiPaginatedResponse } from "src/common/swagger/api-paginated-response.decorator";
+import { FindPaymentsDto } from "./dto/find-payments.dto";
+import { ReqUser } from "src/common/decorators/req-user.decorator";
+import { PaginationResult } from "src/common/pagination/pagination.interface";
 import {
-  CreatePaymentDto,
-  CreateTokensPaymentDto,
-} from "./dto/create-payment.dto";
+  paginatePlainToInstance,
+  plainModelToInstance,
+} from "src/common/helpers/entity.helper";
+import { RolesGuard } from "../users/user-roles.guard";
+import { Roles } from "../users/user-roles.decorator";
+import { UserRole } from "../users/types/user-role.enum";
+import { PaymentStatus } from "./types/payments.enum";
 
 @ApiTags("payments")
 @ApiBearerAuth()
@@ -58,19 +77,26 @@ export class PaymentsController {
     };
   }
 
-  // Список платежей текущего пользователя
+  // Список платежей с фильтрами и пагинацией
   @Get()
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.Admin)
   @ApiOperation({
-    summary: "Список платежей текущего пользователя",
+    summary: "Получить список платежей с фильтрами и пагинацией",
   })
-  @ApiOkResponse({
-    type: PaymentDto,
-    isArray: true,
-  })
-  async listMyPayments(@UserId() userId: string): Promise<PaymentDto[]> {
-    const payments = await this.paymentsService.getUserPayments(userId);
-    return payments as any;
+  @ApiQuery({ name: "page", required: false, type: Number, example: 1 })
+  @ApiQuery({ name: "limit", required: false, type: Number, example: 10 })
+  @ApiQuery({ name: "search", required: false, type: String })
+  @ApiQuery({ name: "status", required: false, enum: PaymentStatus })
+  @ApiQuery({ name: "createdFrom", required: false, type: String })
+  @ApiQuery({ name: "createdTo", required: false, type: String })
+  @ApiPaginatedResponse(PaymentFullDto, { key: "items" })
+  async findMany(
+    @Query() query: FindPaymentsDto
+  ): Promise<PaginationResult<PaymentFullDto>> {
+    const page = await this.paymentsService.findMany(query);
+
+    return paginatePlainToInstance(PaymentFullDto, page);
   }
 
   // Информация о платеже (наша)
@@ -89,7 +115,29 @@ export class PaymentsController {
   })
   async getPayment(@Param("id") id: string): Promise<PaymentDto> {
     const payment = await this.paymentsService.getPaymentById(id);
-    return payment as any;
+
+    return plainModelToInstance(PaymentDto, payment);
+  }
+
+  // Информация о платеже для админа
+  @Get("full/:id")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.Admin)
+  @ApiOperation({
+    summary: "Получить полную информацию о платеже",
+  })
+  @ApiParam({
+    name: "id",
+    description: "ID платежа в системе Gennio",
+    example: "c6a6a9ff-5d9c-4a0f-9c35-6f6d1d9f7a23",
+  })
+  @ApiOkResponse({
+    type: PaymentFullDto,
+  })
+  async getFullPayment(@Param("id") id: string): Promise<PaymentFullDto> {
+    const payment = await this.paymentsService.getFullPaymentById(id);
+
+    return plainModelToInstance(PaymentFullDto, payment);
   }
 
   // Отмена платежа

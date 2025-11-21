@@ -1,14 +1,18 @@
-import { Column, Entity, Index } from "typeorm";
+import { Column, Entity, Index, JoinColumn, ManyToOne } from "typeorm";
 import { PaymentStatus } from "./types/payments.enum";
 import { IPayment } from "./types/payments.interface";
 import { BaseEntity } from "src/common/base/base.entity";
+import { User } from "../users/user.entity";
 
 @Entity("payments")
 export class PaymentEntity extends BaseEntity implements IPayment {
-  // Кто платит - можно связать с UserEntity
   @Index()
   @Column({ type: "uuid", nullable: true })
   userId: string | null;
+
+  @ManyToOne(() => User, { onDelete: "NO ACTION" })
+  @JoinColumn({ name: "userId" })
+  user!: User;
 
   // Сумма в рублях
   @Column({ type: "numeric", precision: 10, scale: 2 })

@@ -1,19 +1,9 @@
-// src/modules/payments/dto/payment.dto.ts
-
 import { ApiProperty } from "@nestjs/swagger";
 import { IntersectionType } from "@nestjs/swagger";
 import { BaseDto } from "src/common/base/base.dto";
 import { IPayment, IPaymentBase } from "../types/payments.interface";
 import { PaymentStatus } from "../types/payments.enum";
-import {
-  ICreatePayment,
-  ICreateTokensPayment,
-} from "../types/payments-mutations.interface";
-import { TokensPackId } from "src/modules/pricing/configs/token-packs.config";
-
-// =============================
-// Base DTO
-// =============================
+import { UserDto } from "src/modules/users/dto/user.dto";
 
 export class PaymentBaseDto implements IPaymentBase {
   @ApiProperty({
@@ -187,9 +177,13 @@ export class PaymentShortDto {
   confirmationUrl!: string | null;
 }
 
-// =============================
-// Full DTO
-// =============================
+export class PaymentFullDto
+  extends IntersectionType(PaymentBaseDto, BaseDto)
+  implements IPaymentBase
+{
+  @ApiProperty({ type: UserDto })
+  user!: UserDto;
+}
 
 export class PaymentDto
   extends IntersectionType(PaymentBaseDto, BaseDto)

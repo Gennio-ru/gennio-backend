@@ -13,6 +13,10 @@ import { TokensService } from "../tokens/tokens.service";
 import { TokenTransactionReason } from "../tokens/types/tokens.enum";
 import { ConfigService } from "@nestjs/config";
 import { PaymentsGateway } from "./payments.gateway";
+import { FindPaymentsDto } from "./dto/find-payments.dto";
+import { PaginationResult } from "src/common/pagination/pagination.interface";
+import { paginate } from "src/common/pagination/pagination.util";
+import { PaymentFullDto } from "./dto/payments.dto";
 
 @Injectable()
 export class PaymentsService {
@@ -45,6 +49,54 @@ export class PaymentsService {
       default:
         return PaymentStatus.ERROR;
     }
+  }
+
+  async findMany(
+    query: FindPaymentsDto
+  ): Promise<PaginationResult<PaymentFullDto>> {
+    return paginate<PaymentEntity>(
+      this.paymentsRepo,
+      query,
+      "payment",
+      (qb) => {
+        qb.leftJoinAndSelect("payment.user", "user");
+
+        // Поиск (search)
+        if (query.search) {
+          const s = `%${query.search.toLowerCase()}%`;
+
+          qb.andWhere(
+            `(LOWER(payment.providerPaymentId) LIKE :s
+            OR LOWER(payment.description) LIKE :s
+            OR LOWER(user.email) LIKE :s)`,
+            { s }
+          );
+        }
+
+        // Фильтр по статусу
+        if (query.status) {
+          qb.andWhere("payment.status = :status", {
+            status: query.status,
+          });
+        }
+
+        if (query.createdFrom) {
+          qb.andWhere(
+            `(payment.createdAt AT TIME ZONE 'Europe/Moscow')::date >= :fromDate`,
+            { fromDate: query.createdFrom }
+          );
+        }
+
+        if (query.createdTo) {
+          qb.andWhere(
+            `(payment.createdAt AT TIME ZONE 'Europe/Moscow')::date <= :toDate`,
+            { toDate: query.createdTo }
+          );
+        }
+
+        qb.orderBy("payment.createdAt", "DESC");
+      }
+    );
   }
 
   /**
@@ -161,6 +213,15 @@ export class PaymentsService {
 
   async getPaymentById(id: string): Promise<PaymentEntity> {
     const payment = await this.paymentsRepo.findOne({ where: { id } });
+    if (!payment) throw new NotFoundException("Payment not found");
+    return payment;
+  }
+
+  async getFullPaymentById(id: string): Promise<PaymentEntity> {
+    const payment = await this.paymentsRepo.findOne({
+      where: { id },
+      relations: ["user"],
+    });
     if (!payment) throw new NotFoundException("Payment not found");
     return payment;
   }
