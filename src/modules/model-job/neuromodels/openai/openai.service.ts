@@ -74,8 +74,6 @@ export class OpenAiImageService {
       stream: false,
     });
 
-    console.log("GENERATE_IMAGE_USAGE", res.usage);
-
     const imageBuffer = await this.toJpegBufferFromImagesResponse(res);
 
     return { imageBuffer, usedTokens: res.usage || {} };
@@ -108,8 +106,6 @@ export class OpenAiImageService {
       quality,
       stream: false,
     });
-
-    console.log("EDIT_IMAGE_USAGE", res.usage);
 
     // 3) Приводим результат к JPEG и отдаём буффер
     const imageBuffer = await this.toJpegBufferFromImagesResponse(res);

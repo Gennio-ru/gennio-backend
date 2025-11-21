@@ -2,9 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { IsNotEmpty, IsOptional, IsString, IsUUID } from "class-validator";
 import { IPromptCreate } from "../types/prompt-mutations.interface";
 
-export class CreatePromptDto
-  implements Omit<IPromptCreate, "type" | "beforeImageId">
-{
+export class CreatePromptDto implements Omit<IPromptCreate, "type"> {
   @ApiProperty({ example: "Аниме-портрет" })
   @IsString()
   @IsNotEmpty()
@@ -14,6 +12,11 @@ export class CreatePromptDto
   @IsString()
   @IsNotEmpty()
   description!: string;
+
+  @ApiProperty({ example: "f47ac10b-58cc-4372-a567-0e02b2c3d479" })
+  @IsUUID()
+  @IsString()
+  beforeImageId!: string;
 
   @ApiProperty({ example: "f47ac10b-58cc-4372-a567-0e02b2c3d479" })
   @IsUUID()

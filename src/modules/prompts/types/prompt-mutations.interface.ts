@@ -9,5 +9,4 @@ export interface IPromptCreate {
   categoryId?: string;
 }
 
-export interface IPromptUpdate
-  extends Partial<Omit<IPromptCreate, "type" | "beforeImageId">> {}
+export interface IPromptUpdate extends Partial<Omit<IPromptCreate, "type">> {}

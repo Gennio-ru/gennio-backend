@@ -276,7 +276,7 @@ export class ModelJobService {
           return this.openaiService.editImage({
             image: fileBuffer,
             prompt: promptData.text,
-            quality: "low",
+            quality: "medium",
             resolvedSize,
             imageFilename: "input.jpeg",
           });
@@ -301,7 +301,7 @@ export class ModelJobService {
           return this.openaiService.editImage({
             image: fileBuffer,
             prompt: payload.text,
-            quality: "low",
+            quality: "medium",
             resolvedSize,
             imageFilename: "input.jpeg",
           });
@@ -314,7 +314,7 @@ export class ModelJobService {
 
           return this.openaiService.generateImage({
             prompt: payload.text,
-            quality: "low",
+            quality: "medium",
           });
         }
 

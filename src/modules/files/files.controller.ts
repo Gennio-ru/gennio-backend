@@ -27,6 +27,9 @@ import { ReqUserData } from "../auth/strategies/jwt-access.strategy";
 import { ImageProcessingService } from "src/common/image/image-processing.service";
 import { RequireTokens } from "src/common/decorators/require-tokens.decorator";
 import { RequireTokensGuard } from "src/common/guards/require-tokens.guard";
+import { RolesGuard } from "../users/user-roles.guard";
+import { Roles } from "../users/user-roles.decorator";
+import { UserRole } from "../users/types/user-role.enum";
 
 @ApiTags("files")
 @Controller("files")
@@ -36,13 +39,14 @@ export class FilesController {
     private readonly imageProcessingService: ImageProcessingService
   ) {}
 
-  @Post("upload")
+  // Проходит несколько стадий обработки для дальнейшей загрузки в API нейросети
+  @Post("ai-upload")
   @RequireTokens(7)
   @UseGuards(JwtAuthGuard, RequireTokensGuard)
   @UseInterceptors(
     FileInterceptor("file", {
       storage: memoryStorage(),
-      limits: { fileSize: 6 * 1024 * 1024 },
+      limits: { fileSize: 10 * 1024 * 1024 },
       fileFilter: (req, file, cb) => {
         const allowed = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
         if (allowed.includes(file.mimetype)) cb(null, true);
@@ -56,10 +60,9 @@ export class FilesController {
     description: "Файл успешно загружен",
     type: UploadFileResponseDto,
   })
-  async upload(
+  async aiUpload(
     @UploadedFile() file: Express.Multer.File,
     @UserId() userId: string,
-    @ReqUser() user: ReqUserData,
     @Query("folder") folder?: string,
     @Query("public") publicQ?: string
   ): Promise<UploadFileResponseDto> {
@@ -99,6 +102,71 @@ export class FilesController {
         meta: {
           modelResolvedSize: resolvedSize, // "1024x1536" | ...
         },
+      }
+    );
+
+    const fileUrl = await this.filesService.getFileUrl(saved);
+
+    return {
+      id: saved.id,
+      key: saved.key,
+      contentType: saved.contentType,
+      size: saved.size,
+      widthPx: saved.widthPx ?? width,
+      heightPx: saved.heightPx ?? height,
+      url: fileUrl,
+      createdAt: saved.createdAt,
+    };
+  }
+
+  @Post("upload")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.Admin)
+  @UseInterceptors(
+    FileInterceptor("file", {
+      storage: memoryStorage(),
+      limits: { fileSize: 10 * 1024 * 1024 },
+      fileFilter: (req, file, cb) => {
+        const allowed = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
+        if (allowed.includes(file.mimetype)) cb(null, true);
+        else cb(new BadRequestException("Unsupported file type"), false);
+      },
+    })
+  )
+  @ApiBody({ type: UploadDto })
+  @ApiResponse({
+    status: 201,
+    description: "Файл успешно загружен",
+    type: UploadFileResponseDto,
+  })
+  async upload(
+    @UploadedFile() file: Express.Multer.File,
+    @UserId() userId: string,
+    @Query("folder") folder?: string,
+    @Query("public") publicQ?: string
+  ): Promise<UploadFileResponseDto> {
+    if (!file) throw new BadRequestException("No file");
+
+    // Сжать + перевести в WebP
+    const normalizedWebpBuffer =
+      await this.imageProcessingService.compressToWebp(file.buffer, 150);
+
+    const { width, height } = await this.imageProcessingService.getDimensions(
+      normalizedWebpBuffer
+    );
+
+    // Сохранить уже нормализованный webp
+    const saved = await this.filesService.uploadBuffer(
+      {
+        buffer: normalizedWebpBuffer,
+        originalname: file.originalname,
+        mimetype: "image/jpeg",
+        size: normalizedWebpBuffer.length,
+      },
+      {
+        folder,
+        publicRead: publicQ === "true",
+        ownerId: userId,
       }
     );
 

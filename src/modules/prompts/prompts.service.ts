@@ -18,7 +18,7 @@ export class PromptsService {
   async findOne(id: string): Promise<Prompt> {
     const prompt = await this.repository.findOne({
       where: { id },
-      relations: ["afterImage"],
+      relations: ["afterImage", "beforeImage"],
     });
     if (!prompt) {
       throw new NotFoundException("Prompt not found");
@@ -33,6 +33,7 @@ export class PromptsService {
       "prompt",
       (queryBuilder) => {
         queryBuilder
+          .leftJoinAndSelect("prompt.beforeImage", "beforeFile")
           .leftJoinAndSelect("prompt.afterImage", "afterFile")
           .leftJoinAndSelect("prompt.category", "category")
           .distinct(true);
