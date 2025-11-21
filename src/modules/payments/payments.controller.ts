@@ -31,7 +31,6 @@ import { ErrorResponseDto } from "src/common/errors/error-response.dto";
 import { CreateTokensPaymentDto } from "./dto/create-payment.dto";
 import { ApiPaginatedResponse } from "src/common/swagger/api-paginated-response.decorator";
 import { FindPaymentsDto } from "./dto/find-payments.dto";
-import { ReqUser } from "src/common/decorators/req-user.decorator";
 import { PaginationResult } from "src/common/pagination/pagination.interface";
 import {
   paginatePlainToInstance,
@@ -41,6 +40,10 @@ import { RolesGuard } from "../users/user-roles.guard";
 import { Roles } from "../users/user-roles.decorator";
 import { UserRole } from "../users/types/user-role.enum";
 import { PaymentStatus } from "./types/payments.enum";
+import {
+  RefundTokensDto,
+  RefundTokensPreviewDto,
+} from "./dto/refund-tokens.dto";
 
 @ApiTags("payments")
 @ApiBearerAuth()
@@ -142,7 +145,8 @@ export class PaymentsController {
 
   // Отмена платежа
   @Post(":id/cancel")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.Admin)
   @ApiOperation({
     summary: "Отменить платеж",
   })
@@ -155,7 +159,7 @@ export class PaymentsController {
   })
   async cancel(@Param("id") id: string): Promise<PaymentDto> {
     const payment = await this.paymentsService.cancelPayment(id);
-    return payment as any;
+    return plainModelToInstance(PaymentDto, payment);
   }
 
   // Вебхук от YooKassa — БЕЗ guard'а
@@ -176,17 +180,77 @@ export class PaymentsController {
     return { accepted: true };
   }
 
+  @Get(":id/refund-tokens/preview")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.Admin)
+  @ApiOperation({
+    summary: "Предпросмотр: сколько токенов и денег можно вернуть по платежу",
+  })
+  @ApiOkResponse({
+    type: RefundTokensPreviewDto,
+  })
+  async getRefundTokensPreview(
+    @Param("id") id: string
+  ): Promise<RefundTokensPreviewDto> {
+    const preview = await this.paymentsService.getTokensRefundPreview(id);
+    return plainModelToInstance(RefundTokensPreviewDto, preview);
+  }
+
+  @Post(":id/refund-tokens")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.Admin)
+  @ApiOperation({
+    summary: "Сделать частичный рефанд по токенам",
+  })
+  @ApiBody({ type: RefundTokensDto })
+  @ApiOkResponse({
+    description: "Обновлённый платёж после запроса частичного рефанда",
+    type: PaymentFullDto,
+  })
+  async refundTokens(
+    @Param("id") id: string,
+    @Body() dto: RefundTokensDto
+  ): Promise<PaymentFullDto> {
+    const payment = await this.paymentsService.requestTokensRefund({
+      paymentId: id,
+      tokens: dto.tokens,
+      description: dto.description,
+    });
+
+    return plainModelToInstance(PaymentFullDto, payment);
+  }
+
   @Post(":id/refund")
-  @UseGuards(JwtAuthGuard) // или админ-гвард
-  @ApiOperation({ summary: "Запросить возврат платежа" })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.Admin)
+  @ApiOperation({ summary: "Запросить возврат платежа полностью/частично" })
+  @ApiBody({
+    schema: {
+      type: "object",
+      properties: {
+        amount: {
+          type: "number",
+          nullable: true,
+          example: 1000,
+          description:
+            "Сумма возврата в рублях. Если не передана — вернуть максимально возможную сумму.",
+        },
+      },
+    },
+  })
+  @ApiOkResponse({
+    description: "Обновлённый платёж после запроса рефанда",
+    type: PaymentFullDto,
+  })
   async refundPayment(
     @Param("id") id: string,
     @Body("amount") amount?: number
-  ) {
-    const refund = await this.paymentsService.requestRefund({
+  ): Promise<PaymentFullDto> {
+    const payment = await this.paymentsService.requestRefund({
       paymentId: id,
       amount,
     });
-    return refund;
+
+    return plainModelToInstance(PaymentFullDto, payment);
   }
 }

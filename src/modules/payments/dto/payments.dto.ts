@@ -81,6 +81,20 @@ export class PaymentBaseDto implements IPaymentBase {
   meta!: any | null;
 
   @ApiProperty({
+    type: Number,
+    nullable: true,
+    description: "Сколько токенов было начислено за этот платеж",
+  })
+  tokensPurchased!: number | null;
+
+  @ApiProperty({
+    type: Number,
+    nullable: true,
+    description: "Сколько токенов уже было отозвано рефандами",
+  })
+  tokensRefunded!: number | null;
+
+  @ApiProperty({
     type: String,
     format: "date-time",
     nullable: true,

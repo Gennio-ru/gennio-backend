@@ -42,6 +42,12 @@ export class PaymentEntity extends BaseEntity implements IPayment {
   @Column({ type: "text", nullable: true })
   description: string | null;
 
+  @Column({ type: "int", nullable: true })
+  tokensPurchased: number | null; // сколько токенов было начислено за этот платеж
+
+  @Column({ type: "int", nullable: true, default: 0 })
+  tokensRefunded: number | null; // сколько токенов уже было "отозвано" рефандами
+
   // Сырые данные YooKassa (последний объект payment / refund)
   @Column({ type: "jsonb", nullable: true })
   providerPayload: any | null;

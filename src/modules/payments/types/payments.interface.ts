@@ -13,6 +13,9 @@ export interface IPaymentBase {
   providerPayload: any | null;
   meta: any | null;
 
+  tokensPurchased: number | null;
+  tokensRefunded: number | null;
+
   capturedAt: Date | null;
   canceledAt: Date | null;
   refundedAt: Date | null;

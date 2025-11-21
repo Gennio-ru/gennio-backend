@@ -3,6 +3,7 @@ export enum TokenTransactionReason {
   JobRefund = "JOB_REFUND", // возврат за упавшую задачу
   ManualAdd = "MANUAL_ADD", // ручное начисление / бонус
   ManualSubtract = "MANUAL_SUBTRACT", // ручное списание админом
-  Purchase = "PURCHASE", // покупка пакета
+  PaymentPurchase = "PAYMENT_PURCHASE", // покупка пакета
+  PaymentRefund = "PAYMENT_REFUND", // возврат платежа
   Promo = "PROMO", // промокод и т.п.
 }

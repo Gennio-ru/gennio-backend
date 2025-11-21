@@ -93,6 +93,29 @@ export class TokensService {
     if (tokens <= 0) return;
 
     await this.dataSource.transaction(async (manager) => {
+      const txRepo = manager.getRepository(UserTokenTransaction);
+
+      // 🔒 Идемпотентность для PAYMENT_PURCHASE:
+      // если уже есть транзакция с таким paymentId — выходим, ничего не начисляем
+      if (
+        reason === TokenTransactionReason.PaymentPurchase &&
+        meta?.paymentId
+      ) {
+        const existing = await txRepo
+          .createQueryBuilder("tx")
+          .where("tx.reason = :reason", { reason })
+          .andWhere(`tx.meta->>'paymentId' = :paymentId`, {
+            paymentId: meta.paymentId,
+          })
+          .getOne();
+
+        if (existing) {
+          // уже начисляли токены за этот платёж
+          return;
+        }
+      }
+
+      // обновляем баланс
       await manager
         .createQueryBuilder()
         .update(User)
@@ -100,7 +123,8 @@ export class TokensService {
         .where("id = :userId", { userId })
         .execute();
 
-      const tx = this.txRepo.create({
+      // пишем транзакцию
+      const tx = txRepo.create({
         userId,
         delta: tokens,
         reason,
@@ -108,7 +132,7 @@ export class TokensService {
         meta,
       });
 
-      await manager.save(tx);
+      await txRepo.save(tx);
     });
   }
 
@@ -119,5 +143,19 @@ export class TokensService {
       order: { createdAt: "DESC" },
       take: limit,
     });
+  }
+
+  async isRefundAlreadyProcessed(refundId: string): Promise<boolean> {
+    if (!refundId) return false;
+
+    const existing = await this.txRepo
+      .createQueryBuilder("tx")
+      .where("tx.reason = :reason", {
+        reason: TokenTransactionReason.PaymentRefund,
+      })
+      .andWhere(`tx.meta->>'refundId' = :refundId`, { refundId })
+      .getOne();
+
+    return Boolean(existing);
   }
 }
