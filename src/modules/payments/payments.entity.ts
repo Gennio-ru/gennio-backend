@@ -38,7 +38,7 @@ export class PaymentEntity extends BaseEntity implements IPayment {
   @Column({ type: "text", nullable: true })
   confirmationUrl: string | null;
 
-  // Описание (что покупает: кредиты / тариф / подписка)
+  // Описание (что покупает: токены / тариф / подписка)
   @Column({ type: "text", nullable: true })
   description: string | null;
 

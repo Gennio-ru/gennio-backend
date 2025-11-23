@@ -37,7 +37,7 @@ export class UserBaseDto extends BaseDto implements IUserBase {
   @ApiProperty({ enum: UserRole, example: UserRole.User, enumName: "UserRole" })
   role!: UserRole;
 
-  @ApiProperty({ example: 100, description: "Баланс кредитов" })
+  @ApiProperty({ example: 100, description: "Баланс токенов" })
   tokens!: number;
 
   @ApiProperty({ example: true, description: "Активен ли пользователь" })

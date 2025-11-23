@@ -82,7 +82,7 @@ export class ModelJobBaseDto implements IModelJobBase {
   @ApiProperty({
     type: Number,
     example: 8,
-    description: "Сколько кредитов списано за эту задачу",
+    description: "Сколько токенов списано за эту задачу",
   })
   tokensCharged!: number;
 

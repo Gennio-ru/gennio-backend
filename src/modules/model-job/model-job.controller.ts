@@ -92,7 +92,7 @@ export class ModelJobController {
     type: ModelJobDto,
   })
   @ApiBadRequestResponse({
-    description: "Бизнес-ошибка (например, не хватает кредитов)",
+    description: "Бизнес-ошибка (например, не хватает токенов)",
     type: ErrorResponseDto,
   })
   async startImageEditByPromptId(
@@ -118,7 +118,7 @@ export class ModelJobController {
     type: ModelJobDto,
   })
   @ApiBadRequestResponse({
-    description: "Бизнес-ошибка (например, не хватает кредитов)",
+    description: "Бизнес-ошибка (например, не хватает токенов)",
     type: ErrorResponseDto,
   })
   async startImageEditByPromptText(
@@ -144,7 +144,7 @@ export class ModelJobController {
     type: ModelJobDto,
   })
   @ApiBadRequestResponse({
-    description: "Бизнес-ошибка (например, не хватает кредитов)",
+    description: "Бизнес-ошибка (например, не хватает токенов)",
     type: ErrorResponseDto,
   })
   async startImageGenerateByPromptText(

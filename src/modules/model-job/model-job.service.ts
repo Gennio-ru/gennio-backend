@@ -243,7 +243,7 @@ export class ModelJobService {
         finishedAt: new Date(),
       });
 
-      // пробуем вернуть кредиты
+      // пробуем вернуть токены
       try {
         const job = await this.repository.findOne({
           where: { id: modelJobId },
