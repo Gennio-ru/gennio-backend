@@ -9,7 +9,6 @@ import {
   UploadedFile,
   UseInterceptors,
   UseGuards,
-  NotFoundException,
   ParseUUIDPipe,
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
@@ -18,18 +17,16 @@ import { FilesService } from "./files.service";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { ApiBody, ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger";
 import { UploadDto } from "./dto/upload.dto";
-import { UploadFileResponseDto } from "./dto/upload-file-response.dto";
 import { DeleteFileResponseDto } from "./dto/delete-file-response.dto";
 import { FileDto } from "./dto/file.dto";
 import { UserId } from "src/common/decorators/user-id.decorator";
-import { ReqUser } from "src/common/decorators/req-user.decorator";
-import { ReqUserData } from "../auth/strategies/jwt-access.strategy";
 import { ImageProcessingService } from "src/common/image/image-processing.service";
 import { RequireTokens } from "src/common/decorators/require-tokens.decorator";
 import { RequireTokensGuard } from "src/common/guards/require-tokens.guard";
 import { RolesGuard } from "../users/user-roles.guard";
 import { Roles } from "../users/user-roles.decorator";
 import { UserRole } from "../users/types/user-role.enum";
+import { plainModelToInstance } from "src/common/helpers/entity.helper";
 
 @ApiTags("files")
 @Controller("files")
@@ -41,8 +38,7 @@ export class FilesController {
 
   // Проходит несколько стадий обработки для дальнейшей загрузки в API нейросети
   @Post("ai-upload")
-  @RequireTokens(7)
-  @UseGuards(JwtAuthGuard, RequireTokensGuard)
+  @UseGuards(JwtAuthGuard)
   @UseInterceptors(
     FileInterceptor("file", {
       storage: memoryStorage(),
@@ -58,27 +54,23 @@ export class FilesController {
   @ApiResponse({
     status: 201,
     description: "Файл успешно загружен",
-    type: UploadFileResponseDto,
+    type: FileDto,
   })
   async aiUpload(
     @UploadedFile() file: Express.Multer.File,
     @UserId() userId: string,
     @Query("folder") folder?: string,
     @Query("public") publicQ?: string
-  ): Promise<UploadFileResponseDto> {
+  ): Promise<FileDto> {
     if (!file) throw new BadRequestException("No file");
 
     // 1) Нормализация под модель: даунскейл + выбор аспекта + crop+resize
-    const {
-      buffer: normalizedBufferJpeg,
-      width,
-      height,
-      resolvedSize,
-    } = await this.imageProcessingService.normalizeForModel(
-      file.buffer,
-      "auto",
-      512
-    );
+    const { buffer: normalizedBufferJpeg, resolvedSize } =
+      await this.imageProcessingService.normalizeForModel(
+        file.buffer,
+        "auto",
+        512
+      );
 
     // 2) Один раз сжать + перевести в WebP
     const normalizedWebpBuffer =
@@ -107,16 +99,7 @@ export class FilesController {
 
     const fileUrl = await this.filesService.getFileUrl(saved);
 
-    return {
-      id: saved.id,
-      key: saved.key,
-      contentType: saved.contentType,
-      size: saved.size,
-      widthPx: saved.widthPx ?? width,
-      heightPx: saved.heightPx ?? height,
-      url: fileUrl,
-      createdAt: saved.createdAt,
-    };
+    return plainModelToInstance(FileDto, { ...saved, url: fileUrl });
   }
 
   @Post("upload")
@@ -137,23 +120,19 @@ export class FilesController {
   @ApiResponse({
     status: 201,
     description: "Файл успешно загружен",
-    type: UploadFileResponseDto,
+    type: FileDto,
   })
   async upload(
     @UploadedFile() file: Express.Multer.File,
     @UserId() userId: string,
     @Query("folder") folder?: string,
     @Query("public") publicQ?: string
-  ): Promise<UploadFileResponseDto> {
+  ): Promise<FileDto> {
     if (!file) throw new BadRequestException("No file");
 
     // Сжать + перевести в WebP
     const normalizedWebpBuffer =
       await this.imageProcessingService.compressToWebp(file.buffer, 150);
-
-    const { width, height } = await this.imageProcessingService.getDimensions(
-      normalizedWebpBuffer
-    );
 
     // Сохранить уже нормализованный webp
     const saved = await this.filesService.uploadBuffer(
@@ -172,16 +151,7 @@ export class FilesController {
 
     const fileUrl = await this.filesService.getFileUrl(saved);
 
-    return {
-      id: saved.id,
-      key: saved.key,
-      contentType: saved.contentType,
-      size: saved.size,
-      widthPx: saved.widthPx ?? width,
-      heightPx: saved.heightPx ?? height,
-      url: fileUrl,
-      createdAt: saved.createdAt,
-    };
+    return plainModelToInstance(FileDto, { ...saved, url: fileUrl });
   }
 
   @Get(":id")

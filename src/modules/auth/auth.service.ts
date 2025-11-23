@@ -37,6 +37,16 @@ export class AuthService {
     private readonly sessionsRepository: Repository<Session>
   ) {}
 
+  /** Общая проверка: аккаунт заблокирован */
+  private ensureNotBlocked(user: User) {
+    if (user.isBlocked) {
+      throw new BadRequestException({
+        handled: true,
+        code: ErrorCode.ACCOUNT_IS_BLOCKED,
+      });
+    }
+  }
+
   private parseTtl(s: string): number {
     const m = /^(\d+)([smhd])$/.exec(s);
     if (!m) return 24 * 60 * 60 * 1000;
@@ -143,6 +153,8 @@ export class AuthService {
     const isMatch = await bcrypt.compare(dto.password, user.passwordHash);
     if (!isMatch) throw new UnauthorizedException("Invalid credentials");
 
+    this.ensureNotBlocked(user);
+
     if (!user.isEmailVerified) {
       throw new BadRequestException({
         handled: true,
@@ -160,6 +172,8 @@ export class AuthService {
       throw new UnauthorizedException("Invalid credentials");
     const isMatch = await bcrypt.compare(dto.password, user.passwordHash);
     if (!isMatch) throw new UnauthorizedException("Invalid credentials");
+
+    this.ensureNotBlocked(user);
 
     await this.usersService.markLastLogin(user.id);
     return this.issueTokensAndPersistSession(user);
@@ -197,6 +211,8 @@ export class AuthService {
       await this.usersService.setPhoneVerified(user.id, true);
       user = await this.usersService.findById(user.id);
     }
+
+    this.ensureNotBlocked(user);
 
     await this.usersService.markLastLogin(user.id);
     return this.issueTokensAndPersistSession(user);
@@ -241,6 +257,9 @@ export class AuthService {
     const user = await this.usersService.findById(userId);
     if (!user || !user.isActive)
       throw new UnauthorizedException("User inactive");
+
+    // 👇 заблокированного тоже не пускаем, но уже “handled” ошибкой
+    this.ensureNotBlocked(user);
 
     // Revoke old session
     session.revokedAt = new Date();
@@ -302,6 +321,8 @@ export class AuthService {
         email: profile.default_email ?? null,
         isEmailVerified: !!profile.default_email,
       });
+    } else {
+      this.ensureNotBlocked(user);
     }
 
     await this.usersService.markLastLogin(user.id);

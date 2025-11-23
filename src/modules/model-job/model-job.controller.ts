@@ -26,12 +26,14 @@ import { ModelTariffCode } from "../pricing/types/pricing.enum";
 import { ErrorResponseDto } from "src/common/errors/error-response.dto";
 import { RequireTokens } from "src/common/decorators/require-tokens.decorator";
 import { RequireTokensGuard } from "src/common/guards/require-tokens.guard";
+import { plainModelToInstance } from "src/common/helpers/entity.helper";
 
 @Controller("model-job")
 export class ModelJobController {
   constructor(private readonly modelJobService: ModelJobService) {}
 
   @Get(":id")
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "Получить один процесс по id" })
   @ApiResponse({
     status: 200,
@@ -42,7 +44,11 @@ export class ModelJobController {
   async findOne(
     @Param("id", ParseUUIDPipe) id: string
   ): Promise<ModelJobFullDto> {
-    return this.modelJobService.findOne(id);
+    const modelJob = await this.modelJobService.findOne(id);
+
+    console.log(plainModelToInstance(ModelJobFullDto, modelJob));
+
+    return plainModelToInstance(ModelJobFullDto, modelJob);
   }
 
   @Post("/start-image-edit-by-prompt-id")
@@ -67,7 +73,8 @@ export class ModelJobController {
       userId,
       tariffCode: ModelTariffCode.ImageBasicEdit,
     });
-    return data;
+
+    return plainModelToInstance(ModelJobDto, data);
   }
 
   @Post("/start-image-edit-by-prompt-text")
@@ -92,7 +99,8 @@ export class ModelJobController {
       userId,
       tariffCode: ModelTariffCode.ImageBasicEdit,
     });
-    return data;
+
+    return plainModelToInstance(ModelJobDto, data);
   }
 
   @Post("start-image-generate")
@@ -117,30 +125,7 @@ export class ModelJobController {
       userId,
       tariffCode: ModelTariffCode.ImageBasicGenerate,
     });
-    return data;
-  }
 
-  // @Post("start-text-generate")
-  // @UseGuards(JwtAuthGuard)
-  // @ApiResponse({
-  //   status: 201,
-  //   description: "Генерация запущена",
-  //   type: ModelJobDto,
-  // })
-  // @ApiBadRequestResponse({
-  //   description: "Бизнес-ошибка (например, не хватает кредитов)",
-  //   type: ErrorResponseDto,
-  // })
-  // async startTextGenerate(
-  //   @Body() dto: StartTextGenerateDto,
-  //   @UserId() userId: string
-  // ) {
-  //   const data = await this.modelJobService.create({
-  //     ...dto,
-  //     type: ModelJobType.TextGenerate,
-  //     userId,
-  //     tariffCode: ModelTariffCode.TextBasic,
-  //   });
-  //   return data;
-  // }
+    return plainModelToInstance(ModelJobDto, data);
+  }
 }

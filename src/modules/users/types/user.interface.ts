@@ -11,6 +11,9 @@ export interface IUserBase {
   isActive: boolean;
   isEmailVerified: boolean;
   isPhoneVerified: boolean;
+  isBlocked: boolean;
+  blockedAt: Date | null;
+  blockedReason: string | null;
   lastLoginAt?: Date;
 }
 

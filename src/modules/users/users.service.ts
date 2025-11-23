@@ -9,6 +9,9 @@ import { Repository } from "typeorm";
 import { User } from "./user.entity";
 import { UserRole } from "./types/user-role.enum";
 import * as bcrypt from "bcryptjs";
+import { FindUsersDto } from "./dto/find-users.dto";
+import { PaginationResult } from "src/common/pagination/pagination.interface";
+import { paginate } from "src/common/pagination/pagination.util";
 
 @Injectable()
 export class UsersService {
@@ -16,6 +19,32 @@ export class UsersService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>
   ) {}
+
+  async findMany(query: FindUsersDto): Promise<PaginationResult<User>> {
+    return paginate<User>(this.userRepository, query, "user", (qb) => {
+      const alias = qb.alias;
+
+      if (query.search) {
+        qb.andWhere(`(${alias}.email ILIKE :search)`, {
+          search: `%${query.search}%`,
+        });
+      }
+
+      if (query.role) {
+        qb.andWhere(`${alias}.role = :role`, { role: query.role });
+      }
+
+      if (query.tokensMin !== undefined) {
+        qb.andWhere(`${alias}.tokens >= :min`, { min: query.tokensMin });
+      }
+
+      if (query.tokensMax !== undefined) {
+        qb.andWhere(`${alias}.tokens <= :max`, { max: query.tokensMax });
+      }
+
+      qb.orderBy(`${alias}.createdAt`, "DESC");
+    });
+  }
 
   async findById(userId: string): Promise<User> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
@@ -149,5 +178,37 @@ export class UsersService {
     passwordHash: string
   ): Promise<void> {
     await this.userRepository.update(userId, { passwordHash });
+  }
+
+  async blockUser(userId: string, reason: string | null = null): Promise<User> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException("Пользователь не найден");
+    }
+
+    user.isBlocked = true;
+    user.blockedAt = new Date();
+    user.blockedReason = reason;
+
+    return this.userRepository.save(user);
+  }
+
+  async unblockUser(userId: string): Promise<User> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException("Пользователь не найден");
+    }
+
+    user.isBlocked = false;
+    user.blockedAt = null;
+    user.blockedReason = null;
+
+    return this.userRepository.save(user);
   }
 }

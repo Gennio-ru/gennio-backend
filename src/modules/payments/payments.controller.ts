@@ -1,12 +1,14 @@
 // src/modules/payments/payments.controller.ts
 import {
   Body,
+  ClassSerializerInterceptor,
   Controller,
   Get,
   Param,
   Post,
   Query,
   UseGuards,
+  UseInterceptors,
 } from "@nestjs/common";
 import {
   ApiBadRequestResponse,
@@ -73,11 +75,13 @@ export class PaymentsController {
       ...body,
     });
 
-    return {
+    const result = {
       id: payment.id,
       status: payment.status,
       confirmationUrl: payment.confirmationUrl,
     };
+
+    return plainModelToInstance(PaymentShortDto, result);
   }
 
   // Список платежей с фильтрами и пагинацией

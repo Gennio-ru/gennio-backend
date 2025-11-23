@@ -44,6 +44,16 @@ export class User {
   @Column({ type: "boolean", default: false })
   isPhoneVerified!: boolean;
 
+  // 🚫 Блокировка
+  @Column({ type: "boolean", default: false })
+  isBlocked!: boolean;
+
+  @Column({ type: "timestamptz", nullable: true })
+  blockedAt!: Date | null;
+
+  @Column({ type: "varchar", length: 255, nullable: true })
+  blockedReason!: string | null;
+
   @Column({ type: "timestamptz", nullable: true })
   lastLoginAt?: Date;
 

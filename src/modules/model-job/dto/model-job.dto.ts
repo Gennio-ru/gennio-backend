@@ -9,6 +9,7 @@ import { BaseDto } from "src/common/base/base.dto";
 import { ModelTariffCode } from "src/modules/pricing/types/pricing.enum";
 import { UserDto } from "src/modules/users/dto/user.dto";
 import { FileDto } from "src/modules/files/dto/file.dto";
+import { Type } from "class-transformer";
 
 export class ModelJobBaseDto implements IModelJobBase {
   @ApiProperty({ enum: ModelType, enumName: "ModelType" })
@@ -38,6 +39,7 @@ export class ModelJobBaseDto implements IModelJobBase {
   userId!: string;
 
   @ApiProperty({ type: () => UserDto, nullable: true })
+  @Type(() => UserDto)
   user!: UserDto | null;
 
   @ApiProperty({
@@ -113,6 +115,7 @@ export class ModelJobFullDto
     type: FileDto,
     nullable: true,
   })
+  @Type(() => FileDto)
   inputFile!: FileDto | null;
 
   @ApiProperty({
@@ -126,6 +129,7 @@ export class ModelJobFullDto
     type: FileDto,
     nullable: true,
   })
+  @Type(() => FileDto)
   outputFile!: FileDto | null;
 
   @ApiProperty({
@@ -139,6 +143,7 @@ export class ModelJobFullDto
     type: FileDto,
     nullable: true,
   })
+  @Type(() => FileDto)
   outputPreviewFile!: FileDto | null;
 
   @ApiProperty({

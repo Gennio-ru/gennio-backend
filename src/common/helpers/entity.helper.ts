@@ -1,16 +1,20 @@
-import { instanceToPlain, plainToInstance } from "class-transformer";
+import { plainToInstance } from "class-transformer";
 import {
   ClassConstructor,
   ClassTransformOptions,
 } from "class-transformer/types/interfaces";
 import { PaginationResult } from "../pagination/pagination.interface";
 
-export const plainModelToInstance = <T>(
-  PlainClass: ClassConstructor<T>,
-  model: any,
+export function plainModelToInstance<T, V>(
+  Model: new () => T,
+  plain: V,
   options?: ClassTransformOptions
-): T =>
-  plainToInstance(PlainClass, model.toJSON ? model.toJSON() : model, options);
+): T {
+  return plainToInstance(Model, plain as any, {
+    enableImplicitConversion: true,
+    ...options,
+  });
+}
 
 export const plainModelToInstanceArray = <T, M>(
   PlainClass: ClassConstructor<T>,

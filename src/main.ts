@@ -17,6 +17,7 @@ async function bootstrap() {
 
   app.useLogger(app.get(Logger));
   app.useGlobalFilters(new AllExceptionsFilter(app.get(Logger)));
+  // app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
 
   // === АВТО-МИГРАЦИИ ===
   if (process.env.NODE_ENV === "production") {

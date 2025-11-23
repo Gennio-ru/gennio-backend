@@ -4,6 +4,7 @@ import { BaseDto } from "src/common/base/base.dto";
 import { IPayment, IPaymentBase } from "../types/payments.interface";
 import { PaymentStatus } from "../types/payments.enum";
 import { UserDto } from "src/modules/users/dto/user.dto";
+import { Type } from "class-transformer";
 
 export class PaymentBaseDto implements IPaymentBase {
   @ApiProperty({
@@ -196,6 +197,7 @@ export class PaymentFullDto
   implements IPaymentBase
 {
   @ApiProperty({ type: UserDto })
+  @Type(() => UserDto)
   user!: UserDto;
 }
 

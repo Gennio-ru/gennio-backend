@@ -35,6 +35,7 @@ import { Throttle } from "@nestjs/throttler";
 import { ResendConfirmEmailDto } from "./dto/resend-confirm-email.dto";
 import { RequestPasswordResetDto } from "./dto/request-password-reset.dto";
 import { ConfirmPasswordResetDto } from "./dto/confirm-password-reset.dto";
+import { plainModelToInstance } from "src/common/helpers/entity.helper";
 
 @ApiTags("auth")
 @Controller("auth")
@@ -92,7 +93,7 @@ export class AuthController {
     const { accessToken, refreshToken, user } =
       await this.authService.registerByEmail(dto);
     this.setRefreshCookie(res, refreshToken);
-    return { accessToken, user };
+    return { accessToken, user: plainModelToInstance(UserDto, user) };
   }
 
   @Post("register/phone")
@@ -103,7 +104,7 @@ export class AuthController {
     const { accessToken, refreshToken, user } =
       await this.authService.registerByPhone(dto);
     this.setRefreshCookie(res, refreshToken);
-    return { accessToken, user };
+    return { accessToken, user: plainModelToInstance(UserDto, user) };
   }
 
   @Get("email/confirm")
@@ -151,7 +152,7 @@ export class AuthController {
       await this.authService.loginByEmail(dto);
 
     this.setRefreshCookie(res, refreshToken);
-    return { accessToken, user };
+    return { accessToken, user: plainModelToInstance(UserDto, user) };
   }
 
   @Post("login/phone")
@@ -164,7 +165,7 @@ export class AuthController {
     const { accessToken, refreshToken, user } =
       await this.authService.loginByPhone(dto);
     this.setRefreshCookie(res, refreshToken);
-    return { accessToken, user };
+    return { accessToken, user: plainModelToInstance(UserDto, user) };
   }
 
   @Post("login/phone/otp/request")
@@ -184,7 +185,7 @@ export class AuthController {
     const { accessToken, refreshToken, user } =
       await this.authService.verifyPhoneOtp(dto);
     this.setRefreshCookie(res, refreshToken);
-    return { accessToken, user };
+    return { accessToken, user: plainModelToInstance(UserDto, user) };
   }
 
   @Get("me")
@@ -192,7 +193,9 @@ export class AuthController {
   @ApiOperation({ summary: "Текущий пользователь" })
   @ApiResponse({ status: 200, type: UserDto })
   async me(@UserId() userId: string): Promise<UserDto> {
-    return this.authService.me(userId);
+    const user = await this.authService.me(userId);
+
+    return plainModelToInstance(UserDto, user);
   }
 
   @Post("refresh")
@@ -209,7 +212,10 @@ export class AuthController {
       | undefined;
     const out = await this.authService.refresh(token);
     this.setRefreshCookie(res, out.refreshToken); // ротация
-    return { accessToken: out.accessToken, user: out.user };
+    return {
+      accessToken: out.accessToken,
+      user: plainModelToInstance(UserDto, out.user),
+    };
   }
 
   @Post("logout")

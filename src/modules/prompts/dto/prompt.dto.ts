@@ -53,6 +53,7 @@ export class PromptBaseDto implements IPromptBase {
 
   @Expose()
   @ApiProperty()
+  @Type(() => CategoryDto)
   category?: CategoryDto;
 }
 
