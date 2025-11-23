@@ -9,8 +9,8 @@ import {
   TokensPackId,
 } from "../pricing/configs/token-packs.config";
 import { TokensPackPaymentMeta } from "./types/payments.enum";
-import { TokensService } from "../tokens/tokens.service";
-import { TokenTransactionReason } from "../tokens/types/tokens.enum";
+import { UserTokenTransactionService } from "../tokens/user-token-transactions.service";
+import { TokenTransactionReason } from "../tokens/types/user-token-transactions.enum";
 import { ConfigService } from "@nestjs/config";
 import { PaymentsGateway } from "./payments.gateway";
 import { FindPaymentsDto } from "./dto/find-payments.dto";
@@ -27,7 +27,7 @@ export class PaymentsService {
     @InjectRepository(PaymentEntity)
     private readonly paymentsRepo: Repository<PaymentEntity>,
     private readonly yookassa: YookassaClient,
-    private readonly tokensService: TokensService,
+    private readonly userTokenTransactionService: UserTokenTransactionService,
     private readonly configService: ConfigService,
     private readonly paymentsGateway: PaymentsGateway
   ) {
@@ -167,7 +167,7 @@ export class PaymentsService {
   }
 
   async createPayment(opts: {
-    userId: string | null;
+    userId: string;
     amount: number;
     description?: string;
     meta?: any;
@@ -337,7 +337,7 @@ export class PaymentsService {
         }
 
         // начисляем токены (идемпотентность закрываем в TokensService)
-        await this.tokensService.addTokens({
+        await this.userTokenTransactionService.addTokens({
           userId: payment.userId,
           tokens: meta.tokens,
           reason: TokenTransactionReason.PaymentPurchase,
@@ -406,7 +406,9 @@ export class PaymentsService {
         // 🔒 защита от повторного списания по одному и тому же refundId
         const alreadyProcessed =
           refundId &&
-          (await this.tokensService.isRefundAlreadyProcessed(refundId));
+          (await this.userTokenTransactionService.isRefundAlreadyProcessed(
+            refundId
+          ));
 
         if (alreadyProcessed) {
           this.logger.log(
@@ -460,7 +462,7 @@ export class PaymentsService {
         }
 
         try {
-          await this.tokensService.chargeForJob({
+          await this.userTokenTransactionService.chargeForJob({
             userId: payment.userId,
             tokens: cappedTokens,
             reason: TokenTransactionReason.PaymentRefund,

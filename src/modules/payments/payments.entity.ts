@@ -7,8 +7,8 @@ import { User } from "../users/user.entity";
 @Entity("payments")
 export class PaymentEntity extends BaseEntity implements IPayment {
   @Index()
-  @Column({ type: "uuid", nullable: true })
-  userId: string | null;
+  @Column({ type: "uuid" })
+  userId: string;
 
   @ManyToOne(() => User, { onDelete: "NO ACTION" })
   @JoinColumn({ name: "userId" })

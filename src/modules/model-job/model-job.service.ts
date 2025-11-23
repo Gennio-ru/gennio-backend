@@ -22,8 +22,8 @@ import {
   ModelJobCreatedPayload,
 } from "./types/model-job.rmq-events";
 import { PricingService } from "../pricing/pricing.service";
-import { TokensService } from "../tokens/tokens.service";
-import { TokenTransactionReason } from "../tokens/types/tokens.enum";
+import { UserTokenTransactionService } from "../tokens/user-token-transactions.service";
+import { TokenTransactionReason } from "../tokens/types/user-token-transactions.enum";
 import { Logger } from "nestjs-pino";
 import { APIError as OpenAIApiError } from "openai";
 import { ErrorCode } from "src/common/errors/error-code.enum";
@@ -53,7 +53,7 @@ export class ModelJobService {
     private readonly promptsService: PromptsService,
     @Inject(MODEL_JOB_CLIENT) private readonly client: ClientProxy,
     private readonly gateway: ModelJobGateway,
-    private readonly tokensService: TokensService,
+    private readonly userTokenTransactionService: UserTokenTransactionService,
     private readonly pricingService: PricingService,
     private readonly logger: Logger,
     private readonly imageProcessingService: ImageProcessingService
@@ -146,7 +146,7 @@ export class ModelJobService {
   async create(data: IModelJobCreate): Promise<ModelJobDto> {
     const tokens = this.pricingService.getTokensForJob(data);
 
-    const user = await this.tokensService.chargeForJob({
+    const user = await this.userTokenTransactionService.chargeForJob({
       userId: data.userId,
       tokens,
       reason: TokenTransactionReason.JobCharge,
@@ -250,7 +250,7 @@ export class ModelJobService {
         });
 
         if (job && job.tokensCharged > 0) {
-          await this.tokensService.addTokens({
+          await this.userTokenTransactionService.addTokens({
             userId: job.userId,
             tokens: job.tokensCharged,
             modelJobId: job.id,

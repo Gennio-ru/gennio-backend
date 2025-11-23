@@ -2,12 +2,16 @@ import { BadRequestException, Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { DataSource, Repository } from "typeorm";
 import { User } from "../users/user.entity";
-import { UserTokenTransaction } from "./user-token-transaction.entity";
-import { TokenTransactionReason } from "./types/tokens.enum";
+import { UserTokenTransaction } from "./user-token-transactions.entity";
+import { TokenTransactionReason } from "./types/user-token-transactions.enum";
 import { ErrorCode } from "src/common/errors/error-code.enum";
+import { FindUserTokenTransactionDto } from "./dto/find-token-transactions.dto";
+import { PaginationResult } from "src/common/pagination/pagination.interface";
+import { UserTokenTransactionDto } from "./dto/user-token-transactions.dto";
+import { paginate } from "src/common/pagination/pagination.util";
 
 @Injectable()
-export class TokensService {
+export class UserTokenTransactionService {
   constructor(
     @InjectRepository(UserTokenTransaction)
     private readonly txRepo: Repository<UserTokenTransaction>,
@@ -15,6 +19,55 @@ export class TokensService {
     private readonly userRepo: Repository<User>,
     private readonly dataSource: DataSource
   ) {}
+
+  //
+  // Поиск / список
+  //
+  async findMany(
+    query: FindUserTokenTransactionDto
+  ): Promise<PaginationResult<UserTokenTransactionDto>> {
+    return paginate<UserTokenTransaction>(
+      this.txRepo,
+      query,
+      "userTokenTransaction",
+      (qb) => {
+        qb.leftJoinAndSelect("userTokenTransaction.user", "user");
+
+        if (query.search) {
+          const s = `%${query.search.toLowerCase()}%`;
+          qb.andWhere(
+            `(LOWER(user.email) LIKE :s OR LOWER(user.phone) LIKE :s)`,
+            { s }
+          );
+        }
+
+        if (query.reason) {
+          qb.andWhere("userTokenTransaction.reason = :reason", {
+            reason: query.reason,
+          });
+        }
+
+        if (query.delta === 1) qb.andWhere("delta > 0");
+        if (query.delta === -1) qb.andWhere("delta < 0");
+
+        if (query.createdFrom) {
+          qb.andWhere(
+            `(userTokenTransaction.createdAt AT TIME ZONE 'Europe/Moscow')::date >= :fromDate`,
+            { fromDate: query.createdFrom }
+          );
+        }
+
+        if (query.createdTo) {
+          qb.andWhere(
+            `(userTokenTransaction.createdAt AT TIME ZONE 'Europe/Moscow')::date <= :toDate`,
+            { toDate: query.createdTo }
+          );
+        }
+
+        qb.orderBy("userTokenTransaction.createdAt", "DESC");
+      }
+    );
+  }
 
   /**
    * Списать токены (обычно за задачу).

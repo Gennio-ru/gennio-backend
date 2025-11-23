@@ -1,14 +1,11 @@
-// src/modules/payments/payments.controller.ts
 import {
   Body,
-  ClassSerializerInterceptor,
   Controller,
   Get,
   Param,
   Post,
   Query,
   UseGuards,
-  UseInterceptors,
 } from "@nestjs/common";
 import {
   ApiBadRequestResponse,

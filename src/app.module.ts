@@ -17,7 +17,7 @@ import { ThrottlerGuard } from "@nestjs/throttler";
 import { ModelJobModule } from "./modules/model-job/model-job.module";
 import { CategoriesModule } from "./modules/categories/categories.module";
 import { LoggerModule } from "nestjs-pino";
-import { TokensModule } from "./modules/tokens/tokens.module";
+import { UserTokenTransactionsModule } from "./modules/tokens/user-token-transactions.module";
 import { PricingModule } from "./modules/pricing/pricing.module";
 import { PaymentsModule } from "./modules/payments/payments.module";
 
@@ -75,7 +75,7 @@ const isPretty = level === "debug";
     MailQueueModule,
     ModelJobModule,
     CategoriesModule,
-    TokensModule,
+    UserTokenTransactionsModule,
     PricingModule,
     PaymentsModule,
   ],
