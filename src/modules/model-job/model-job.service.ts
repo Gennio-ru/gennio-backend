@@ -32,6 +32,9 @@ import {
   ImageProcessingService,
   ResolvedSize,
 } from "src/common/image/image-processing.service";
+import { FindModelJobsDto } from "./dto/find-model-jobs.dto";
+import { PaginationResult } from "src/common/pagination/pagination.interface";
+import { paginate } from "src/common/pagination/pagination.util";
 
 type ImageJobPayload = IModelJobCreate & {
   type:
@@ -89,6 +92,55 @@ export class ModelJobService {
       outputPreviewFileUrl,
       inputFileUrl,
     };
+  }
+
+  //
+  // Поиск / список
+  //
+  async findMany(
+    query: FindModelJobsDto
+  ): Promise<PaginationResult<ModelJobDto>> {
+    return paginate<ModelJob>(this.repository, query, "modelJob", (qb) => {
+      qb.leftJoinAndSelect("modelJob.user", "user");
+
+      if (query.search) {
+        const s = `%${query.search.toLowerCase()}%`;
+
+        qb.andWhere(
+          `(LOWER(modelJob.text) LIKE :s
+                OR LOWER(user.email) LIKE :s)`,
+          { s }
+        );
+      }
+
+      if (query.status) {
+        qb.andWhere("modelJob.status = :status", {
+          status: query.status,
+        });
+      }
+
+      if (query.type) {
+        qb.andWhere("modelJob.type = :type", {
+          type: query.type,
+        });
+      }
+
+      if (query.createdFrom) {
+        qb.andWhere(
+          `(modelJob.createdAt AT TIME ZONE 'Europe/Moscow')::date >= :fromDate`,
+          { fromDate: query.createdFrom }
+        );
+      }
+
+      if (query.createdTo) {
+        qb.andWhere(
+          `(modelJob.createdAt AT TIME ZONE 'Europe/Moscow')::date <= :toDate`,
+          { toDate: query.createdTo }
+        );
+      }
+
+      qb.orderBy("modelJob.createdAt", "DESC");
+    });
   }
 
   async create(data: IModelJobCreate): Promise<ModelJobDto> {

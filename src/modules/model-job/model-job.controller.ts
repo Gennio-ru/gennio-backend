@@ -6,6 +6,7 @@ import {
   Get,
   Param,
   ParseUUIDPipe,
+  Query,
 } from "@nestjs/common";
 import { ModelJobService } from "./model-job.service";
 import {
@@ -18,19 +19,52 @@ import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import {
   ApiBadRequestResponse,
   ApiOperation,
+  ApiQuery,
   ApiResponse,
 } from "@nestjs/swagger";
 import { ModelJobDto, ModelJobFullDto } from "./dto/model-job.dto";
-import { ModelJobType } from "./types/model-job.enum";
+import { ModelJobStatusType, ModelJobType } from "./types/model-job.enum";
 import { ModelTariffCode } from "../pricing/types/pricing.enum";
 import { ErrorResponseDto } from "src/common/errors/error-response.dto";
 import { RequireTokens } from "src/common/decorators/require-tokens.decorator";
 import { RequireTokensGuard } from "src/common/guards/require-tokens.guard";
-import { plainModelToInstance } from "src/common/helpers/entity.helper";
+import {
+  paginatePlainToInstance,
+  plainModelToInstance,
+} from "src/common/helpers/entity.helper";
+import { RolesGuard } from "../users/user-roles.guard";
+import { Roles } from "../users/user-roles.decorator";
+import { UserRole } from "../users/types/user-role.enum";
+import { ApiPaginatedResponse } from "src/common/swagger/api-paginated-response.decorator";
+import { FindModelJobsDto } from "./dto/find-model-jobs.dto";
+import { PaginationResult } from "src/common/pagination/pagination.interface";
 
 @Controller("model-job")
 export class ModelJobController {
   constructor(private readonly modelJobService: ModelJobService) {}
+
+  // Список генераций с фильтрами и пагинацией
+  @Get()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.Admin)
+  @ApiOperation({
+    summary: "Получить список генераций с фильтрами и пагинацией",
+  })
+  @ApiQuery({ name: "page", required: false, type: Number, example: 1 })
+  @ApiQuery({ name: "limit", required: false, type: Number, example: 10 })
+  @ApiQuery({ name: "search", required: false, type: String })
+  @ApiQuery({ name: "status", required: false, enum: ModelJobStatusType })
+  @ApiQuery({ name: "type", required: false, enum: ModelJobType })
+  @ApiQuery({ name: "createdFrom", required: false, type: String })
+  @ApiQuery({ name: "createdTo", required: false, type: String })
+  @ApiPaginatedResponse(ModelJobDto, { key: "items" })
+  async findMany(
+    @Query() query: FindModelJobsDto
+  ): Promise<PaginationResult<ModelJobDto>> {
+    const page = await this.modelJobService.findMany(query);
+
+    return paginatePlainToInstance(ModelJobDto, page);
+  }
 
   @Get(":id")
   @UseGuards(JwtAuthGuard)
@@ -45,8 +79,6 @@ export class ModelJobController {
     @Param("id", ParseUUIDPipe) id: string
   ): Promise<ModelJobFullDto> {
     const modelJob = await this.modelJobService.findOne(id);
-
-    console.log(plainModelToInstance(ModelJobFullDto, modelJob));
 
     return plainModelToInstance(ModelJobFullDto, modelJob);
   }
