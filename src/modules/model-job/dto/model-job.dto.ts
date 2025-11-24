@@ -105,6 +105,12 @@ export class ModelJobBaseDto implements IModelJobBase {
 
   @ApiProperty({ type: String, format: "date-time", nullable: true })
   finishedAt!: Date | null;
+
+  @ApiProperty({ type: String, format: "date-time", nullable: true })
+  resultsExpireAt!: Date | null;
+
+  @ApiProperty({ type: String, format: "date-time", nullable: true })
+  resultsDeletedAt!: Date | null;
 }
 
 export class ModelJobFullDto

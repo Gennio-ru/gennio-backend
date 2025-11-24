@@ -20,6 +20,7 @@ import { LoggerModule } from "nestjs-pino";
 import { UserTokenTransactionsModule } from "./modules/tokens/user-token-transactions.module";
 import { PricingModule } from "./modules/pricing/pricing.module";
 import { PaymentsModule } from "./modules/payments/payments.module";
+import { CleanupModule } from "./modules/cleanup/cleanup.module";
 
 const rawLevel = process.env.LOG_LEVEL || "info";
 const level = rawLevel.toLowerCase();
@@ -78,6 +79,7 @@ const isPretty = level === "debug";
     UserTokenTransactionsModule,
     PricingModule,
     PaymentsModule,
+    CleanupModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

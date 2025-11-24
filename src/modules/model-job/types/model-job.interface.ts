@@ -18,6 +18,8 @@ export interface IModelJobBase {
   error: string | null;
   startedAt: Date | null;
   finishedAt: Date | null;
+  resultsExpireAt: Date | null;
+  resultsDeletedAt: Date | null;
 }
 
 export interface IModelJob extends ISchema, IModelJobBase {}

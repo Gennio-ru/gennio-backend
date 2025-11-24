@@ -35,6 +35,7 @@ import {
 import { FindModelJobsDto } from "./dto/find-model-jobs.dto";
 import { PaginationResult } from "src/common/pagination/pagination.interface";
 import { paginate } from "src/common/pagination/pagination.util";
+import { ConfigService } from "@nestjs/config";
 
 type ImageJobPayload = IModelJobCreate & {
   type:
@@ -45,6 +46,8 @@ type ImageJobPayload = IModelJobCreate & {
 
 @Injectable()
 export class ModelJobService {
+  private readonly resultsTtlHours: number;
+
   constructor(
     @InjectRepository(ModelJob)
     private readonly repository: Repository<ModelJob>,
@@ -56,8 +59,14 @@ export class ModelJobService {
     private readonly userTokenTransactionService: UserTokenTransactionService,
     private readonly pricingService: PricingService,
     private readonly logger: Logger,
-    private readonly imageProcessingService: ImageProcessingService
-  ) {}
+    private readonly imageProcessingService: ImageProcessingService,
+    private readonly configService: ConfigService
+  ) {
+    const raw = this.configService.get<string>("MODEL_JOB_RESULTS_TTL_HOURS");
+
+    const parsed = raw ? Number(raw) : 24;
+    this.resultsTtlHours = Number.isFinite(parsed) && parsed > 0 ? parsed : 24;
+  }
 
   async findOne(id: string): Promise<ModelJobFullDto> {
     const modelJob = await this.repository.findOne({
@@ -153,9 +162,16 @@ export class ModelJobService {
       meta: { tariffCode: data.tariffCode, type: data.type },
     });
 
+    // считаем срок жизни результата
+    const resultsExpireAt =
+      this.resultsTtlHours > 0
+        ? new Date(Date.now() + this.resultsTtlHours * 60 * 60 * 1000)
+        : null;
+
     const modelJob = this.repository.create({
       ...data,
       tokensCharged: tokens,
+      resultsExpireAt,
     });
 
     await this.repository.save(modelJob);

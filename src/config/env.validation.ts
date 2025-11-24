@@ -89,4 +89,13 @@ export const envValidationSchema = Joi.object({
   LOG_LEVEL: Joi.string()
     .valid("fatal", "error", "warn", "info", "debug", "trace")
     .default("info"),
+
+  // ==== YooKassa ====
+  YOOKASSA_SHOP_ID: Joi.string().required(),
+  YOOKASSA_SECRET_KEY: Joi.string().required(),
+
+  // ==== Cleanup / File TTL ====
+  MODEL_JOB_RESULTS_TTL_HOURS: Joi.number().integer().min(1).default(24),
+  FILE_ORPHAN_TTL_HOURS: Joi.number().integer().min(1).default(24),
+  CLEANUP_BATCH_SIZE: Joi.number().integer().min(10).default(200),
 });

@@ -84,4 +84,10 @@ export class ModelJob extends BaseEntity implements IModelJob {
 
   @Column({ type: "timestamptz", nullable: true })
   finishedAt: Date | null;
+
+  @Column({ type: "timestamptz", nullable: true })
+  resultsExpireAt: Date | null;
+
+  @Column({ type: "timestamptz", nullable: true })
+  resultsDeletedAt: Date | null;
 }
