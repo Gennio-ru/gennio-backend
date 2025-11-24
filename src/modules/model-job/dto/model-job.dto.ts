@@ -9,7 +9,9 @@ import { BaseDto } from "src/common/base/base.dto";
 import { ModelTariffCode } from "src/modules/pricing/types/pricing.enum";
 import { UserDto } from "src/modules/users/dto/user.dto";
 import { FileDto } from "src/modules/files/dto/file.dto";
-import { Type } from "class-transformer";
+import { Expose, Transform, Type } from "class-transformer";
+import { UserRole } from "src/modules/users/types/user-role.enum";
+import { buildPublicUrl } from "src/common/utils/file-url.util";
 
 export class ModelJobBaseDto implements IModelJobBase {
   @ApiProperty({ enum: ModelType, enumName: "ModelType" })
@@ -21,6 +23,7 @@ export class ModelJobBaseDto implements IModelJobBase {
   @ApiProperty({ enum: ModelJobStatusType, enumName: "ModelJobStatusType" })
   status!: ModelJobStatusType;
 
+  @Expose({ groups: [UserRole.Admin] })
   @ApiProperty({
     type: String,
     nullable: true,
@@ -86,6 +89,7 @@ export class ModelJobBaseDto implements IModelJobBase {
   })
   tokensCharged!: number;
 
+  @Expose({ groups: [UserRole.Admin] })
   @ApiProperty({
     type: Object,
     example: { width: 400, height: 300 },
@@ -111,6 +115,26 @@ export class ModelJobBaseDto implements IModelJobBase {
 
   @ApiProperty({ type: String, format: "date-time", nullable: true })
   resultsDeletedAt!: Date | null;
+}
+
+export class ModelJobWithPreviewFileDto
+  extends IntersectionType(ModelJobBaseDto, BaseDto)
+  implements IModelJobBase
+{
+  @Expose()
+  @ApiProperty({
+    type: FileDto,
+    nullable: true,
+  })
+  @Type(() => FileDto)
+  outputPreviewFile!: FileDto | null;
+
+  @Expose()
+  @Transform(({ obj }) =>
+    buildPublicUrl(obj.outputPreviewFile?.key, obj.outputPreviewFile?.bucket)
+  )
+  @ApiProperty({ type: String, format: "uri", nullable: true })
+  outputPreviewFileUrl!: string | null;
 }
 
 export class ModelJobFullDto

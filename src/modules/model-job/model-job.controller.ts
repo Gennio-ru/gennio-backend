@@ -7,6 +7,7 @@ import {
   Param,
   ParseUUIDPipe,
   Query,
+  BadRequestException,
 } from "@nestjs/common";
 import { ModelJobService } from "./model-job.service";
 import {
@@ -22,7 +23,11 @@ import {
   ApiQuery,
   ApiResponse,
 } from "@nestjs/swagger";
-import { ModelJobDto, ModelJobFullDto } from "./dto/model-job.dto";
+import {
+  ModelJobDto,
+  ModelJobFullDto,
+  ModelJobWithPreviewFileDto,
+} from "./dto/model-job.dto";
 import { ModelJobStatusType, ModelJobType } from "./types/model-job.enum";
 import { ModelTariffCode } from "../pricing/types/pricing.enum";
 import { ErrorResponseDto } from "src/common/errors/error-response.dto";
@@ -31,6 +36,7 @@ import { RequireTokensGuard } from "src/common/guards/require-tokens.guard";
 import {
   paginatePlainToInstance,
   plainModelToInstance,
+  plainModelToInstanceArray,
 } from "src/common/helpers/entity.helper";
 import { RolesGuard } from "../users/user-roles.guard";
 import { Roles } from "../users/user-roles.decorator";
@@ -38,6 +44,9 @@ import { UserRole } from "../users/types/user-role.enum";
 import { ApiPaginatedResponse } from "src/common/swagger/api-paginated-response.decorator";
 import { FindModelJobsDto } from "./dto/find-model-jobs.dto";
 import { PaginationResult } from "src/common/pagination/pagination.interface";
+import { ReqUser } from "src/common/decorators/req-user.decorator";
+import { ReqUserData } from "../auth/strategies/jwt-access.strategy";
+import { ErrorCode } from "src/common/errors/error-code.enum";
 
 @Controller("model-job")
 export class ModelJobController {
@@ -66,6 +75,20 @@ export class ModelJobController {
     return paginatePlainToInstance(ModelJobDto, page);
   }
 
+  @Get("last-generations")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: "Получить последние несколько генераций запросившего пользователя",
+  })
+  @ApiResponse({ status: 200, type: [ModelJobWithPreviewFileDto] })
+  async lastGenerations(
+    @UserId() userId: string
+  ): Promise<ModelJobWithPreviewFileDto[]> {
+    const modelJobs = await this.modelJobService.lastModelJobs(userId);
+
+    return plainModelToInstanceArray(ModelJobWithPreviewFileDto, modelJobs);
+  }
+
   @Get(":id")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "Получить один процесс по id" })
@@ -76,9 +99,17 @@ export class ModelJobController {
   })
   @ApiResponse({ status: 404, description: "Процесс не найден" })
   async findOne(
-    @Param("id", ParseUUIDPipe) id: string
+    @Param("id", ParseUUIDPipe) id: string,
+    @ReqUser() user: ReqUserData
   ): Promise<ModelJobFullDto> {
     const modelJob = await this.modelJobService.findOne(id);
+
+    if (user.role !== UserRole.Admin && modelJob.userId !== user.userId) {
+      throw new BadRequestException({
+        handled: true,
+        code: ErrorCode.FORBIDDEN,
+      });
+    }
 
     return plainModelToInstance(ModelJobFullDto, modelJob);
   }

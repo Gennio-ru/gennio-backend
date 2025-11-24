@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { IsNull, Repository } from "typeorm";
 import { ModelJob } from "./model-job.entity";
 import { OpenAiImageService } from "./neuromodels/openai/openai.service";
 import { ClientProxy } from "@nestjs/microservices";
@@ -13,7 +13,11 @@ import { MODEL_JOB_CLIENT } from "./model-job.constants";
 import { IModelJobCreate } from "./types/model-job-mutations.interface";
 import { ModelJobStatusType, ModelJobType } from "./types/model-job.enum";
 import { FilesService } from "../files/files.service";
-import { ModelJobDto, ModelJobFullDto } from "./dto/model-job.dto";
+import {
+  ModelJobDto,
+  ModelJobFullDto,
+  ModelJobWithPreviewFileDto,
+} from "./dto/model-job.dto";
 import { PromptsService } from "../prompts/prompts.service";
 import sharp from "sharp";
 import { ModelJobGateway } from "./model-job.gateway";
@@ -149,6 +153,19 @@ export class ModelJobService {
       }
 
       qb.orderBy("modelJob.createdAt", "DESC");
+    });
+  }
+
+  async lastModelJobs(userId: string): Promise<ModelJob[]> {
+    return this.repository.find({
+      where: {
+        userId,
+        status: ModelJobStatusType.succeeded,
+        resultsDeletedAt: IsNull(),
+      },
+      take: 30,
+      order: { createdAt: "DESC" },
+      relations: { outputPreviewFile: true },
     });
   }
 
