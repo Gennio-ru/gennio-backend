@@ -11,7 +11,7 @@ import { Prompt } from "../prompts/prompt.entity";
 import { Logger } from "nestjs-pino";
 
 @Injectable()
-export class CleanupService implements OnModuleInit {
+export class CleanupService {
   private readonly orphanTtlHours: number;
   private readonly batchSize: number;
 
@@ -33,10 +33,6 @@ export class CleanupService implements OnModuleInit {
     const batchParsed = batchRaw ? Number(batchRaw) : 200;
     this.batchSize =
       Number.isFinite(batchParsed) && batchParsed > 0 ? batchParsed : 200;
-  }
-
-  onModuleInit() {
-    this.handleCleanup();
   }
 
   @Cron(CronExpression.EVERY_10_MINUTES)
