@@ -2,7 +2,6 @@ export enum TokensPackId {
   STARTER = "STARTER",
   BASIC = "BASIC",
   PRO = "PRO",
-  MAX = "MAX",
 }
 
 export type TokensPackConfig = {
@@ -40,13 +39,5 @@ export const TOKEN_PACKS: Record<TokensPackId, TokensPackConfig> = {
     discountPercent: 0,
     priceRub: 210,
     highlight: true,
-  },
-  [TokensPackId.MAX]: {
-    id: TokensPackId.MAX,
-    name: "50 генераций",
-    tokens: 385,
-    generations: 50,
-    discountPercent: 0,
-    priceRub: 350,
   },
 };

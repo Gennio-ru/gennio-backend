@@ -37,12 +37,6 @@ export class TokenPackDto implements TokensPackConfig {
 
   @ApiProperty({
     example: 35,
-    description: "Количество токенов в пакете",
-  })
-  pri: number;
-
-  @ApiProperty({
-    example: 35,
     description: "Стоимость в рублях",
   })
   priceRub: number;
