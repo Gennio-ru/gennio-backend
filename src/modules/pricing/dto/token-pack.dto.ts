@@ -53,7 +53,6 @@ export class TokenPackDto implements TokensPackConfig {
     this.name = config.name;
     this.tokens = config.tokens;
     this.generations = config.generations;
-    this.discountPercent = config.discountPercent;
     this.highlight = config.highlight;
   }
 }

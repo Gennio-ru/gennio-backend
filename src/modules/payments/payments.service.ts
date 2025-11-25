@@ -122,7 +122,6 @@ export class PaymentsService {
       tokens: pack.tokens,
       priceRub: pack.priceRub,
       generations: pack.generations,
-      discountPercent: pack.discountPercent,
     };
 
     const payment = this.paymentsRepo.create({

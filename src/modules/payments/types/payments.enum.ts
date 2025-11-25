@@ -13,5 +13,4 @@ export type TokensPackPaymentMeta = {
   tokens: number;
   priceRub: number;
   generations: number;
-  discountPercent: number;
 };
