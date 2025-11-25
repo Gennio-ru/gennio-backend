@@ -410,20 +410,15 @@ export class ModelJobService {
       }
     })();
 
-    // post-processing результата
-    const resultJpegBuffer = await sharp(imageBuffer)
-      .jpeg({ quality: 90 })
-      .toBuffer();
-
     const resultPreviewWebpBuffer =
-      await this.imageProcessingService.compressToWebp(resultJpegBuffer);
+      await this.imageProcessingService.compressToWebp(imageBuffer);
 
     const outputFile = await this.filesService.uploadBuffer(
       {
-        buffer: resultJpegBuffer,
+        buffer: imageBuffer,
         originalname: "result.jpeg",
         mimetype: "image/jpeg",
-        size: resultJpegBuffer.length,
+        size: imageBuffer.length,
       },
       { folder: "jobs", publicRead: true }
     );

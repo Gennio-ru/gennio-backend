@@ -98,4 +98,7 @@ export const envValidationSchema = Joi.object({
   MODEL_JOB_RESULTS_TTL_HOURS: Joi.number().integer().min(1).default(24),
   FILE_ORPHAN_TTL_HOURS: Joi.number().integer().min(1).default(24),
   CLEANUP_BATCH_SIZE: Joi.number().integer().min(10).default(200),
+
+  MODEL_JOB_QUEUED_TTL_SEC: Joi.number().integer(),
+  CLEANUP_BMODEL_JOB_PROCESSING_TTL_SECATCH_SIZE: Joi.number().integer(),
 });

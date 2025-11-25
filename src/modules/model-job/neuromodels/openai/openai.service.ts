@@ -19,7 +19,7 @@ export class OpenAiImageService {
     return `${base}.jpeg`;
   }
 
-  /** Берём первый результат из ImagesResponse и приводим к JPEG Buffer */
+  /** Берём первый результат из ImagesResponse и приводим к JPEG Buffer с оптимизацией */
   private async toJpegBufferFromImagesResponse(
     res: OpenAI.ImagesResponse
   ): Promise<Buffer> {
@@ -30,7 +30,7 @@ export class OpenAiImageService {
 
     if (item.b64_json) {
       const buf = Buffer.from(item.b64_json, "base64");
-      return sharp(buf).jpeg().toBuffer();
+      return sharp(buf).jpeg({ quality: 95 }).toBuffer();
     }
 
     if (item.url) {
@@ -39,7 +39,7 @@ export class OpenAiImageService {
         throw new Error(`Fetch image failed: ${r.status} ${r.statusText}`);
       }
       const ab = await r.arrayBuffer();
-      return sharp(Buffer.from(ab)).jpeg().toBuffer();
+      return sharp(Buffer.from(ab)).jpeg({ quality: 90 }).toBuffer();
     }
 
     throw new Error("No b64_json or url in image response item");
@@ -70,7 +70,7 @@ export class OpenAiImageService {
       prompt: params.prompt,
       size: resolvedSize,
       n: params.n,
-      quality: params.quality ?? "low",
+      quality: params.quality,
       stream: false,
     });
 

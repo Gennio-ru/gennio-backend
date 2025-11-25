@@ -14,6 +14,7 @@ import { ModelJobGateway } from "./model-job.gateway";
 import { PricingModule } from "../pricing/pricing.module";
 import { UserTokenTransactionsModule } from "../tokens/user-token-transactions.module";
 import { ImageModule } from "src/common/image/image.module";
+import { ModelJobWatchdogService } from "./model-job-watchdog.service";
 
 @Module({
   imports: [
@@ -30,7 +31,7 @@ import { ImageModule } from "src/common/image/image.module";
     ImageModule,
   ],
   controllers: [ModelJobController, ModelJobsProcessor],
-  providers: [ModelJobService, ModelJobGateway],
+  providers: [ModelJobService, ModelJobGateway, ModelJobWatchdogService],
   exports: [ModelJobService],
 })
 export class ModelJobModule {}

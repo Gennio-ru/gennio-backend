@@ -21,6 +21,7 @@ import { UserTokenTransactionsModule } from "./modules/tokens/user-token-transac
 import { PricingModule } from "./modules/pricing/pricing.module";
 import { PaymentsModule } from "./modules/payments/payments.module";
 import { CleanupModule } from "./modules/cleanup/cleanup.module";
+import { ScheduleModule } from "@nestjs/schedule";
 
 const rawLevel = process.env.LOG_LEVEL || "info";
 const level = rawLevel.toLowerCase();
@@ -67,6 +68,7 @@ const isPretty = level === "debug";
         }),
       },
     }),
+    ScheduleModule.forRoot(),
     UsersModule,
     AuthModule,
     PromptsModule,

@@ -1,14 +1,20 @@
 import { NestFactory, Reflector } from "@nestjs/core";
 import { AppModule } from "./app.module";
-import { ClassSerializerInterceptor, ValidationPipe } from "@nestjs/common";
+import { ValidationPipe } from "@nestjs/common";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
+import * as os from "os";
 import { MicroserviceOptions, Transport } from "@nestjs/microservices";
 import { DataSource } from "typeorm";
 import AppDataSource from "./data-source";
 import { Logger } from "nestjs-pino";
 import { AllExceptionsFilter } from "./common/filters/http-exception.filter";
+import sharp from "sharp";
+
+const cpuCount = os.cpus().length;
+
+sharp.concurrency(Math.max(1, Math.min(4, cpuCount - 1)));
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -17,7 +23,6 @@ async function bootstrap() {
 
   app.useLogger(app.get(Logger));
   app.useGlobalFilters(new AllExceptionsFilter(app.get(Logger)));
-  // app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
 
   // === АВТО-МИГРАЦИИ ===
   if (process.env.NODE_ENV === "production") {
@@ -72,7 +77,7 @@ async function bootstrap() {
       queue: "jobs",
       queueOptions: { durable: true },
       noAck: false,
-      prefetchCount: 1,
+      prefetchCount: 4,
     },
   });
 
