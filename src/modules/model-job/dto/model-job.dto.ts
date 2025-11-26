@@ -23,7 +23,6 @@ export class ModelJobBaseDto implements IModelJobBase {
   @ApiProperty({ enum: ModelJobStatusType, enumName: "ModelJobStatusType" })
   status!: ModelJobStatusType;
 
-  @Expose({ groups: [UserRole.Admin] })
   @ApiProperty({
     type: String,
     nullable: true,
