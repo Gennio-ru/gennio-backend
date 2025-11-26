@@ -7,19 +7,13 @@ import {
 import { InjectRepository } from "@nestjs/typeorm";
 import { IsNull, Repository } from "typeorm";
 import { ModelJob } from "./model-job.entity";
-import { OpenAiImageService } from "./neuromodels/openai/openai.service";
 import { ClientProxy } from "@nestjs/microservices";
 import { MODEL_JOB_CLIENT } from "./model-job.constants";
 import { IModelJobCreate } from "./types/model-job-mutations.interface";
 import { ModelJobStatusType, ModelJobType } from "./types/model-job.enum";
 import { FilesService } from "../files/files.service";
-import {
-  ModelJobDto,
-  ModelJobFullDto,
-  ModelJobWithPreviewFileDto,
-} from "./dto/model-job.dto";
+import { ModelJobDto, ModelJobFullDto } from "./dto/model-job.dto";
 import { PromptsService } from "../prompts/prompts.service";
-import sharp from "sharp";
 import { ModelJobGateway } from "./model-job.gateway";
 import {
   MODEL_JOB_RMQ_EVENTS,
@@ -40,6 +34,8 @@ import { FindModelJobsDto } from "./dto/find-model-jobs.dto";
 import { PaginationResult } from "src/common/pagination/pagination.interface";
 import { paginate } from "src/common/pagination/pagination.util";
 import { ConfigService } from "@nestjs/config";
+import { AiGenerationClientService } from "src/ai-generation/client/ai-generation.client.service";
+import { AiImageJobPayload } from "src/ai-generation/ai-generation.types";
 
 type ImageJobPayload = IModelJobCreate & {
   type:
@@ -55,7 +51,7 @@ export class ModelJobService {
   constructor(
     @InjectRepository(ModelJob)
     private readonly repository: Repository<ModelJob>,
-    private readonly openaiService: OpenAiImageService,
+    private readonly aiGenerationClientService: AiGenerationClientService,
     private readonly filesService: FilesService,
     private readonly promptsService: PromptsService,
     @Inject(MODEL_JOB_CLIENT) private readonly client: ClientProxy,
@@ -223,32 +219,16 @@ export class ModelJobService {
     }
 
     try {
-      if (data.type === ModelJobType.TextGenerate) {
-        throw new BadRequestException({
-          handled: true,
-          code: ErrorCode.MODEJ_JOB_TYPE_NOT_FOUND,
-        });
-        // 🔤 текстовая генерация
-        // const outputText = await this.processTextJob(data);
+      const { outputFileId, outputPreviewFileId, usedTokens } =
+        await this.processImageJob(data as ImageJobPayload);
 
-        // await this.repository.update(modelJobId, {
-        //   status: ModelJobStatusType.succeeded,
-        //   outputText,
-        //   finishedAt: new Date(),
-        // });
-      } else {
-        // 🖼 все остальные типы — про изображения
-        const { outputFileId, outputPreviewFileId, usedTokens } =
-          await this.processImageJob(data as ImageJobPayload);
-
-        await this.repository.update(modelJobId, {
-          status: ModelJobStatusType.succeeded,
-          outputFileId,
-          outputPreviewFileId,
-          usedTokens,
-          finishedAt: new Date(),
-        });
-      }
+      await this.repository.update(modelJobId, {
+        status: ModelJobStatusType.succeeded,
+        outputFileId,
+        outputPreviewFileId,
+        usedTokens,
+        finishedAt: new Date(),
+      });
 
       const jobWithUrls = await this.findOne(modelJobId);
       this.gateway.sendJobUpdate(modelJobId, jobWithUrls);
@@ -318,98 +298,92 @@ export class ModelJobService {
     }
   }
 
-  // 🔤 Текстовая задача
-  // private async processTextJob(payload: IModelJobCreate): Promise<string> {
-  //   if (!payload.text) {
-  //     throw new Error("Не указано поле text");
-  //   }
-
-  //   const resultText = await this.openaiService.generateText({
-  //     prompt: payload.text,
-  //   });
-
-  //   return resultText;
-  // }
-
   private async processImageJob(payload: ImageJobPayload): Promise<{
     outputFileId: string;
     outputPreviewFileId: string;
     usedTokens: Record<string, any>;
   }> {
-    const { imageBuffer, usedTokens } = await (async () => {
-      switch (payload.type) {
-        case ModelJobType.ImageEditByPromptId: {
-          if (!payload.inputFileId) {
-            throw new Error("не указано поле inputFileId");
-          }
-          if (!payload.promptId) {
-            throw new Error("promptId is not found");
-          }
+    // 1) готовим входные данные (файл и prompt)
+    let aiGenearationPayloadBase: Partial<AiImageJobPayload> = {};
 
-          const inputFile = await this.filesService.getMeta(
-            payload.inputFileId
-          );
-          const fileBuffer = await this.filesService.getFileBufferById(
-            payload.inputFileId
-          );
-          const resolvedSize = this.getResolvedSizeFromFile(inputFile);
+    switch (payload.type) {
+      case ModelJobType.ImageEditByPromptId: {
+        if (!payload.inputFileId)
+          throw new Error("не указано поле inputFileId");
 
-          const promptData = await this.promptsService.findOne(
-            payload.promptId
-          );
+        if (!payload.promptId) throw new Error("promptId is not found");
 
-          return this.openaiService.editImage({
-            image: fileBuffer,
-            prompt: promptData.text,
-            quality: "medium",
-            resolvedSize,
-            imageFilename: "input.jpeg",
-          });
-        }
+        const inputFile = await this.filesService.getMeta(payload.inputFileId);
+        const fileBuffer = await this.filesService.getFileBufferById(
+          payload.inputFileId
+        );
+        const resolvedSize = this.getResolvedSizeFromFile(inputFile);
+        const promptData = await this.promptsService.findOne(payload.promptId);
 
-        case ModelJobType.ImageEditByPromptText: {
-          if (!payload.inputFileId) {
-            throw new Error("не указано поле inputFileId");
-          }
-          if (!payload.text) {
-            throw new Error("не указано поле text");
-          }
+        const finalPrompt =
+          promptData.text +
+          (payload.text
+            ? `\n\n### Additional instructions\n${payload.text}`
+            : "");
 
-          const inputFile = await this.filesService.getMeta(
-            payload.inputFileId
-          );
-          const fileBuffer = await this.filesService.getFileBufferById(
-            payload.inputFileId
-          );
-          const resolvedSize = this.getResolvedSizeFromFile(inputFile);
-
-          return this.openaiService.editImage({
-            image: fileBuffer,
-            prompt: payload.text,
-            quality: "medium",
-            resolvedSize,
-            imageFilename: "input.jpeg",
-          });
-        }
-
-        case ModelJobType.ImageGenerateByPromptText: {
-          if (!payload.text) {
-            throw new Error("Не указано поле text");
-          }
-
-          return this.openaiService.generateImage({
-            prompt: payload.text,
-            quality: "medium",
-          });
-        }
-
-        default: {
-          const _exhaustive: never = payload.type;
-          throw new Error(`Unsupported image job type: ${_exhaustive}`);
-        }
+        aiGenearationPayloadBase = {
+          type: "IMAGE_EDIT_BY_PROMPT_ID",
+          promptText: finalPrompt,
+          inputImageBase64: fileBuffer.toString("base64"),
+          inputImageFilename: "input.jpeg",
+          resolvedSize,
+        };
+        break;
       }
-    })();
 
+      case ModelJobType.ImageEditByPromptText: {
+        if (!payload.inputFileId)
+          throw new Error("не указано поле inputFileId");
+        if (!payload.text) throw new Error("не указано поле text");
+
+        const inputFile = await this.filesService.getMeta(payload.inputFileId);
+        const fileBuffer = await this.filesService.getFileBufferById(
+          payload.inputFileId
+        );
+        const resolvedSize = this.getResolvedSizeFromFile(inputFile);
+
+        aiGenearationPayloadBase = {
+          type: "IMAGE_EDIT_BY_PROMPT_TEXT",
+          promptText: payload.text,
+          inputImageBase64: fileBuffer.toString("base64"),
+          inputImageFilename: "input.jpeg",
+          resolvedSize,
+        };
+        break;
+      }
+
+      case ModelJobType.ImageGenerateByPromptText: {
+        if (!payload.text) {
+          throw new Error("Не указано поле text");
+        }
+
+        aiGenearationPayloadBase = {
+          type: "IMAGE_GENERATE_BY_PROMPT_TEXT",
+          promptText: payload.text,
+        };
+        break;
+      }
+
+      default: {
+        const _exhaustive: never = payload.type;
+        throw new Error(`Unsupported image job type: ${_exhaustive}`);
+      }
+    }
+
+    // 2) зовём микросервис ai-generation
+    const { imageBase64, usedTokens } =
+      await this.aiGenerationClientService.sendJob(
+        aiGenearationPayloadBase as any
+      );
+
+    const imageBuffer = Buffer.from(imageBase64, "base64");
+
+    // 3) локальная post-processing и upload
     const resultPreviewWebpBuffer =
       await this.imageProcessingService.compressToWebp(imageBuffer);
 

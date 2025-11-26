@@ -101,4 +101,6 @@ export const envValidationSchema = Joi.object({
 
   MODEL_JOB_QUEUED_TTL_SEC: Joi.number().integer(),
   CLEANUP_BMODEL_JOB_PROCESSING_TTL_SECATCH_SIZE: Joi.number().integer(),
+
+  AI_GEN_PREFETCH: Joi.number().integer(),
 });

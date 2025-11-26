@@ -74,6 +74,24 @@ services:
       - rabbitmq
     command: npm run start:dev
 
+  ai-generation:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      RABBIT_HOST: rabbitmq
+      NODE_ENV: development
+      LOG_LEVEL: info
+    volumes:
+      - .:/app
+      - /app/node_modules
+    depends_on:
+      - rabbitmq
+    command: npm run start:ai:dev
+
   frontend:
     build:
       context: ../gennio-frontend

@@ -63,6 +63,15 @@ services:
       - redis
       - rabbitmq
 
+  ai-generation:
+    build: .
+    restart: unless-stopped
+    env_file:
+      - .env
+    depends_on:
+      - rabbitmq
+    command: ["npm", "run", "start:ai"]
+
   frontend:
     build:
       context: ../gennio-frontend

@@ -23,4 +23,4 @@ jobs:
             cd /opt/gennio/gennio-backend
             git pull origin stage
             docker compose -f docker-compose.stage.yml down
-            docker compose -f docker-compose.stage.yml up -d --build
+            docker compose -f docker-compose.stage.yml up -d --build --scale ai-generation=3

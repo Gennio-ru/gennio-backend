@@ -4,7 +4,6 @@ import { ConfigModule } from "@nestjs/config";
 import { ModelJob } from "./model-job.entity";
 import { ModelJobService } from "./model-job.service";
 import { ModelJobController } from "./model-job.controller";
-import { OpenAiModule } from "./neuromodels/openai/openai.module";
 import { RabbitmqModule } from "src/rabbitmq/rabbitmq.module";
 import { MODEL_JOB_CLIENT } from "./model-job.constants";
 import { ModelJobsProcessor } from "./model-job.processor";
@@ -15,12 +14,11 @@ import { PricingModule } from "../pricing/pricing.module";
 import { UserTokenTransactionsModule } from "../tokens/user-token-transactions.module";
 import { ImageModule } from "src/common/image/image.module";
 import { ModelJobWatchdogService } from "./model-job-watchdog.service";
+import { AiGenerationClientModule } from "src/ai-generation/client/ai-generation.client.module";
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
     TypeOrmModule.forFeature([ModelJob]),
-    OpenAiModule,
     RabbitmqModule.register({
       name: MODEL_JOB_CLIENT,
     }),
@@ -29,6 +27,7 @@ import { ModelJobWatchdogService } from "./model-job-watchdog.service";
     UserTokenTransactionsModule,
     PricingModule,
     ImageModule,
+    AiGenerationClientModule,
   ],
   controllers: [ModelJobController, ModelJobsProcessor],
   providers: [ModelJobService, ModelJobGateway, ModelJobWatchdogService],

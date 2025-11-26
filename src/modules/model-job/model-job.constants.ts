@@ -1,2 +1,1 @@
-export const OPENAI_CLIENT = "OPENAI_CLIENT";
 export const MODEL_JOB_CLIENT = "MODEL_JOB_CLIENT";

@@ -5,6 +5,8 @@
   "scripts": {
     "start": "nest start",
     "start:dev": "nest start --watch",
+    "start:ai:dev": "nest start --watch --entryFile main.ai",
+    "start:ai": "node dist/main.ai.js",
     "build": "nest build",
     "typeorm": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js",
     "migration:generate": "npm run typeorm -- migration:generate ./src/migrations/name -d ./src/data-source.ts",
