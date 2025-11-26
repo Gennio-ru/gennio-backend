@@ -234,7 +234,6 @@ export class ModelJobService {
       this.gateway.sendJobUpdate(modelJobId, jobWithUrls);
     } catch (e) {
       let errorMessage: string;
-      // Отправляем в лог ошибки нейросетей не связанные с модерацией
       let sendToLog: boolean = true;
 
       if (e instanceof OpenAIApiError) {
@@ -243,6 +242,22 @@ export class ModelJobService {
           sendToLog = false;
         } else {
           errorMessage = e.message ?? "Unknown OpenAI error";
+        }
+      } else if (e instanceof BadRequestException) {
+        const resp = e.getResponse() as any;
+
+        if (resp?.handled) {
+          sendToLog = false;
+
+          if (resp.code === ErrorCode.MODERATION_BLOCKED) {
+            errorMessage = ErrorCode.MODERATION_BLOCKED;
+          } else if (resp.message) {
+            errorMessage = resp.message;
+          } else {
+            errorMessage = e.message;
+          }
+        } else {
+          errorMessage = e.message;
         }
       } else if (e instanceof Error) {
         errorMessage = e.message;
@@ -375,15 +390,41 @@ export class ModelJobService {
       }
     }
 
-    // 2) зовём микросервис ai-generation
-    const { imageBase64, usedTokens } =
-      await this.aiGenerationClientService.sendJob(
-        aiGenearationPayloadBase as any
+    const res = await this.aiGenerationClientService.sendJob(
+      aiGenearationPayloadBase as AiImageJobPayload
+    );
+
+    //
+    // разруливаем ошибки воркера
+    //
+    if (!res.ok) {
+      const message = res.error || "ai-generation worker error";
+      const status = res.status ?? 400;
+
+      const isSafety = status === 400 && /safety system/i.test(message); // твой кейс "Your request was rejected by the safety system"
+
+      // Всё, что < 500 — считаем бизнес-ошибкой OpenAI → 400
+      if (status < 500) {
+        throw new BadRequestException({
+          handled: true, // чтобы наверху понять, что это не "сломалось", а ожидаемая бизнес-ошибка
+          code: isSafety ? ErrorCode.MODERATION_BLOCKED : undefined,
+          provider: "openai",
+          status,
+          requestId: res.requestId,
+          message,
+        });
+      }
+
+      // 5xx — уже что-то серьёзное → 500, чтобы улетело в телегу
+      throw new Error(
+        `ai-generation failed with status ${status}: ${message} (requestId=${
+          res.requestId ?? "n/a"
+        })`
       );
+    }
 
-    const imageBuffer = Buffer.from(imageBase64, "base64");
+    const imageBuffer = Buffer.from(res.imageBase64, "base64");
 
-    // 3) локальная post-processing и upload
     const resultPreviewWebpBuffer =
       await this.imageProcessingService.compressToWebp(imageBuffer);
 
@@ -410,7 +451,7 @@ export class ModelJobService {
     return {
       outputFileId: outputFile.id,
       outputPreviewFileId: outputPreviewFile.id,
-      usedTokens,
+      usedTokens: res.usedTokens,
     };
   }
 

@@ -13,7 +13,17 @@ export interface AiImageJobPayload {
   resolvedSize?: "1024x1024" | "1024x1536" | "1536x1024";
 }
 
-export interface AiImageJobResult {
+export interface AiImageJobResultOk {
+  ok: true;
   imageBase64: string;
   usedTokens: Record<string, any>;
 }
+
+export interface AiImageJobResultError {
+  ok: false;
+  error: string;
+  requestId?: string | null;
+  status?: number | null;
+}
+
+export type AiImageJobResult = AiImageJobResultOk | AiImageJobResultError;
