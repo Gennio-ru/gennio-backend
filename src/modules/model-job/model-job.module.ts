@@ -15,6 +15,7 @@ import { UserTokenTransactionsModule } from "../tokens/user-token-transactions.m
 import { ImageModule } from "src/common/image/image.module";
 import { ModelJobWatchdogService } from "./model-job-watchdog.service";
 import { AiGenerationClientModule } from "src/ai-generation/client/ai-generation.client.module";
+import { UsersModule } from "../users/users.module";
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { AiGenerationClientModule } from "src/ai-generation/client/ai-generation
     PricingModule,
     ImageModule,
     AiGenerationClientModule,
+    UsersModule,
   ],
   controllers: [ModelJobController, ModelJobsProcessor],
   providers: [ModelJobService, ModelJobGateway, ModelJobWatchdogService],
