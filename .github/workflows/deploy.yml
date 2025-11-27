@@ -44,11 +44,11 @@ jobs:
               flock -n 9 || { echo "🚫 Deploy is already running, aborting"; exit 1; }
 
               echo "🔄 Updating frontend repo..."
-              cd /opt/gennio/gennio-frontend
+              cd /projects/gennio/gennio-frontend
               git pull origin main
 
               echo "🔄 Updating backend repo..."
-              cd /opt/gennio/gennio-backend
+              cd /projects/gennio/gennio-backend
               git pull origin main
 
               echo "🐳 Recreating containers..."
