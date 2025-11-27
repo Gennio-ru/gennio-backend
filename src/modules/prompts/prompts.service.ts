@@ -18,7 +18,7 @@ export class PromptsService {
   async findOne(id: string): Promise<Prompt> {
     const prompt = await this.repository.findOne({
       where: { id },
-      relations: ["beforeImage", "afterImage"],
+      relations: ["afterImage", "beforeImage"],
     });
     if (!prompt) {
       throw new NotFoundException("Prompt not found");

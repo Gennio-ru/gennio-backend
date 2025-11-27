@@ -122,6 +122,35 @@ export class MailService {
     });
   }
 
+  async sendPasswordResetLink({
+    to,
+    link,
+    project = "Gennio",
+    expireHours = 1,
+    supportEmail = "support@gennio.ru",
+    subject = "Восстановление пароля",
+    replyTo,
+    template = "password-reset",
+  }: {
+    to: Recipient;
+    link: string;
+    project?: string;
+    expireHours?: number;
+    supportEmail?: string;
+    subject?: string;
+    replyTo?: string | Address;
+    template?: string; // имя файла без .hbs
+  }) {
+    return this.sendTemplate({
+      to,
+      subject,
+      template, // src/mail/templates/password-reset.hbs
+      context: { link, project, expireHours, supportEmail },
+      from: this.config.get<string>("MAIL_FROM"),
+      replyTo,
+    });
+  }
+
   async sendOtpEmail({
     to,
     code,

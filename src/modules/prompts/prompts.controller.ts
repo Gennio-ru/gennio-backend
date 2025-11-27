@@ -96,11 +96,13 @@ export class PromptsController {
     type: PromptDto,
   })
   @ApiResponse({ status: 404, description: "Промпт не найден" })
-  update(
+  async update(
     @Param("id", ParseUUIDPipe) id: string,
     @Body() dto: UpdatePromptDto
   ): Promise<PromptDto> {
-    return this.promptsService.update(id, dto);
+    const prompt = await this.promptsService.update(id, dto);
+
+    return plainModelToInstance(PromptDto, prompt);
   }
 
   @Delete(":id")

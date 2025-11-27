@@ -7,10 +7,13 @@ export interface IUserBase {
   phone: string | null;
   passwordHash: string | null;
   role: UserRole;
-  credits: number;
+  tokens: number;
   isActive: boolean;
   isEmailVerified: boolean;
   isPhoneVerified: boolean;
+  isBlocked: boolean;
+  blockedAt: Date | null;
+  blockedReason: string | null;
   lastLoginAt?: Date;
 }
 

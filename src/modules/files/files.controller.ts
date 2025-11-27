@@ -9,7 +9,6 @@ import {
   UploadedFile,
   UseInterceptors,
   UseGuards,
-  NotFoundException,
   ParseUUIDPipe,
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
@@ -18,20 +17,27 @@ import { FilesService } from "./files.service";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { ApiBody, ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger";
 import { UploadDto } from "./dto/upload.dto";
-import { UploadFileResponseDto } from "./dto/upload-file-response.dto";
 import { DeleteFileResponseDto } from "./dto/delete-file-response.dto";
 import { FileDto } from "./dto/file.dto";
 import { UserId } from "src/common/decorators/user-id.decorator";
-import { ReqUser } from "src/common/decorators/req-user.decorator";
-import { ReqUserData } from "../auth/strategies/jwt-access.strategy";
+import { ImageProcessingService } from "src/common/image/image-processing.service";
+import { RequireTokens } from "src/common/decorators/require-tokens.decorator";
+import { RequireTokensGuard } from "src/common/guards/require-tokens.guard";
+import { RolesGuard } from "../users/user-roles.guard";
+import { Roles } from "../users/user-roles.decorator";
 import { UserRole } from "../users/types/user-role.enum";
+import { plainModelToInstance } from "src/common/helpers/entity.helper";
 
 @ApiTags("files")
 @Controller("files")
 export class FilesController {
-  constructor(private readonly filesService: FilesService) {}
+  constructor(
+    private readonly filesService: FilesService,
+    private readonly imageProcessingService: ImageProcessingService
+  ) {}
 
-  @Post("upload")
+  // Проходит несколько стадий обработки для дальнейшей загрузки в API нейросети
+  @Post("ai-upload")
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(
     FileInterceptor("file", {
@@ -48,27 +54,93 @@ export class FilesController {
   @ApiResponse({
     status: 201,
     description: "Файл успешно загружен",
-    type: UploadFileResponseDto,
+    type: FileDto,
+  })
+  async aiUpload(
+    @UploadedFile() file: Express.Multer.File,
+    @UserId() userId: string,
+    @Query("folder") folder?: string,
+    @Query("public") publicQ?: string
+  ): Promise<FileDto> {
+    if (!file) throw new BadRequestException("No file");
+
+    // 1) Нормализация под модель: даунскейл + выбор аспекта + crop+resize
+    const { buffer: normalizedBufferJpeg, resolvedSize } =
+      await this.imageProcessingService.normalizeForModel(
+        file.buffer,
+        "auto",
+        512
+      );
+
+    // 2) Один раз сжать + перевести в WebP
+    const normalizedWebpBuffer =
+      await this.imageProcessingService.compressToWebp(
+        normalizedBufferJpeg,
+        150
+      );
+
+    // 3) Сохранить уже нормализованный webp
+    const saved = await this.filesService.uploadBuffer(
+      {
+        buffer: normalizedWebpBuffer,
+        originalname: file.originalname,
+        mimetype: "image/jpeg",
+        size: normalizedWebpBuffer.length,
+      },
+      {
+        folder,
+        publicRead: publicQ === "true",
+        ownerId: userId,
+        meta: {
+          modelResolvedSize: resolvedSize, // "1024x1536" | ...
+        },
+      }
+    );
+
+    const fileUrl = await this.filesService.getFileUrl(saved);
+
+    return plainModelToInstance(FileDto, { ...saved, url: fileUrl });
+  }
+
+  @Post("upload")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.Admin)
+  @UseInterceptors(
+    FileInterceptor("file", {
+      storage: memoryStorage(),
+      limits: { fileSize: 10 * 1024 * 1024 },
+      fileFilter: (req, file, cb) => {
+        const allowed = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
+        if (allowed.includes(file.mimetype)) cb(null, true);
+        else cb(new BadRequestException("Unsupported file type"), false);
+      },
+    })
+  )
+  @ApiBody({ type: UploadDto })
+  @ApiResponse({
+    status: 201,
+    description: "Файл успешно загружен",
+    type: FileDto,
   })
   async upload(
     @UploadedFile() file: Express.Multer.File,
     @UserId() userId: string,
-    @ReqUser() user: ReqUserData,
     @Query("folder") folder?: string,
     @Query("public") publicQ?: string
-  ): Promise<UploadFileResponseDto> {
+  ): Promise<FileDto> {
     if (!file) throw new BadRequestException("No file");
 
-    if (user.role === UserRole.User) {
-      await this.filesService.clearOldUserFile(userId);
-    }
+    // Сжать + перевести в WebP
+    const normalizedWebpBuffer =
+      await this.imageProcessingService.compressToWebp(file.buffer, 150);
 
+    // Сохранить уже нормализованный webp
     const saved = await this.filesService.uploadBuffer(
       {
-        buffer: file.buffer,
+        buffer: normalizedWebpBuffer,
         originalname: file.originalname,
-        mimetype: file.mimetype,
-        size: file.size,
+        mimetype: "image/jpeg",
+        size: normalizedWebpBuffer.length,
       },
       {
         folder,
@@ -77,17 +149,9 @@ export class FilesController {
       }
     );
 
-    const signedUrl = saved.url
-      ? null
-      : await this.filesService.getSignedGetUrl(saved.key, 10);
-    return {
-      id: saved.id,
-      key: saved.key,
-      url: saved.url ?? signedUrl,
-      contentType: saved.contentType,
-      size: saved.size,
-      createdAt: saved.createdAt,
-    };
+    const fileUrl = await this.filesService.getFileUrl(saved);
+
+    return plainModelToInstance(FileDto, { ...saved, url: fileUrl });
   }
 
   @Get(":id")
@@ -99,14 +163,8 @@ export class FilesController {
     @Query("signed") signed?: string
   ): Promise<FileDto> {
     const fileMeta = await this.filesService.getMeta(fileId);
-    if (!fileMeta) {
-      throw new NotFoundException("File not found");
-    }
 
-    const fileUrl =
-      signed === "true" || !fileMeta.url
-        ? await this.filesService.getSignedGetUrl(fileMeta.key, 3600)
-        : fileMeta.url;
+    const fileUrl = await this.filesService.getFileUrl(fileMeta);
 
     return { ...fileMeta, url: fileUrl };
   }

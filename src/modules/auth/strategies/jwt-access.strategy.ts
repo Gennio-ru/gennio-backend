@@ -7,14 +7,14 @@ import { ConfigService } from "@nestjs/config";
 export interface AccessPayload {
   sub: string;
   role: UserRole;
-  credits: number;
+  tokens: number;
   email: string;
   iat?: number;
   exp?: number;
 }
 
 export interface ReqUserData
-  extends Pick<AccessPayload, "role" | "credits" | "email"> {
+  extends Pick<AccessPayload, "role" | "tokens" | "email"> {
   userId: string;
 }
 
@@ -31,7 +31,7 @@ export class JwtAccessStrategy extends PassportStrategy(Strategy, "jwt") {
     return {
       userId: payload.sub,
       role: payload.role,
-      credits: payload.credits,
+      tokens: payload.tokens,
       email: payload.email,
     };
   }

@@ -21,6 +21,10 @@ import { CreateCategoryDto } from "./dto/create-category.dto";
 import { CategoryDto } from "./dto/category.dto";
 import { UpdateCategoryDto } from "./dto/update-category.dto";
 import { FindPromptsDto } from "../prompts/dto/find-prompts.dto";
+import {
+  plainModelToInstance,
+  plainModelToInstanceArray,
+} from "src/common/helpers/entity.helper";
 
 @ApiTags("categories")
 @Controller("categories")
@@ -33,7 +37,9 @@ export class CategoriesController {
   })
   @ApiResponse({ status: 200, type: [CategoryDto] })
   async findMany(@Query() query: FindPromptsDto): Promise<CategoryDto[]> {
-    return this.categoriesService.findMany(query);
+    const categories = await this.categoriesService.findMany(query);
+
+    return plainModelToInstanceArray(CategoryDto, categories);
   }
 
   @Get(":id")
@@ -47,7 +53,9 @@ export class CategoriesController {
   })
   @ApiResponse({ status: 404, description: "Категория не найдена" })
   async findOne(@Param("id", ParseUUIDPipe) id: string): Promise<CategoryDto> {
-    return this.categoriesService.findOne(id);
+    const category = await this.categoriesService.findOne(id);
+
+    return plainModelToInstance(CategoryDto, category);
   }
 
   @Post()
@@ -59,8 +67,10 @@ export class CategoriesController {
     description: "Категория создана",
     type: CategoryDto,
   })
-  create(@Body() dto: CreateCategoryDto): Promise<CategoryDto> {
-    return this.categoriesService.create(dto);
+  async create(@Body() dto: CreateCategoryDto): Promise<CategoryDto> {
+    const category = await this.categoriesService.create(dto);
+
+    return plainModelToInstance(CategoryDto, category);
   }
 
   @Patch(":id")
@@ -73,11 +83,13 @@ export class CategoriesController {
     type: CategoryDto,
   })
   @ApiResponse({ status: 404, description: "Категория не найдена" })
-  update(
+  async update(
     @Param("id", ParseUUIDPipe) id: string,
     @Body() dto: UpdateCategoryDto
   ): Promise<CategoryDto> {
-    return this.categoriesService.update(id, dto);
+    const category = await this.categoriesService.update(id, dto);
+
+    return plainModelToInstance(CategoryDto, category);
   }
 
   @Delete(":id")

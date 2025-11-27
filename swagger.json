@@ -1031,10 +1031,10 @@
             "example": "user",
             "$ref": "#/components/schemas/UserRole"
           },
-          "credits": {
+          "tokens": {
             "type": "number",
             "example": 100,
-            "description": "Баланс кредитов"
+            "description": "Баланс токенов"
           },
           "isActive": {
             "type": "boolean",
@@ -1060,7 +1060,7 @@
           "createdAt",
           "updatedAt",
           "role",
-          "credits",
+          "tokens",
           "isActive",
           "isEmailVerified",
           "isPhoneVerified"
@@ -1460,10 +1460,6 @@
             "type": "string",
             "example": "Мягкое освещение, крупный план"
           },
-          "beforeImageId": {
-            "type": "string",
-            "example": "f47ac10b-58cc-4372-a567-0e02b2c3d479"
-          },
           "afterImageId": {
             "type": "string",
             "example": "f47ac10b-58cc-4372-a567-0e02b2c3d479"
@@ -1480,7 +1476,6 @@
         "required": [
           "title",
           "description",
-          "beforeImageId",
           "afterImageId",
           "text",
           "categoryId"
@@ -1496,10 +1491,6 @@
           "description": {
             "type": "string",
             "example": "Мягкое освещение, крупный план"
-          },
-          "beforeImageId": {
-            "type": "string",
-            "example": "f47ac10b-58cc-4372-a567-0e02b2c3d479"
           },
           "afterImageId": {
             "type": "string",
@@ -1646,14 +1637,25 @@
             "example": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
             "nullable": true
           },
+          "outputPreviewFileId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+            "nullable": true
+          },
           "inputFileUrl": {
-            "type": "object",
-            "example": "https://cdn.example.com/jobs/2025/09/19/5139b0d6-f38d-4af1.png",
+            "type": "string",
+            "example": "https://cdn.example.com/jobs/2025/09/19/5139b0d6-f38d-4af1.jpeg",
             "nullable": true
           },
           "outputFileUrl": {
-            "type": "object",
-            "example": "https://cdn.example.com/jobs/2025/09/19/5139b0d6-f38d-4af1.png",
+            "type": "string",
+            "example": "https://cdn.example.com/jobs/2025/09/19/5139b0d6-f38d-4af1.jpeg",
+            "nullable": true
+          },
+          "outputPreviewFileUrl": {
+            "type": "string",
+            "example": "https://cdn.example.com/jobs/2025/09/19/5139b0d6-f38d-4af1.jpeg",
             "nullable": true
           },
           "error": {
@@ -1693,8 +1695,10 @@
           "userId",
           "inputFileId",
           "outputFileId",
+          "outputPreviewFileId",
           "inputFileUrl",
           "outputFileUrl",
+          "outputPreviewFileUrl",
           "error",
           "startedAt",
           "finishedAt",

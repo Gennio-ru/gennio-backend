@@ -20,13 +20,13 @@ export class PromptBaseDto implements IPromptBase {
   description!: string;
 
   @Expose()
-  @ApiProperty()
-  beforeImageId!: string;
+  @ApiProperty({ type: String })
+  beforeImageId!: string | null;
 
   @Type(() => FileDto)
   @Expose()
   @ApiProperty()
-  beforeImage!: FileDto;
+  beforeImage?: FileDto;
 
   @Expose()
   @ApiProperty()
@@ -41,7 +41,7 @@ export class PromptBaseDto implements IPromptBase {
   @ApiProperty({ enum: PromptType, enumName: "PromptType" })
   type!: PromptType;
 
-  @Expose({ groups: ["admin"] })
+  @Expose({ groups: [UserRole.Admin] })
   @ApiProperty({
     description: "Текст промпта",
   })
@@ -53,6 +53,7 @@ export class PromptBaseDto implements IPromptBase {
 
   @Expose()
   @ApiProperty()
+  @Type(() => CategoryDto)
   category?: CategoryDto;
 }
 

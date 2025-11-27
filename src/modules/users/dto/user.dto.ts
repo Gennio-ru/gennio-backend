@@ -7,7 +7,7 @@ import {
 import { BaseDto } from "src/common/base/base.dto";
 import { UserRole } from "src/modules/users/types/user-role.enum";
 import { IUser, IUserBase } from "../types/user.interface";
-import { Exclude } from "class-transformer";
+import { Exclude, Expose } from "class-transformer";
 
 export class UserBaseDto extends BaseDto implements IUserBase {
   @ApiPropertyOptional({
@@ -37,19 +37,47 @@ export class UserBaseDto extends BaseDto implements IUserBase {
   @ApiProperty({ enum: UserRole, example: UserRole.User, enumName: "UserRole" })
   role!: UserRole;
 
-  @ApiProperty({ example: 100, description: "Баланс кредитов" })
-  credits!: number;
+  @ApiProperty({ example: 100, description: "Баланс токенов" })
+  tokens!: number;
 
   @ApiProperty({ example: true, description: "Активен ли пользователь" })
   isActive!: boolean;
 
-  @ApiProperty({ example: false })
+  @ApiProperty({ example: false, description: "Подтверждён ли email" })
   isEmailVerified!: boolean;
 
-  @ApiProperty({ example: true })
+  @ApiProperty({ example: true, description: "Подтверждён ли телефон" })
   isPhoneVerified!: boolean;
 
-  @ApiPropertyOptional({ type: String, format: "date-time", nullable: true })
+  // 🔐 Блокировка
+
+  @ApiProperty({
+    example: false,
+    description: "Заблокирован ли пользователь",
+  })
+  isBlocked!: boolean;
+
+  @ApiPropertyOptional({
+    type: String,
+    format: "date-time",
+    nullable: true,
+    description: "Дата блокировки пользователя",
+  })
+  blockedAt!: Date | null;
+
+  @Expose({ groups: [UserRole.Admin] })
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    description: "Причина блокировки (видна только администраторам)",
+  })
+  blockedReason!: string | null;
+
+  @ApiPropertyOptional({
+    type: String,
+    format: "date-time",
+    nullable: true,
+  })
   lastLoginAt?: Date;
 }
 

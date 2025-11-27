@@ -5,12 +5,13 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  MaxLength,
 } from "class-validator";
 import { IModelJobCreate } from "../types/model-job-mutations.interface";
 import { ModelType } from "../types/model-job.enum";
 
 export class StartProcessBaseDto
-  implements Omit<IModelJobCreate, "userId" | "type">
+  implements Omit<IModelJobCreate, "userId" | "type" | "tariffCode">
 {
   @ApiProperty({ enum: ModelType, enumName: "ModelType" })
   @IsEnum(ModelType)
@@ -20,16 +21,21 @@ export class StartProcessBaseDto
 
 export class StartImageEditByPromptIdDto
   extends StartProcessBaseDto
-  implements Omit<IModelJobCreate, "userId" | "type">
+  implements Omit<IModelJobCreate, "userId" | "type" | "tariffCode">
 {
   @ApiProperty()
   @IsUUID()
   promptId!: string;
 
-  @ApiProperty({ example: "Мягкое освещение, крупный план" })
+  @ApiProperty({
+    example: "Мягкое освещение, крупный план",
+    maxLength: 500,
+    description: "Не более 500 символов",
+  })
   @IsString()
   @IsOptional()
   @IsNotEmpty()
+  @MaxLength(500, { message: "Текст не должен превышать 500 символов" })
   text?: string;
 
   @ApiProperty()
@@ -39,11 +45,16 @@ export class StartImageEditByPromptIdDto
 
 export class StartImageEditByPromptTextDto
   extends StartProcessBaseDto
-  implements Omit<IModelJobCreate, "userId" | "type">
+  implements Omit<IModelJobCreate, "userId" | "type" | "tariffCode">
 {
-  @ApiProperty({ example: "Мягкое освещение, крупный план" })
+  @ApiProperty({
+    example: "Мягкое освещение, крупный план",
+    maxLength: 500,
+    description: "Не более 500 символов",
+  })
   @IsString()
   @IsNotEmpty()
+  @MaxLength(500, { message: "Текст не должен превышать 500 символов" })
   text: string;
 
   @ApiProperty()
@@ -53,10 +64,30 @@ export class StartImageEditByPromptTextDto
 
 export class StartImageGenerateByPromptTextDto
   extends StartProcessBaseDto
-  implements Omit<IModelJobCreate, "userId" | "type">
+  implements Omit<IModelJobCreate, "userId" | "type" | "tariffCode">
 {
-  @ApiProperty({ example: "Мягкое освещение, крупный план" })
+  @ApiProperty({
+    example: "Мягкое освещение, крупный план",
+    maxLength: 500,
+    description: "Не более 500 символов",
+  })
   @IsString()
   @IsNotEmpty()
+  @MaxLength(500, { message: "Текст не должен превышать 500 символов" })
+  text: string;
+}
+
+export class StartTextGenerateDto
+  extends StartProcessBaseDto
+  implements Omit<IModelJobCreate, "userId" | "type" | "tariffCode">
+{
+  @ApiProperty({
+    example: "Сгенерируй текст новогоднего поздравления",
+    maxLength: 500,
+    description: "Не более 500 символов",
+  })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(500, { message: "Текст не должен превышать 500 символов" })
   text: string;
 }

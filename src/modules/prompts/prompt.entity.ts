@@ -13,10 +13,10 @@ export class Prompt extends BaseEntity implements IPrompt {
   @Column({ type: "text" })
   description: string;
 
-  @Column({ type: "uuid" })
-  beforeImageId: string;
+  @Column({ type: "uuid", nullable: true })
+  beforeImageId: string | null;
 
-  @ManyToOne(() => FileEntity, { onDelete: "CASCADE" })
+  @ManyToOne(() => FileEntity, { onDelete: "SET NULL", nullable: true })
   @JoinColumn({ name: "beforeImageId" })
   beforeImage: FileEntity;
 

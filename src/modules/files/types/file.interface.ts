@@ -3,9 +3,11 @@ import { ISchema } from "src/common/base/base.interface";
 export interface IFileBase {
   bucket: string;
   key: string;
-  url: string | null;
-  contentType: string | null;
-  size: number | null;
+  url: string;
+  contentType: string;
+  size: number;
+  widthPx: number | null;
+  heightPx: number | null;
   ownerId: string | null;
   meta: Record<string, any> | null;
 }

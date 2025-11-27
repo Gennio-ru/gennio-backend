@@ -31,6 +31,11 @@ import { VerifyPhoneOtpDto } from "./dto/verify-otp-by-phone.dto";
 import { Response } from "express";
 import { UserId } from "src/common/decorators/user-id.decorator";
 import { ConfigService } from "@nestjs/config";
+import { Throttle } from "@nestjs/throttler";
+import { ResendConfirmEmailDto } from "./dto/resend-confirm-email.dto";
+import { RequestPasswordResetDto } from "./dto/request-password-reset.dto";
+import { ConfirmPasswordResetDto } from "./dto/confirm-password-reset.dto";
+import { plainModelToInstance } from "src/common/helpers/entity.helper";
 
 @ApiTags("auth")
 @Controller("auth")
@@ -88,7 +93,7 @@ export class AuthController {
     const { accessToken, refreshToken, user } =
       await this.authService.registerByEmail(dto);
     this.setRefreshCookie(res, refreshToken);
-    return { accessToken, user };
+    return { accessToken, user: plainModelToInstance(UserDto, user) };
   }
 
   @Post("register/phone")
@@ -99,7 +104,7 @@ export class AuthController {
     const { accessToken, refreshToken, user } =
       await this.authService.registerByPhone(dto);
     this.setRefreshCookie(res, refreshToken);
-    return { accessToken, user };
+    return { accessToken, user: plainModelToInstance(UserDto, user) };
   }
 
   @Get("email/confirm")
@@ -126,15 +131,13 @@ export class AuthController {
     res.redirect(url.toString());
   }
 
-  // По желанию: повторная отправка (защити rate-limit'ом)
   @Post("email/confirm/resend")
-  @UseGuards(JwtAuthGuard)
-  async resendConfirmLink(@UserId() userId: string): Promise<{ ok: true }> {
-    const user = await this.authService.me(userId);
-    if (!user?.email) throw new BadRequestException("Email is not set");
-    if (user.isEmailVerified) return { ok: true };
-
-    await (this.authService as any).sendEmailConfirmForUser(user);
+  @HttpCode(200)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } }) // не чаще 5 раз в минуту
+  async resendConfirmLink(
+    @Body() body: ResendConfirmEmailDto
+  ): Promise<{ ok: true }> {
+    await this.authService.resendConfirmEmail(body.email);
     return { ok: true };
   }
 
@@ -149,7 +152,7 @@ export class AuthController {
       await this.authService.loginByEmail(dto);
 
     this.setRefreshCookie(res, refreshToken);
-    return { accessToken, user };
+    return { accessToken, user: plainModelToInstance(UserDto, user) };
   }
 
   @Post("login/phone")
@@ -162,7 +165,7 @@ export class AuthController {
     const { accessToken, refreshToken, user } =
       await this.authService.loginByPhone(dto);
     this.setRefreshCookie(res, refreshToken);
-    return { accessToken, user };
+    return { accessToken, user: plainModelToInstance(UserDto, user) };
   }
 
   @Post("login/phone/otp/request")
@@ -182,7 +185,7 @@ export class AuthController {
     const { accessToken, refreshToken, user } =
       await this.authService.verifyPhoneOtp(dto);
     this.setRefreshCookie(res, refreshToken);
-    return { accessToken, user };
+    return { accessToken, user: plainModelToInstance(UserDto, user) };
   }
 
   @Get("me")
@@ -190,7 +193,9 @@ export class AuthController {
   @ApiOperation({ summary: "Текущий пользователь" })
   @ApiResponse({ status: 200, type: UserDto })
   async me(@UserId() userId: string): Promise<UserDto> {
-    return this.authService.me(userId);
+    const user = await this.authService.me(userId);
+
+    return plainModelToInstance(UserDto, user);
   }
 
   @Post("refresh")
@@ -207,7 +212,10 @@ export class AuthController {
       | undefined;
     const out = await this.authService.refresh(token);
     this.setRefreshCookie(res, out.refreshToken); // ротация
-    return { accessToken: out.accessToken, user: out.user };
+    return {
+      accessToken: out.accessToken,
+      user: plainModelToInstance(UserDto, out.user),
+    };
   }
 
   @Post("logout")
@@ -230,7 +238,10 @@ export class AuthController {
   // OAuth Yandex
   // шаг 1 — редиректим пользователя на Яндекс
   @Get("yandex")
-  redirectToYandex(@Res() res: Response): void {
+  redirectToYandex(
+    @Res() res: Response,
+    @Query("returnUrl") returnUrl?: string
+  ): void {
     const clientId = this.configService.get<string>("YANDEX_CLIENT_ID");
     const redirectUri = this.configService.get<string>("YANDEX_REDIRECT_URI");
     if (!clientId || !redirectUri) {
@@ -243,6 +254,12 @@ export class AuthController {
     url.searchParams.set("redirect_uri", redirectUri);
     url.searchParams.set("scope", "login:email");
 
+    // берём безопасный путь или корень
+    const safeReturnPath = this.authService.getSafeReturnPath(returnUrl) ?? "/";
+
+    // кладём в state (можно без encode, но так нагляднее)
+    url.searchParams.set("state", encodeURIComponent(safeReturnPath));
+
     res.redirect(url.toString());
   }
 
@@ -250,6 +267,7 @@ export class AuthController {
   @Get("yandex/callback")
   async yandexCallback(
     @Query("code") code: string,
+    @Query("state") state: string | undefined,
     @Res({ passthrough: true }) res: Response
   ): Promise<void> {
     if (!code) {
@@ -260,9 +278,45 @@ export class AuthController {
 
     this.setRefreshCookie(res, refreshToken);
 
-    const frontendUrl =
-      this.configService.get<string>("FRONTEND_URL") ??
-      "http://localhost:5173/";
-    res.redirect(frontendUrl);
+    const frontendBase =
+      this.configService.get<string>("FRONTEND_URL") ?? "http://localhost:5173";
+
+    // достаём безопасный путь из state
+    const decodedState = state ? decodeURIComponent(state) : undefined;
+    const safeReturnPath =
+      this.authService.getSafeReturnPath(decodedState) ?? "/";
+
+    // аккуратно собираем полный URL
+    const redirectUrl = new URL(safeReturnPath, frontendBase).toString();
+
+    res.redirect(redirectUrl);
+  }
+
+  @Post("password/reset/request")
+  @HttpCode(200)
+  @ApiOperation({ summary: "Запросить письмо для восстановления пароля" })
+  @ApiResponse({ status: 200, schema: { example: { ok: true } } })
+  @Throttle({ default: { limit: 5, ttl: 60_000 } }) // 5 раз в минуту с IP
+  async requestPasswordReset(
+    @Body() body: RequestPasswordResetDto
+  ): Promise<{ ok: true }> {
+    await this.authService.requestPasswordReset(body.email);
+    // Не раскрываем, есть пользователь или нет
+    return { ok: true };
+  }
+
+  @Post("password/reset/confirm")
+  @HttpCode(200)
+  @ApiOperation({ summary: "Подтвердить восстановление пароля" })
+  @ApiResponse({ status: 200, schema: { example: { ok: true } } })
+  async confirmPasswordReset(
+    @Body() body: ConfirmPasswordResetDto
+  ): Promise<{ ok: true }> {
+    await this.authService.confirmPasswordReset({
+      userId: body.userId,
+      rawToken: body.token,
+      newPassword: body.password,
+    });
+    return { ok: true };
   }
 }

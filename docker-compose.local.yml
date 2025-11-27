@@ -47,3 +47,102 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: gennio-backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DB_HOST: postgres
+      REDIS_URL: redis://redis:6379/0
+      REDIS_BULL_URL: redis://redis:6379/1
+      RABBIT_HOST: rabbitmq
+      NODE_ENV: development
+      LOG_LEVEL: info
+    volumes:
+      - .:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
+    command: npm run start:dev
+
+  ai-generation:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      RABBIT_HOST: rabbitmq
+      NODE_ENV: development
+      LOG_LEVEL: info
+    volumes:
+      - .:/app
+      - /app/node_modules
+    depends_on:
+      - rabbitmq
+    command: npm run start:ai:dev
+
+  frontend:
+    build:
+      context: ../gennio-frontend
+      dockerfile: Dockerfile.dev
+    container_name: gennio-frontend
+    restart: unless-stopped
+    env_file:
+      - ../gennio-frontend/.env.local
+    volumes:
+      - ../gennio-frontend:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    command: npm run dev
+
+  loki:
+    image: grafana/loki:2.9.2
+    container_name: gennio-loki
+    restart: unless-stopped
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - loki_data:/tmp/loki  
+
+  promtail:
+    image: grafana/promtail:2.9.2
+    container_name: gennio-promtail
+    restart: unless-stopped
+    volumes:
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./promtail-config.yml:/etc/promtail/config.yml
+    depends_on:
+      - loki
+
+  alerts:
+    build: ./alerts
+    container_name: gennio-alerts-local
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - LOKI_URL=http://loki:3100
+      - POLL_SEC=30
+      - TG_TOKEN=${TG_TOKEN}
+      - TG_CHAT_ID=${TG_CHAT_ID}
+    depends_on:
+      - loki
+
+volumes:
+  loki_data:

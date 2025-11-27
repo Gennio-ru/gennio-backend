@@ -16,6 +16,16 @@ import { APP_GUARD } from "@nestjs/core";
 import { ThrottlerGuard } from "@nestjs/throttler";
 import { ModelJobModule } from "./modules/model-job/model-job.module";
 import { CategoriesModule } from "./modules/categories/categories.module";
+import { LoggerModule } from "nestjs-pino";
+import { UserTokenTransactionsModule } from "./modules/tokens/user-token-transactions.module";
+import { PricingModule } from "./modules/pricing/pricing.module";
+import { PaymentsModule } from "./modules/payments/payments.module";
+import { CleanupModule } from "./modules/cleanup/cleanup.module";
+import { ScheduleModule } from "@nestjs/schedule";
+
+const rawLevel = process.env.LOG_LEVEL || "info";
+const level = rawLevel.toLowerCase();
+const isPretty = level === "debug";
 
 @Module({
   imports: [
@@ -42,6 +52,23 @@ import { CategoriesModule } from "./modules/categories/categories.module";
       },
       inject: [ConfigService],
     }),
+    LoggerModule.forRoot({
+      pinoHttp: {
+        level,
+        transport: isPretty ? { target: "pino-pretty" } : undefined,
+        customLogLevel(req, res, err) {
+          if (res.statusCode >= 500 || err) return "error";
+          if (res.statusCode >= 400) return "warn";
+          return "info";
+        },
+        formatters: { level: (label) => ({ level: label }) },
+        customProps: (req) => ({
+          service: "backend",
+          requestId: req.headers["x-request-id"],
+        }),
+      },
+    }),
+    ScheduleModule.forRoot(),
     UsersModule,
     AuthModule,
     PromptsModule,
@@ -51,6 +78,10 @@ import { CategoriesModule } from "./modules/categories/categories.module";
     MailQueueModule,
     ModelJobModule,
     CategoriesModule,
+    UserTokenTransactionsModule,
+    PricingModule,
+    PaymentsModule,
+    CleanupModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

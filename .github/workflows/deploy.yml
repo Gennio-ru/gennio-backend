@@ -1,26 +1,59 @@
-name: 🚀 Deploy to Stage Server
+name: 🚀 Deploy Backend
 
 on:
   push:
     branches:
       - stage
+      - main
 
 jobs:
-  deploy:
+  stage-deploy:
+    if: github.ref == 'refs/heads/stage'
     runs-on: ubuntu-latest
-
     steps:
-      - name: 📥 Checkout repo
-        uses: actions/checkout@v4
-
-      - name: ⚙️ Connect to server and deploy
-        uses: appleboy/ssh-action@v1.2.0
+      - uses: actions/checkout@v4
+      - uses: appleboy/ssh-action@v1.2.0
         with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
+          host: ${{ secrets.STAGE_SSH_HOST }}
+          username: ${{ secrets.STAGE_SSH_USER }}
+          key: ${{ secrets.STAGE_SSH_KEY }}
           script: |
             cd /opt/gennio/gennio-backend
             git pull origin stage
             docker compose -f docker-compose.stage.yml down
-            docker compose -f docker-compose.stage.yml up -d --build
+            docker compose -f docker-compose.stage.yml up -d --build --scale ai-generation=3
+
+  prod-deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout repo
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Deploy to Production (backend + frontend)
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.PROD_SSH_HOST }}
+          username: ${{ secrets.PROD_SSH_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          script: |
+            set -e
+
+            # Один деплой за раз
+            (
+              flock -n 9 || { echo "🚫 Deploy is already running, aborting"; exit 1; }
+
+              echo "🔄 Updating frontend repo..."
+              cd /opt/gennio/gennio-frontend
+              git pull origin main
+
+              echo "🔄 Updating backend repo..."
+              cd /opt/gennio/gennio-backend
+              git pull origin main
+
+              echo "🐳 Recreating containers..."
+              docker compose -f docker-compose.prod.yml down
+              docker compose -f docker-compose.prod.yml up -d --build --scale ai-generation=3
+
+              echo "✅ Deploy done"
+            ) 9>/var/lock/gennio-deploy.lock

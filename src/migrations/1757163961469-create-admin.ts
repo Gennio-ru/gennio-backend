@@ -9,8 +9,8 @@ export class Name1757163961469 implements MigrationInterface {
 
     await queryRunner.query(
       `
-                      INSERT INTO "users" (id, email, "passwordHash", role, "isActive", "createdAt", "updatedAt")
-                      VALUES (uuid_generate_v4(), $1, $2, 'admin', true, NOW(), NOW())
+                      INSERT INTO "users" (id, email, "passwordHash", role, "isActive", "createdAt", "updatedAt", "isEmailVerified")
+                      VALUES (uuid_generate_v4(), $1, $2, 'admin', true, NOW(), NOW(), true)
                       ON CONFLICT (email) DO NOTHING
                       `,
       ["vladimirnehoc@mail.ru", passwordHash]

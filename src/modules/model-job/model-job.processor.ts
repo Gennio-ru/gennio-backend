@@ -6,6 +6,10 @@ import { ModelJob } from "./model-job.entity";
 import { ModelJobStatusType } from "./types/model-job.enum";
 import { ModelJobService } from "./model-job.service";
 import { IModelJobCreate } from "./types/model-job-mutations.interface";
+import {
+  MODEL_JOB_RMQ_EVENTS,
+  ModelJobCreatedPayload,
+} from "./types/model-job.rmq-events";
 
 type JobMessage = {
   modelJobId: string;
@@ -20,8 +24,11 @@ export class ModelJobsProcessor {
     private readonly modelJobService: ModelJobService
   ) {}
 
-  @EventPattern("model_job_created")
-  async handleJob(@Payload() data: JobMessage, @Ctx() ctx: RmqContext) {
+  @EventPattern(MODEL_JOB_RMQ_EVENTS.CREATED)
+  async handleJob(
+    @Payload() data: ModelJobCreatedPayload,
+    @Ctx() ctx: RmqContext
+  ) {
     const channel = ctx.getChannelRef();
     const msg = ctx.getMessage();
 

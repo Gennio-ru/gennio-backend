@@ -21,6 +21,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { ConfigService } from "@nestjs/config";
 import axios from "axios";
+import { ErrorCode } from "src/common/errors/error-code.enum";
 
 @Injectable()
 export class AuthService {
@@ -35,6 +36,16 @@ export class AuthService {
     @InjectRepository(Session)
     private readonly sessionsRepository: Repository<Session>
   ) {}
+
+  /** Общая проверка: аккаунт заблокирован */
+  private ensureNotBlocked(user: User) {
+    if (user.isBlocked) {
+      throw new BadRequestException({
+        handled: true,
+        code: ErrorCode.ACCOUNT_IS_BLOCKED,
+      });
+    }
+  }
 
   private parseTtl(s: string): number {
     const m = /^(\d+)([smhd])$/.exec(s);
@@ -55,7 +66,7 @@ export class AuthService {
       role: user.role,
       email: user.email,
       phone: user.phone,
-      credits: user.credits,
+      tokens: user.tokens,
       isActive: user.isActive,
     };
     return this.jwtService.sign(payload, {
@@ -142,6 +153,15 @@ export class AuthService {
     const isMatch = await bcrypt.compare(dto.password, user.passwordHash);
     if (!isMatch) throw new UnauthorizedException("Invalid credentials");
 
+    this.ensureNotBlocked(user);
+
+    if (!user.isEmailVerified) {
+      throw new BadRequestException({
+        handled: true,
+        code: ErrorCode.EMAIL_NOT_CONFIRMED,
+      });
+    }
+
     await this.usersService.markLastLogin(user.id);
     return this.issueTokensAndPersistSession(user);
   }
@@ -153,6 +173,8 @@ export class AuthService {
     const isMatch = await bcrypt.compare(dto.password, user.passwordHash);
     if (!isMatch) throw new UnauthorizedException("Invalid credentials");
 
+    this.ensureNotBlocked(user);
+
     await this.usersService.markLastLogin(user.id);
     return this.issueTokensAndPersistSession(user);
   }
@@ -161,8 +183,6 @@ export class AuthService {
   async requestPhoneOtp({ phone }: RequestPhoneOtpDto) {
     const code = crypto.randomInt(100000, 999999).toString();
     const ttlSec = this.OTP_TTL_MIN * 60;
-
-    console.log(`Generated code is - ${code}`);
 
     await this.otpStore.set("phone", phone, code, ttlSec);
 
@@ -191,6 +211,8 @@ export class AuthService {
       await this.usersService.setPhoneVerified(user.id, true);
       user = await this.usersService.findById(user.id);
     }
+
+    this.ensureNotBlocked(user);
 
     await this.usersService.markLastLogin(user.id);
     return this.issueTokensAndPersistSession(user);
@@ -235,6 +257,9 @@ export class AuthService {
     const user = await this.usersService.findById(userId);
     if (!user || !user.isActive)
       throw new UnauthorizedException("User inactive");
+
+    // 👇 заблокированного тоже не пускаем, но уже “handled” ошибкой
+    this.ensureNotBlocked(user);
 
     // Revoke old session
     session.revokedAt = new Date();
@@ -296,10 +321,29 @@ export class AuthService {
         email: profile.default_email ?? null,
         isEmailVerified: !!profile.default_email,
       });
+    } else {
+      this.ensureNotBlocked(user);
     }
 
     await this.usersService.markLastLogin(user.id);
     return this.issueTokensAndPersistSession(user);
+  }
+
+  // Для умного редиректа yandex OAuth
+  getSafeReturnPath(raw?: string | null): string | null {
+    if (!raw) return null;
+
+    try {
+      raw = decodeURIComponent(raw);
+    } catch {}
+
+    // разрешаем только относительные пути вида "/something"
+    if (!raw.startsWith("/")) return null;
+
+    // не даём протокол-relative URLs типа "//evil.com"
+    if (raw.startsWith("//")) return null;
+
+    return raw;
   }
 
   /** Отправить ссылку подтверждения email (Redis) */
@@ -355,5 +399,94 @@ export class AuthService {
       await this.usersService.setEmailVerified(user.id, true);
     }
     return user;
+  }
+
+  async resendConfirmEmail(rawEmail: string): Promise<void> {
+    const email = rawEmail.trim().toLowerCase();
+
+    const user = await this.usersService.findByEmail(email);
+
+    if (!user || user.isEmailVerified) {
+      return;
+    }
+
+    await this.sendEmailConfirmForUser(user);
+  }
+
+  /** Отправить ссылку для восстановления пароля */
+  async sendPasswordResetForUser(user: User) {
+    if (!user.email) return;
+
+    const raw = crypto.randomBytes(32).toString("hex");
+
+    const ttlMs = this.parseTtl(
+      this.configService.get("PASSWORD_RESET_TTL") || "1h"
+    );
+    const ttlSec = Math.floor(ttlMs / 1000);
+    const expireHours = Math.ceil(ttlSec / 3600);
+
+    const secret =
+      this.configService.get("PASSWORD_RESET_SECRET") || "dev-password-reset";
+
+    const digest = this.hmacSha256Hex(raw, secret);
+    await this.otpStore.setHashed("password_reset", user.id, digest, ttlSec);
+
+    const base = this.configService.get("FRONTEND_URL");
+    const url = new URL(base);
+    url.pathname = "/auth/password-reset";
+    url.searchParams.set("userId", user.id);
+    url.searchParams.set("token", raw);
+
+    await this.mailService.sendPasswordResetLink({
+      to: user.email,
+      link: url.toString(),
+      project: "Gennio",
+      expireHours,
+      supportEmail: "support@gennio.ru",
+    });
+  }
+
+  /** Публичный запрос на восстановление пароля по email */
+  async requestPasswordReset(rawEmail: string): Promise<void> {
+    const email = rawEmail.trim().toLowerCase();
+
+    // Не светим наличие/отсутствие пользователя
+    const user = await this.usersService.findByEmail(email);
+    if (!user) return;
+
+    await this.sendPasswordResetForUser(user);
+  }
+
+  /** Подтвердить восстановление пароля по ссылке и установить новый пароль */
+  async confirmPasswordReset(params: {
+    userId: string;
+    rawToken: string;
+    newPassword: string;
+  }): Promise<void> {
+    const { userId, rawToken, newPassword } = params;
+
+    const secret =
+      this.configService.get("PASSWORD_RESET_SECRET") || "dev-password-reset";
+    const digest = this.hmacSha256Hex(rawToken, secret);
+
+    const res = await this.otpStore.compareHashedAndConsume(
+      "password_reset",
+      userId,
+      digest
+    );
+
+    if (res === -1) {
+      throw new BadRequestException("Ссылка устарела");
+    }
+    if (res === 0) {
+      throw new BadRequestException("Неверная ссылка");
+    }
+
+    const user = await this.usersService.findById(userId);
+    if (!user) throw new BadRequestException("Пользователь не найден");
+
+    // Меняем пароль
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await this.usersService.updatePasswordHash(user.id, passwordHash);
   }
 }

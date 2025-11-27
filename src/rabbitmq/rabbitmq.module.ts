@@ -4,7 +4,7 @@ import { ClientsModule, Transport } from "@nestjs/microservices";
 @Module({})
 export class RabbitmqModule {
   static register(
-    options: { name?: string; urls?: string[] } = {}
+    options: { name?: string; urls?: string[]; queue?: string } = {}
   ): DynamicModule {
     const clientName = options.name || "RABBITMQ_SERVICE";
 
@@ -15,10 +15,8 @@ export class RabbitmqModule {
       throw new Error("rabbitMQ user or pass not found");
     }
 
-    const host =
-      process.env.NODE_ENV === "production" ? "rabbitmq" : "localhost";
-
-    const stageUrl = `amqp://${user}:${pass}@${host}:5672/`;
+    const host = process.env.RABBIT_HOST || "localhost";
+    const url = `amqp://${user}:${pass}@${host}:5672/`;
 
     return {
       module: RabbitmqModule,
@@ -28,8 +26,8 @@ export class RabbitmqModule {
             name: clientName,
             transport: Transport.RMQ,
             options: {
-              urls: options.urls || [stageUrl],
-              queue: "jobs",
+              urls: options.urls || [url],
+              queue: options.queue || "jobs",
               queueOptions: { durable: true },
             },
           },
