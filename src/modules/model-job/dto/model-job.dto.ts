@@ -12,6 +12,7 @@ import { FileDto } from "src/modules/files/dto/file.dto";
 import { Expose, Transform, Type } from "class-transformer";
 import { UserRole } from "src/modules/users/types/user-role.enum";
 import { buildPublicUrl } from "src/common/utils/file-url.util";
+import { PromptDto } from "src/modules/prompts/dto/prompt.dto";
 
 export class ModelJobBaseDto implements IModelJobBase {
   @ApiProperty({ enum: ModelType, enumName: "ModelType" })
@@ -36,6 +37,10 @@ export class ModelJobBaseDto implements IModelJobBase {
     example: "Мягкое освещение, крупный план",
   })
   promptId: string | null;
+
+  @ApiProperty({ type: () => PromptDto, nullable: true })
+  @Type(() => PromptDto)
+  prompt!: PromptDto | null;
 
   @ApiProperty({ example: "user-123" })
   userId!: string;
