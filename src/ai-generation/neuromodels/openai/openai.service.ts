@@ -39,7 +39,7 @@ export class OpenAiImageService {
         throw new Error(`Fetch image failed: ${r.status} ${r.statusText}`);
       }
       const ab = await r.arrayBuffer();
-      return sharp(Buffer.from(ab)).jpeg({ quality: 90 }).toBuffer();
+      return sharp(Buffer.from(ab)).jpeg({ quality: 95 }).toBuffer();
     }
 
     throw new Error("No b64_json or url in image response item");
