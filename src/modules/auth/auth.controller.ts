@@ -65,14 +65,12 @@ export class AuthController {
   private cookieOptions() {
     const secure = (process.env.COOKIE_SECURE ?? "false") === "true";
     const sameSite = secure ? ("none" as const) : ("lax" as const);
-    const domain = process.env.COOKIE_DOMAIN || undefined;
     const path = process.env.COOKIE_PATH || "/api/auth"; // учти глобальный префикс /api
     const ttl = process.env.JWT_REFRESH_TTL || "30d";
     return {
       httpOnly: true,
       secure,
       sameSite,
-      domain,
       path,
       maxAge: this.parseTtl(ttl),
     };
