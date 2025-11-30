@@ -29,13 +29,13 @@ export class StartImageEditByPromptIdDto
 
   @ApiProperty({
     example: "Мягкое освещение, крупный план",
-    maxLength: 500,
-    description: "Не более 500 символов",
+    maxLength: 300,
+    description: "Не более 300 символов",
   })
   @IsString()
   @IsOptional()
   @IsNotEmpty()
-  @MaxLength(500, { message: "Текст не должен превышать 500 символов" })
+  @MaxLength(300, { message: "Текст не должен превышать 300 символов" })
   text?: string;
 
   @ApiProperty()
@@ -49,12 +49,12 @@ export class StartImageEditByPromptTextDto
 {
   @ApiProperty({
     example: "Мягкое освещение, крупный план",
-    maxLength: 500,
-    description: "Не более 500 символов",
+    maxLength: 700,
+    description: "Не более 700 символов",
   })
   @IsString()
   @IsNotEmpty()
-  @MaxLength(500, { message: "Текст не должен превышать 500 символов" })
+  @MaxLength(700, { message: "Текст не должен превышать 700 символов" })
   text: string;
 
   @ApiProperty()
@@ -68,26 +68,11 @@ export class StartImageGenerateByPromptTextDto
 {
   @ApiProperty({
     example: "Мягкое освещение, крупный план",
-    maxLength: 500,
-    description: "Не более 500 символов",
+    maxLength: 700,
+    description: "Не более 700 символов",
   })
   @IsString()
   @IsNotEmpty()
-  @MaxLength(500, { message: "Текст не должен превышать 500 символов" })
-  text: string;
-}
-
-export class StartTextGenerateDto
-  extends StartProcessBaseDto
-  implements Omit<IModelJobCreate, "userId" | "type" | "tariffCode">
-{
-  @ApiProperty({
-    example: "Сгенерируй текст новогоднего поздравления",
-    maxLength: 500,
-    description: "Не более 500 символов",
-  })
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(500, { message: "Текст не должен превышать 500 символов" })
+  @MaxLength(700, { message: "Текст не должен превышать 700 символов" })
   text: string;
 }
