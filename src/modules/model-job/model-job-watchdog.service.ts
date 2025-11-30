@@ -10,6 +10,7 @@ import { ModelJobGateway } from "./model-job.gateway";
 import { Logger } from "nestjs-pino";
 import { ConfigService } from "@nestjs/config";
 import { ModelJobService } from "./model-job.service";
+import { ErrorCode } from "src/common/errors/error-code.enum";
 
 @Injectable()
 export class ModelJobWatchdogService {
@@ -60,7 +61,7 @@ export class ModelJobWatchdogService {
     for (const job of stuckJobs) {
       await this.failJobWithRefund(
         job,
-        "Задача зависла в очереди, попробуйте ещё раз",
+        ErrorCode.JOB_STALLED,
         "queued_timeout"
       );
     }
@@ -91,7 +92,7 @@ export class ModelJobWatchdogService {
     for (const job of stuckJobs) {
       await this.failJobWithRefund(
         job,
-        "Время обработки истекло, попробуйте ещё раз",
+        ErrorCode.PROCESSING_TIMEOUT,
         "processing_timeout"
       );
     }

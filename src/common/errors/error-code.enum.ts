@@ -7,6 +7,10 @@ export enum ErrorCode {
   MODEL_JOB_NOT_FOUND = "MODEL_JOB_NOT_FOUND",
   MODEL_UNAVAILABLE = "MODEL_UNAVAILABLE",
 
+  // генерация
+  JOB_STALLED = "JOB_STALLED", // превышено время ожидания в очереди
+  PROCESSING_TIMEOUT = "PROCESSING_TIMEOUT", // превышено время генерации
+
   // нейросети
   MODERATION_BLOCKED = "MODERATION_BLOCKED",
 

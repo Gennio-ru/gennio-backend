@@ -76,6 +76,7 @@ export class ModelJobService {
         outputFile: true,
         outputPreviewFile: true,
         user: true,
+        prompt: true,
       },
     });
 
@@ -336,7 +337,9 @@ export class ModelJobService {
         const promptData = await this.promptsService.findOne(payload.promptId);
 
         const finalPrompt =
-          promptData.text +
+          `${promptData.text}
+
+          The visual style and mood described above should stay the same; only the content may be adjusted.` +
           (payload.text
             ? `\n\n### Additional instructions\n${payload.text}`
             : "");

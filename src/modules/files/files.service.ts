@@ -16,6 +16,7 @@ import { DeleteFileResponseDto } from "./dto/delete-file-response.dto";
 import { Readable } from "typeorm/platform/PlatformTools";
 import sharp from "sharp";
 import { buildPublicUrl } from "src/common/utils/file-url.util";
+import { Logger } from "nestjs-pino";
 
 type Format = "jpeg" | "png" | "webp";
 
@@ -36,7 +37,8 @@ export class FilesService {
     @Inject(S3_CLIENT) private readonly s3: S3Client,
     private readonly cfg: ConfigService,
     @InjectRepository(FileEntity)
-    private readonly repository: Repository<FileEntity>
+    private readonly repository: Repository<FileEntity>,
+    private readonly logger: Logger
   ) {
     this.bucket = this.cfg.get<string>("YANDEX_S3_BUCKET")!;
     this.baseUrl = this.cfg.get<string>("YANDEX_S3_ENDPOINT")!;
@@ -141,14 +143,33 @@ export class FilesService {
       throw new NotFoundException("File not found");
     }
 
-    await this.s3.send(
-      new DeleteObjectCommand({
-        Bucket: fileEntity.bucket,
-        Key: fileEntity.key,
-      })
-    );
+    // 1) Пытаемся удалить из БД
+    try {
+      await this.repository.delete({ id: fileEntity.id });
+    } catch (e: any) {
+      if (e.code === "23503") {
+        throw new Error(
+          `Нельзя удалить файл: он всё ещё привязан к другим сущностям (id=${fileEntity.id})`
+        );
+      }
 
-    await this.repository.delete({ id: fileEntity.id });
+      throw e;
+    }
+
+    // 2) А потом уже пробуем удалить из S3
+    try {
+      await this.s3.send(
+        new DeleteObjectCommand({
+          Bucket: fileEntity.bucket,
+          Key: fileEntity.key,
+        })
+      );
+    } catch (e) {
+      this.logger.error(
+        `Failed to delete file object from S3 (id=${fileEntity.id})`,
+        e as any
+      );
+    }
 
     return { ok: true, id: fileEntity.id };
   }

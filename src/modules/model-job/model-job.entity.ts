@@ -9,6 +9,7 @@ import {
 import { ModelTariffCode } from "../pricing/types/pricing.enum";
 import { FileEntity } from "../files/files.entity";
 import { User } from "../users/user.entity";
+import { Prompt } from "../prompts/prompt.entity";
 
 @Entity("model_jobs")
 export class ModelJob extends BaseEntity implements IModelJob {
@@ -26,6 +27,10 @@ export class ModelJob extends BaseEntity implements IModelJob {
 
   @Column({ type: "uuid", nullable: true })
   promptId: string | null;
+
+  @ManyToOne(() => Prompt)
+  @JoinColumn({ name: "promptId" })
+  prompt!: Prompt;
 
   @Column({ type: "uuid" })
   userId: string;
