@@ -23,16 +23,26 @@ async function queryErrors(startNs, endNs) {
 
   const url = new URL("/loki/api/v1/query_range", LOKI_URL);
   url.searchParams.set("query", query);
-  // url.searchParams.set("start", startNs.toString());
-  // url.searchParams.set("end", endNs.toString());
+  url.searchParams.set("start", startNs.toString());
+  url.searchParams.set("end", endNs.toString());
   url.searchParams.set("limit", "500");
 
   const res = await fetch(url);
-  console.log(res);
   if (!res.ok) {
     throw new Error(`Loki error: ${res.status} ${await res.text()}`);
   }
   const data = await res.json();
+
+  console.log("[alerts] loki result count =", data?.data?.result?.length ?? 0);
+
+  // Можно ещё посмотреть одну строку:
+  if (data?.data?.result?.length) {
+    const firstStream = data.data.result[0];
+    const [ts, line] = firstStream.values?.[0] ?? [];
+    console.log("[alerts] sample ts =", ts);
+    console.log("[alerts] sample line =", line);
+  }
+
   return (data && data.data && data.data.result) || [];
 }
 
