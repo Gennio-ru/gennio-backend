@@ -50,8 +50,6 @@ export class PromptsController {
     @Query() query: FindPromptsDto,
     @ReqUser() user: ReqUserData
   ): Promise<PaginationResult<PromptDto>> {
-    throw new Error("!!!!!");
-
     const page = await this.promptsService.findMany(query);
 
     return paginatePlainToInstance(PromptResponseDto, page, {
