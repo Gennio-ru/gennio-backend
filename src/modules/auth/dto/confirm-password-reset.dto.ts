@@ -1,5 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { IsString, MinLength } from "class-validator";
+import { IsNotEmpty, IsString, MaxLength, MinLength } from "class-validator";
 
 export class ConfirmPasswordResetDto {
   @ApiProperty({ example: "f4581a6a-a33a-48cd-a07b-5638d9f7c649" })
@@ -16,7 +16,8 @@ export class ConfirmPasswordResetDto {
     example: "NewStrongPassword123!",
     description: "Новый пароль пользователя",
   })
-  @IsString()
-  @MinLength(8)
+  @IsNotEmpty({ message: "Пароль обязателен" })
+  @MinLength(8, { message: "Пароль должен содержать минимум 8 символов" })
+  @MaxLength(64, { message: "Пароль не должен превышать 64 символа" })
   password!: string;
 }
