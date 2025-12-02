@@ -20,7 +20,7 @@ function nowNs() {
 // Берём и "Unhandled exception", и доменные "ModelJob failed"
 async function queryErrors(startNs, endNs) {
   const query =
-    '{job="docker",service="backend"} |~ "Unhandled exception|ModelJob failed"';
+    '{container="/gennio-backend"} |~ "Unhandled exception|ModelJob failed"';
 
   const url = new URL("/loki/api/v1/query_range", LOKI_URL);
   url.searchParams.set("query", query);
