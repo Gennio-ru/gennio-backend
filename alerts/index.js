@@ -24,8 +24,8 @@ async function queryErrors(startNs, endNs) {
 
   const url = new URL("/loki/api/v1/query_range", LOKI_URL);
   url.searchParams.set("query", query);
-  url.searchParams.set("start", startNs.toString());
-  url.searchParams.set("end", endNs.toString());
+  // url.searchParams.set("start", startNs.toString());
+  // url.searchParams.set("end", endNs.toString());
   url.searchParams.set("limit", "500");
 
   const res = await fetch(url);
