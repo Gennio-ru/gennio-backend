@@ -29,7 +29,6 @@ async function queryErrors(startNs, endNs) {
   url.searchParams.set("limit", "500");
 
   const res = await fetch(url);
-  console.log(res);
   if (!res.ok) {
     throw new Error(`Loki error: ${res.status} ${await res.text()}`);
   }
