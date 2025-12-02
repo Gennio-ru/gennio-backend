@@ -19,7 +19,8 @@ function nowNs() {
 
 // Берём и "Unhandled exception", и доменные "ModelJob failed"
 async function queryErrors(startNs, endNs) {
-  const query = '{container=~".+"} |~ "Unhandled exception|ModelJob failed"';
+  const query =
+    '{job="docker",service="backend"} |~ "Unhandled exception|ModelJob failed"';
 
   const url = new URL("/loki/api/v1/query_range", LOKI_URL);
   url.searchParams.set("query", query);
@@ -32,17 +33,6 @@ async function queryErrors(startNs, endNs) {
     throw new Error(`Loki error: ${res.status} ${await res.text()}`);
   }
   const data = await res.json();
-
-  console.log("[alerts] loki result count =", data?.data?.result?.length ?? 0);
-
-  // Можно ещё посмотреть одну строку:
-  if (data?.data?.result?.length) {
-    const firstStream = data.data.result[0];
-    const [ts, line] = firstStream.values?.[0] ?? [];
-    console.log("[alerts] sample ts =", ts);
-    console.log("[alerts] sample line =", line);
-  }
-
   return (data && data.data && data.data.result) || [];
 }
 
