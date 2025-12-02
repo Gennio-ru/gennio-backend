@@ -70,6 +70,7 @@ export class ModelJobController {
   async findMany(
     @Query() query: FindModelJobsDto
   ): Promise<PaginationResult<ModelJobDto>> {
+    throw new BadRequestException("!!!!!");
     const page = await this.modelJobService.findMany(query);
 
     return paginatePlainToInstance(ModelJobDto, page);
