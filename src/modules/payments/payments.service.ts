@@ -143,17 +143,30 @@ export class PaymentsService {
 
     const returnUrl = `${this.frontendUrl}${safeReturnPath}?modal=payment-result&paymentId=${payment.id}`;
 
-    const yoPayment = await this.yookassa.createPayment({
-      amount: pack.priceRub,
-      description: pack.name,
-      returnUrl,
-      metadata: {
-        paymentId: payment.id,
-        kind: "TOKENS_PACK",
-        packId: pack.id,
-      },
-      capture: true,
-    });
+    let yoPayment;
+
+    try {
+      yoPayment = await this.yookassa.createPayment({
+        amount: pack.priceRub, // или сразу toFixed(2) — см. шаг 2
+        description: pack.name,
+        returnUrl,
+        metadata: {
+          paymentId: payment.id,
+          kind: "TOKENS_PACK",
+          packId: pack.id,
+        },
+        capture: true,
+      });
+    } catch (err: any) {
+      // Тут ты наконец увидишь настоящую ошибку Юкассы
+      this.logger.error(
+        "YooKassa createPayment failed",
+        err?.response?.data ?? err
+      );
+      // Можно вместо общего 500 отдать пользователю бизнес-ошибку
+      // но для начала просто пробросим
+      throw err;
+    }
 
     payment.providerPaymentId = yoPayment.id;
     payment.confirmationUrl = yoPayment.confirmation?.confirmation_url ?? null;
