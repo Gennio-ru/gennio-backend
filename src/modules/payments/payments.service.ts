@@ -158,13 +158,20 @@ export class PaymentsService {
         capture: true,
       });
     } catch (err: any) {
-      // Тут ты наконец увидишь настоящую ошибку Юкассы
+      const status = err?.response?.status;
+      const data = err?.response?.data;
+
+      // 1. Грубый, но честный лог в stdout (всегда видно в docker logs)
+      console.error("YooKassa createPayment failed RAW", {
+        status,
+        data,
+      });
+
+      // 2. А Nest-логгеру отдадим уже строку
       this.logger.error(
-        "YooKassa createPayment failed",
-        err?.response?.data ?? err
+        `YooKassa createPayment failed: ${status} ${JSON.stringify(data)}`
       );
-      // Можно вместо общего 500 отдать пользователю бизнес-ошибку
-      // но для начала просто пробросим
+
       throw err;
     }
 
