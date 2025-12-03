@@ -429,7 +429,7 @@ export class ModelJobService {
     const imageBuffer = Buffer.from(res.imageBase64, "base64");
 
     const resultPreviewWebpBuffer =
-      await this.imageProcessingService.compressToWebp(imageBuffer);
+      await this.imageProcessingService.compressToWebp(imageBuffer, 30);
 
     const outputFile = await this.filesService.uploadBuffer(
       {

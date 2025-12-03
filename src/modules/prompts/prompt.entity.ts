@@ -13,12 +13,19 @@ export class Prompt extends BaseEntity implements IPrompt {
   @Column({ type: "text" })
   description: string;
 
-  @Column({ type: "uuid", nullable: true })
-  beforeImageId: string | null;
+  @Column({ type: "uuid" })
+  beforeImageId: string;
 
-  @ManyToOne(() => FileEntity, { onDelete: "SET NULL", nullable: true })
+  @ManyToOne(() => FileEntity, { onDelete: "CASCADE" })
   @JoinColumn({ name: "beforeImageId" })
   beforeImage: FileEntity;
+
+  @Column({ type: "uuid", nullable: true })
+  beforePreviewImageId: string | null;
+
+  @ManyToOne(() => FileEntity, { onDelete: "CASCADE" })
+  @JoinColumn({ name: "beforePreviewImageId" })
+  beforePreviewImage: FileEntity;
 
   @Column({ type: "uuid" })
   afterImageId: string;
@@ -26,6 +33,13 @@ export class Prompt extends BaseEntity implements IPrompt {
   @ManyToOne(() => FileEntity, { onDelete: "CASCADE" })
   @JoinColumn({ name: "afterImageId" })
   afterImage: FileEntity;
+
+  @Column({ type: "uuid", nullable: true })
+  afterPreviewImageId: string | null;
+
+  @ManyToOne(() => FileEntity, { onDelete: "CASCADE" })
+  @JoinColumn({ name: "afterPreviewImageId" })
+  afterPreviewImage: FileEntity;
 
   @Column({
     type: "enum",

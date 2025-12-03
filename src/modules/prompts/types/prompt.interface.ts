@@ -4,8 +4,10 @@ import type { PromptType } from "src/modules/prompts/types/prompt-type.enum";
 export interface IPromptBase {
   title: string;
   description: string;
-  beforeImageId: string | null;
+  beforeImageId: string;
+  beforePreviewImageId: string | null;
   afterImageId: string;
+  afterPreviewImageId: string | null;
   type: PromptType;
   text: string;
   categoryId: string | null;

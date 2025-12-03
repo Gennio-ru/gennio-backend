@@ -21,12 +21,21 @@ export class PromptBaseDto implements IPromptBase {
 
   @Expose()
   @ApiProperty({ type: String })
-  beforeImageId!: string | null;
+  beforeImageId!: string;
 
   @Type(() => FileDto)
   @Expose()
   @ApiProperty()
   beforeImage?: FileDto;
+
+  @Expose()
+  @ApiProperty({ type: String })
+  beforePreviewImageId!: string | null;
+
+  @Type(() => FileDto)
+  @Expose()
+  @ApiProperty()
+  beforePreviewImage?: FileDto;
 
   @Expose()
   @ApiProperty()
@@ -36,6 +45,15 @@ export class PromptBaseDto implements IPromptBase {
   @Expose()
   @ApiProperty()
   afterImage!: FileDto;
+
+  @Expose()
+  @ApiProperty()
+  afterPreviewImageId!: string | null;
+
+  @Type(() => FileDto)
+  @Expose()
+  @ApiProperty()
+  afterPreviewImage!: FileDto;
 
   @Expose()
   @ApiProperty({ enum: PromptType, enumName: "PromptType" })

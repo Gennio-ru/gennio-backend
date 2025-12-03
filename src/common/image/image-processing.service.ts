@@ -1,4 +1,3 @@
-// src/common/image/image-processing.service.ts
 import { Injectable } from "@nestjs/common";
 import sharp from "sharp";
 
