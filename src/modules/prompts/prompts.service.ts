@@ -22,7 +22,7 @@ export class PromptsService {
   async findOne(id: string): Promise<Prompt> {
     const prompt = await this.repository.findOne({
       where: { id },
-      relations: ["afterImage", "beforeImage"],
+      relations: ["afterPreviewImage", "beforePreviewImage"],
     });
     if (!prompt) {
       throw new NotFoundException("Prompt not found");
@@ -37,8 +37,8 @@ export class PromptsService {
       "prompt",
       (queryBuilder) => {
         queryBuilder
-          .leftJoinAndSelect("prompt.beforeImage", "beforeFile")
-          .leftJoinAndSelect("prompt.afterImage", "afterFile")
+          .leftJoinAndSelect("prompt.beforePreviewImage", "beforeFile")
+          .leftJoinAndSelect("prompt.afterPreviewImage", "afterFile")
           .leftJoinAndSelect("prompt.category", "category")
           .distinct(true);
 
@@ -133,57 +133,5 @@ export class PromptsService {
     );
 
     return saved.id;
-  }
-
-  async backfillPreviews(): Promise<void> {
-    console.log("Starting prompts preview backfill (30kb re-generate)...");
-
-    const prompts = await this.repository.find();
-
-    let updatedCount = 0;
-    let skippedCount = 0;
-    let errorCount = 0;
-
-    for (const prompt of prompts) {
-      try {
-        // если нет вообще картинок — просто скипаем
-        if (!prompt.beforeImageId && !prompt.afterImageId) {
-          skippedCount++;
-          continue;
-        }
-
-        let beforePreviewImageId = prompt.beforePreviewImageId;
-        let afterPreviewImageId = prompt.afterPreviewImageId;
-
-        const updatePayload: Partial<typeof prompt> = {};
-
-        if (prompt.beforeImageId) {
-          beforePreviewImageId = await this.createPreview(prompt.beforeImageId);
-          updatePayload.beforePreviewImageId = beforePreviewImageId;
-        }
-
-        if (prompt.afterImageId) {
-          afterPreviewImageId = await this.createPreview(prompt.afterImageId);
-          updatePayload.afterPreviewImageId = afterPreviewImageId;
-        }
-
-        if (Object.keys(updatePayload).length > 0) {
-          await this.repository.update(prompt.id, updatePayload);
-          updatedCount++;
-        } else {
-          skippedCount++;
-        }
-      } catch (err) {
-        console.log(
-          `Failed to backfill previews for prompt id=${prompt.id}`,
-          err as any
-        );
-        errorCount++;
-      }
-    }
-
-    console.log(
-      `Prompts preview backfill finished: updated=${updatedCount}, skipped=${skippedCount}, errors=${errorCount}`
-    );
   }
 }

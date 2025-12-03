@@ -20,8 +20,8 @@ export class Prompt extends BaseEntity implements IPrompt {
   @JoinColumn({ name: "beforeImageId" })
   beforeImage: FileEntity;
 
-  @Column({ type: "uuid", nullable: true })
-  beforePreviewImageId: string | null;
+  @Column({ type: "uuid" })
+  beforePreviewImageId: string;
 
   @ManyToOne(() => FileEntity, { onDelete: "CASCADE" })
   @JoinColumn({ name: "beforePreviewImageId" })
@@ -34,8 +34,8 @@ export class Prompt extends BaseEntity implements IPrompt {
   @JoinColumn({ name: "afterImageId" })
   afterImage: FileEntity;
 
-  @Column({ type: "uuid", nullable: true })
-  afterPreviewImageId: string | null;
+  @Column({ type: "uuid" })
+  afterPreviewImageId: string;
 
   @ManyToOne(() => FileEntity, { onDelete: "CASCADE" })
   @JoinColumn({ name: "afterPreviewImageId" })

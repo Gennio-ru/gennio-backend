@@ -117,18 +117,32 @@ export class CleanupService {
         "jobPreview",
         "jobPreview.outputPreviewFileId = file.id"
       )
-      // Привязки к Prompt
+      // Привязки к Prompt (основные картинки)
       .leftJoin(Prompt, "promptBefore", "promptBefore.beforeImageId = file.id")
       .leftJoin(Prompt, "promptAfter", "promptAfter.afterImageId = file.id")
+      // Привязки к Prompt (превью)
+      .leftJoin(
+        Prompt,
+        "promptBeforePreview",
+        "promptBeforePreview.beforePreviewImageId = file.id"
+      )
+      .leftJoin(
+        Prompt,
+        "promptAfterPreview",
+        "promptAfterPreview.afterPreviewImageId = file.id"
+      )
       // Файл старше TTL
       .where("file.createdAt < :cutoff", { cutoff })
       // Ни одной ссылки из ModelJob
       .andWhere("jobInput.id IS NULL")
       .andWhere("jobOutput.id IS NULL")
       .andWhere("jobPreview.id IS NULL")
-      // Ни одной ссылки из Prompt
+      // Ни одной ссылки из Prompt (основные картинки)
       .andWhere("promptBefore.id IS NULL")
       .andWhere("promptAfter.id IS NULL")
+      // Ни одной ссылки из Prompt (превью)
+      .andWhere("promptBeforePreview.id IS NULL")
+      .andWhere("promptAfterPreview.id IS NULL")
       // Нам нужен только id файла
       .select(["file.id"])
       .orderBy("file.createdAt", "ASC")

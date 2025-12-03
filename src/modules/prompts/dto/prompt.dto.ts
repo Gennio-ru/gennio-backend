@@ -30,7 +30,7 @@ export class PromptBaseDto implements IPromptBase {
 
   @Expose()
   @ApiProperty({ type: String })
-  beforePreviewImageId!: string | null;
+  beforePreviewImageId!: string;
 
   @Type(() => FileDto)
   @Expose()
@@ -48,7 +48,7 @@ export class PromptBaseDto implements IPromptBase {
 
   @Expose()
   @ApiProperty()
-  afterPreviewImageId!: string | null;
+  afterPreviewImageId!: string;
 
   @Type(() => FileDto)
   @Expose()
@@ -82,15 +82,15 @@ export class PromptDto
 export class PromptResponseDto extends PromptDto {
   @Expose()
   @Transform(({ obj }) =>
-    buildPublicUrl(obj.beforeImage?.key, obj.beforeImage?.bucket)
+    buildPublicUrl(obj.beforePreviewImage?.key, obj.beforePreviewImage?.bucket)
   )
   @ApiProperty({ type: String, format: "uri", nullable: true })
-  beforeImageUrl!: string | null;
+  beforePreviewImageUrl!: string | null;
 
   @Expose()
   @Transform(({ obj }) =>
-    buildPublicUrl(obj.afterImage?.key, obj.afterImage?.bucket)
+    buildPublicUrl(obj.afterPreviewImage?.key, obj.afterPreviewImage?.bucket)
   )
   @ApiProperty({ type: String, format: "uri", nullable: true })
-  afterImageUrl!: string | null;
+  afterPreviewImageUrl!: string | null;
 }
