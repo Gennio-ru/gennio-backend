@@ -116,7 +116,7 @@ export class PromptsService {
 
     const previewWebp = await this.imageProcessingService.compressToWebp(
       originalBuffer,
-      20
+      30
     );
 
     const saved = await this.filesService.uploadBuffer(
@@ -136,7 +136,7 @@ export class PromptsService {
   }
 
   async backfillPreviews(): Promise<void> {
-    console.log("Starting prompts preview backfill...");
+    console.log("Starting prompts preview backfill (30kb re-generate)...");
 
     const prompts = await this.repository.find();
 
@@ -145,27 +145,30 @@ export class PromptsService {
     let errorCount = 0;
 
     for (const prompt of prompts) {
-      let needUpdate = false;
-      let beforePreviewImageId = prompt.beforePreviewImageId;
-      let afterPreviewImageId = prompt.afterPreviewImageId;
-
       try {
-        // только если есть оригинальное изображение и ещё нет превью
-        if (prompt.beforeImageId && !prompt.beforePreviewImageId) {
+        // если нет вообще картинок — просто скипаем
+        if (!prompt.beforeImageId && !prompt.afterImageId) {
+          skippedCount++;
+          continue;
+        }
+
+        let beforePreviewImageId = prompt.beforePreviewImageId;
+        let afterPreviewImageId = prompt.afterPreviewImageId;
+
+        const updatePayload: Partial<typeof prompt> = {};
+
+        if (prompt.beforeImageId) {
           beforePreviewImageId = await this.createPreview(prompt.beforeImageId);
-          needUpdate = true;
+          updatePayload.beforePreviewImageId = beforePreviewImageId;
         }
 
-        if (prompt.afterImageId && !prompt.afterPreviewImageId) {
+        if (prompt.afterImageId) {
           afterPreviewImageId = await this.createPreview(prompt.afterImageId);
-          needUpdate = true;
+          updatePayload.afterPreviewImageId = afterPreviewImageId;
         }
 
-        if (needUpdate) {
-          await this.repository.update(prompt.id, {
-            beforePreviewImageId,
-            afterPreviewImageId,
-          });
+        if (Object.keys(updatePayload).length > 0) {
+          await this.repository.update(prompt.id, updatePayload);
           updatedCount++;
         } else {
           skippedCount++;
