@@ -5,9 +5,9 @@ export interface IPromptBase {
   title: string;
   description: string;
   beforeImageId: string;
-  beforePreviewImageId: string | null;
+  beforePreviewImageId: string;
   afterImageId: string;
-  afterPreviewImageId: string | null;
+  afterPreviewImageId: string;
   type: PromptType;
   text: string;
   categoryId: string | null;

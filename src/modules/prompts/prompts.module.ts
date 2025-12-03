@@ -5,15 +5,10 @@ import { PromptsController } from "./prompts.controller";
 import { Prompt } from "./prompt.entity";
 import { FilesModule } from "../files/files.module";
 import { ImageProcessingService } from "src/common/image/image-processing.service";
-import { PromptsPreviewBootstrapService } from "./prompts-preview-bootstrap.service";
 
 @Module({
   imports: [TypeOrmModule.forFeature([Prompt]), FilesModule],
-  providers: [
-    PromptsService,
-    ImageProcessingService,
-    PromptsPreviewBootstrapService,
-  ],
+  providers: [PromptsService, ImageProcessingService],
   controllers: [PromptsController],
   exports: [PromptsService],
 })
