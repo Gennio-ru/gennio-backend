@@ -1,9 +1,14 @@
-import { Injectable, Logger, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { PaymentEntity } from "./payments.entity";
 import { PaymentStatus } from "./types/payments.enum";
-import { YookassaClient } from "./yookassa.client";
+import { YookassaClient, YookassaReceipt } from "./yookassa.client";
 import {
   TOKEN_PACKS,
   TokensPackId,
@@ -17,6 +22,8 @@ import { FindPaymentsDto } from "./dto/find-payments.dto";
 import { PaginationResult } from "src/common/pagination/pagination.interface";
 import { paginate } from "src/common/pagination/pagination.util";
 import { PaymentFullDto } from "./dto/payments.dto";
+import { UsersService } from "../users/users.service";
+import { ErrorCode } from "src/common/errors/error-code.enum";
 
 @Injectable()
 export class PaymentsService {
@@ -29,7 +36,8 @@ export class PaymentsService {
     private readonly yookassa: YookassaClient,
     private readonly userTokenTransactionService: UserTokenTransactionService,
     private readonly configService: ConfigService,
-    private readonly paymentsGateway: PaymentsGateway
+    private readonly paymentsGateway: PaymentsGateway,
+    private readonly usersService: UsersService
   ) {
     this.frontendUrl = this.configService.get<string>("FRONTEND_URL")!;
   }
@@ -116,6 +124,14 @@ export class PaymentsService {
       throw new NotFoundException(`Unknown tokens pack id: ${opts.packId}`);
     }
 
+    const user = await this.usersService.findById(opts.userId);
+
+    if (!user) {
+      throw new NotFoundException(`User not found: ${opts.userId}`);
+    }
+
+    const amountValue = pack.priceRub.toFixed(2);
+
     const meta: TokensPackPaymentMeta = {
       kind: "TOKENS_PACK",
       packId: pack.id,
@@ -126,7 +142,7 @@ export class PaymentsService {
 
     const payment = this.paymentsRepo.create({
       userId: opts.userId,
-      amount: pack.priceRub.toFixed(2),
+      amount: amountValue, // строка "350.00"
       currency: "RUB",
       provider: "yookassa",
       status: PaymentStatus.PENDING,
@@ -143,11 +159,40 @@ export class PaymentsService {
 
     const returnUrl = `${this.frontendUrl}${safeReturnPath}?modal=payment-result&paymentId=${payment.id}`;
 
+    // Собираем чек под YooKassa
+    const receipt: YookassaReceipt = {
+      customer: {},
+      items: [
+        {
+          description: pack.name, // "Пакет 50 токенов"
+          quantity: "1.00",
+          amount: {
+            value: amountValue,
+            currency: "RUB",
+          },
+          vat_code: 1,
+          payment_mode: "full_prepayment",
+          payment_subject: "service",
+        },
+      ],
+    };
+
+    if (user.email) {
+      receipt.customer!.email = user.email;
+    }
+    if (user.phone) {
+      receipt.customer!.phone = user.phone;
+    }
+    // Если ни email, ни phone нет — убираем customer, чтобы не слать пустой объект
+    if (!receipt.customer!.email && !receipt.customer!.phone) {
+      delete receipt.customer;
+    }
+
     let yoPayment;
 
     try {
       yoPayment = await this.yookassa.createPayment({
-        amount: pack.priceRub, // или сразу toFixed(2) — см. шаг 2
+        amount: pack.priceRub,
         description: pack.name,
         returnUrl,
         metadata: {
@@ -156,23 +201,30 @@ export class PaymentsService {
           packId: pack.id,
         },
         capture: true,
+        receipt,
       });
     } catch (err: any) {
       const status = err?.response?.status;
       const data = err?.response?.data;
 
-      // 1. Грубый, но честный лог в stdout (всегда видно в docker logs)
-      console.error("YooKassa createPayment failed RAW", {
-        status,
-        data,
-      });
-
-      // 2. А Nest-логгеру отдадим уже строку
       this.logger.error(
         `YooKassa createPayment failed: ${status} ${JSON.stringify(data)}`
       );
 
-      throw err;
+      if (status && status >= 400 && status < 500) {
+        throw new BadRequestException({
+          handled: true,
+          code: ErrorCode.PAYMENT_PROVIDER_ERROR,
+          providerCode: data?.code,
+          providerMessage: data?.description,
+          providerParameter: data?.parameter,
+        });
+      }
+
+      throw new BadRequestException({
+        handled: false,
+        code: ErrorCode.PAYMENT_FAILED,
+      });
     }
 
     payment.providerPaymentId = yoPayment.id;
@@ -185,51 +237,51 @@ export class PaymentsService {
     return payment;
   }
 
-  async createPayment(opts: {
-    userId: string;
-    amount: number;
-    description?: string;
-    meta?: any;
-    returnPath?: string;
-  }) {
-    const payment = this.paymentsRepo.create({
-      userId: opts.userId,
-      amount: opts.amount.toFixed(2),
-      currency: "RUB",
-      provider: "yookassa",
-      status: PaymentStatus.PENDING,
-      description: opts.description ?? "Оплата в Gennio",
-      meta: opts.meta ?? null,
-    });
+  // async createPayment(opts: {
+  //   userId: string;
+  //   amount: number;
+  //   description?: string;
+  //   meta?: any;
+  //   returnPath?: string;
+  // }) {
+  //   const payment = this.paymentsRepo.create({
+  //     userId: opts.userId,
+  //     amount: opts.amount.toFixed(2),
+  //     currency: "RUB",
+  //     provider: "yookassa",
+  //     status: PaymentStatus.PENDING,
+  //     description: opts.description ?? "Оплата в Gennio",
+  //     meta: opts.meta ?? null,
+  //   });
 
-    await this.paymentsRepo.save(payment);
+  //   await this.paymentsRepo.save(payment);
 
-    const safeReturnPath =
-      opts.returnPath && opts.returnPath.startsWith("/")
-        ? opts.returnPath
-        : "/";
+  //   const safeReturnPath =
+  //     opts.returnPath && opts.returnPath.startsWith("/")
+  //       ? opts.returnPath
+  //       : "/";
 
-    const returnUrl = `${this.frontendUrl}${safeReturnPath}?modal=payment-result&paymentId=${payment.id}`;
+  //   const returnUrl = `${this.frontendUrl}${safeReturnPath}?modal=payment-result&paymentId=${payment.id}`;
 
-    const yoPayment = await this.yookassa.createPayment({
-      amount: opts.amount,
-      description: payment.description ?? undefined,
-      returnUrl,
-      metadata: {
-        paymentId: payment.id,
-      },
-      capture: true,
-    });
+  //   const yoPayment = await this.yookassa.createPayment({
+  //     amount: opts.amount,
+  //     description: payment.description ?? undefined,
+  //     returnUrl,
+  //     metadata: {
+  //       paymentId: payment.id,
+  //     },
+  //     capture: true,
+  //   });
 
-    payment.providerPaymentId = yoPayment.id;
-    payment.confirmationUrl = yoPayment.confirmation?.confirmation_url ?? null;
-    payment.providerPayload = yoPayment;
-    payment.status = this.mapYookassaStatus(yoPayment.status);
+  //   payment.providerPaymentId = yoPayment.id;
+  //   payment.confirmationUrl = yoPayment.confirmation?.confirmation_url ?? null;
+  //   payment.providerPayload = yoPayment;
+  //   payment.status = this.mapYookassaStatus(yoPayment.status);
 
-    await this.paymentsRepo.save(payment);
+  //   await this.paymentsRepo.save(payment);
 
-    return payment;
-  }
+  //   return payment;
+  // }
 
   //
   // Геттеры

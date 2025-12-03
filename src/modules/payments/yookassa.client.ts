@@ -3,6 +3,35 @@ import { Injectable, Logger } from "@nestjs/common";
 import axios, { AxiosInstance } from "axios";
 import { v4 as uuidv4 } from "uuid";
 
+export type YookassaVatCode = 1;
+// 1 — без НДС, 2 — 0%, 3 — 10%, 4 — 20%, 5 — 10/110, 6 — 20/120
+
+export type YookassaReceiptItem = {
+  description: string;
+  quantity: string; // "1.00"
+  amount: {
+    value: string; // "350.00"
+    currency: "RUB";
+  };
+  vat_code: YookassaVatCode;
+  payment_mode?:
+    | "full_prepayment"
+    | "full_payment"
+    | "advance"
+    | "partial_prepayment";
+  payment_subject?: "service" | "commodity" | "payment" | "another";
+};
+
+export type YookassaReceiptCustomer = {
+  email?: string;
+  phone?: string;
+};
+
+export type YookassaReceipt = {
+  customer?: YookassaReceiptCustomer;
+  items: YookassaReceiptItem[];
+};
+
 export type YookassaCreatePaymentParams = {
   amount: number;
   description?: string;
@@ -10,6 +39,7 @@ export type YookassaCreatePaymentParams = {
   failUrl?: string;
   metadata?: Record<string, any>;
   capture?: boolean;
+  receipt?: YookassaReceipt;
 };
 
 export type YookassaRefundParams = {
@@ -38,7 +68,7 @@ export class YookassaClient {
 
     this.http = axios.create({
       baseURL: "https://api.yookassa.ru/v3",
-      // вот это ровно то же самое, что `curl -u shopId:secretKey`
+      // то же самое, что `curl -u shopId:secretKey`
       auth:
         this.shopId && this.secretKey
           ? {
@@ -72,7 +102,7 @@ export class YookassaClient {
 
     const body: any = {
       amount: {
-        value: params.amount.toFixed(2),
+        value: params.amount.toFixed(2), // "350.00"
         currency: "RUB",
       },
       confirmation: {
@@ -84,6 +114,10 @@ export class YookassaClient {
       capture: params.capture ?? false,
     };
 
+    if (params.receipt) {
+      body.receipt = params.receipt;
+    }
+
     // failUrl отдельно Юкасса не поддерживает — можно положить в metadata,
     // если хочешь на фронте этим управлять
     if (params.failUrl) {
@@ -93,20 +127,34 @@ export class YookassaClient {
       };
     }
 
-    const { data } = await this.http.post("/payments", body, {
-      headers: {
-        "Idempotence-Key": idempotenceKey,
-      },
-    });
+    try {
+      const { data } = await this.http.post("/payments", body, {
+        headers: {
+          "Idempotence-Key": idempotenceKey,
+        },
+      });
 
-    return data;
+      return data;
+    } catch (err: any) {
+      const status = err?.response?.status;
+      const respData = err?.response?.data;
+
+      console.error("YooKassa createPayment failed RAW", {
+        status,
+        data: respData,
+      });
+
+      this.logger.error(
+        `YooKassa createPayment failed: ${status} ${JSON.stringify(respData)}`
+      );
+
+      throw err;
+    }
   }
 
   /**
    * Получить платёж
    * GET /v3/payments/{payment_id}
-   * Аналог:
-   * curl https://api.yookassa.ru/v3/payments/{id} -u shopId:secretKey
    */
   async getPayment(paymentId: string): Promise<any> {
     this.ensureCredentials();

@@ -2,6 +2,10 @@ export enum ErrorCode {
   // биллинг / токены
   TOKENS_NOT_ENOUGH = "TOKENS_NOT_ENOUGH",
 
+  // платежи
+  PAYMENT_FAILED = "PAYMENT_FAILED", // не удалось создать/обработать платёж в провайдере
+  PAYMENT_PROVIDER_ERROR = "PAYMENT_PROVIDER_ERROR", // валидная 4xx ошибка от провайдера (receipt, amount и т.п.)
+
   // модель / джобы
   MODEJ_JOB_TYPE_NOT_FOUND = "MODEJ_JOB_TYPE_NOT_FOUND",
   MODEL_JOB_NOT_FOUND = "MODEL_JOB_NOT_FOUND",
