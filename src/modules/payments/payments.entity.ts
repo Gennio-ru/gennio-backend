@@ -16,7 +16,7 @@ export class PaymentEntity extends BaseEntity implements IPayment {
 
   // Сумма в рублях
   @Column({ type: "numeric", precision: 10, scale: 2 })
-  amount: string; // храним как строку (numeric)
+  amount: string;
 
   @Column({ type: "varchar", length: 3, default: "RUB" })
   currency: string;

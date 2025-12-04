@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  InternalServerErrorException,
   Logger,
   NotFoundException,
 } from "@nestjs/common";
@@ -221,9 +222,10 @@ export class PaymentsService {
         });
       }
 
-      throw new BadRequestException({
+      throw new InternalServerErrorException({
         handled: false,
         code: ErrorCode.PAYMENT_FAILED,
+        message: err.message,
       });
     }
 
