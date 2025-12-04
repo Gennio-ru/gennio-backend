@@ -221,10 +221,7 @@ export class PaymentsService {
         });
       }
 
-      throw new BadRequestException({
-        handled: false,
-        code: ErrorCode.PAYMENT_FAILED,
-      });
+      throw new Error(err);
     }
 
     payment.providerPaymentId = yoPayment.id;
