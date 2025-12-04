@@ -94,6 +94,10 @@ export const envValidationSchema = Joi.object({
   YOOKASSA_SHOP_ID: Joi.string().required(),
   YOOKASSA_SECRET_KEY: Joi.string().required(),
 
+  PAYMENTS_GATEWAY_URL: Joi.string().required(),
+  PAYMENTS_GATEWAY_API_KEY: Joi.string().required(),
+  INTERNAL_WEBHOOK_KEY: Joi.string().min(16),
+
   // ==== Cleanup / File TTL ====
   MODEL_JOB_RESULTS_TTL_HOURS: Joi.number().integer().min(1).default(24),
   FILE_ORPHAN_TTL_HOURS: Joi.number().integer().min(1).default(24),
