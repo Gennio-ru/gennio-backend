@@ -91,6 +91,8 @@ export const envValidationSchema = Joi.object({
     .default("info"),
 
   // ==== YooKassa ====
+  YOOKASSA_MODE: Joi.string().valid("gateway", "direct").default("gateway"),
+
   YOOKASSA_SHOP_ID: Joi.string().required(),
   YOOKASSA_SECRET_KEY: Joi.string().required(),
 
