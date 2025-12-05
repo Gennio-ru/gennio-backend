@@ -338,6 +338,7 @@ export class ModelJobService {
 
         const finalPrompt =
           `${promptData.text}
+          If the image contains a person and the description does not clearly ask to make them older or scarier, keep them about the same age and at least as visually pleasant as in the original photo. Do not add wrinkles, aging, distort or exaggerate facial features, and do not make them look older or less attractive. If there is no person in the image, ignore these instructions completely and do not invent people.
 
           The visual style and mood described above should stay the same; only the content may be adjusted.` +
           (payload.text
