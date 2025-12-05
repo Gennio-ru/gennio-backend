@@ -1,4 +1,3 @@
-// alerts.js
 import fetch from "node-fetch";
 
 const LOKI_URL = process.env.LOKI_URL || "http://loki:3100";
@@ -20,7 +19,7 @@ function nowNs() {
 // Берём и "Unhandled exception", и доменные "ModelJob failed"
 async function queryErrors(startNs, endNs) {
   const query =
-    '{container="/gennio-backend"} |~ "Unhandled exception|ModelJob failed"';
+    '{container="/gennio-backend"} | json | (handled="false") or (msg="ModelJob failed")';
 
   const url = new URL("/loki/api/v1/query_range", LOKI_URL);
   url.searchParams.set("query", query);
@@ -74,24 +73,6 @@ function normalize(line, ts) {
 
   const msg = obj?.msg;
 
-  // 1) Unhandled exception (HTTP 5xx)
-  if (msg === "Unhandled exception") {
-    if (obj.status && obj.status < 500) return null;
-
-    return {
-      kind: "unhandled",
-      ts,
-      service: obj.service || "backend",
-      method: obj.method,
-      url: obj.url,
-      status: obj.status,
-      errorName: obj.errorName,
-      errorMessage: obj.errorMessage || obj.msg || "<no message>",
-      stack: obj.stack,
-      requestId: obj.requestId,
-    };
-  }
-
   // 2) Твой доменный лог о провале задачи
   if (msg === "ModelJob failed") {
     return {
@@ -112,7 +93,20 @@ function normalize(line, ts) {
     };
   }
 
-  return null;
+  if (obj.status && obj.status < 500) return null;
+
+  return {
+    kind: "unhandled",
+    ts,
+    service: obj.service || "backend",
+    method: obj.method,
+    url: obj.url,
+    status: obj.status,
+    errorName: obj.errorName,
+    errorMessage: obj.errorMessage || obj.msg || "<no message>",
+    stack: obj.stack,
+    requestId: obj.requestId,
+  };
 }
 
 function formatUnhandled(entries, pollSec) {

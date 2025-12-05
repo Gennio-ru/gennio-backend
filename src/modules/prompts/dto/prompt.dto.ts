@@ -21,12 +21,21 @@ export class PromptBaseDto implements IPromptBase {
 
   @Expose()
   @ApiProperty({ type: String })
-  beforeImageId!: string | null;
+  beforeImageId!: string;
 
   @Type(() => FileDto)
   @Expose()
   @ApiProperty()
   beforeImage?: FileDto;
+
+  @Expose()
+  @ApiProperty({ type: String })
+  beforePreviewImageId!: string;
+
+  @Type(() => FileDto)
+  @Expose()
+  @ApiProperty()
+  beforePreviewImage?: FileDto;
 
   @Expose()
   @ApiProperty()
@@ -36,6 +45,15 @@ export class PromptBaseDto implements IPromptBase {
   @Expose()
   @ApiProperty()
   afterImage!: FileDto;
+
+  @Expose()
+  @ApiProperty()
+  afterPreviewImageId!: string;
+
+  @Type(() => FileDto)
+  @Expose()
+  @ApiProperty()
+  afterPreviewImage!: FileDto;
 
   @Expose()
   @ApiProperty({ enum: PromptType, enumName: "PromptType" })
@@ -64,15 +82,15 @@ export class PromptDto
 export class PromptResponseDto extends PromptDto {
   @Expose()
   @Transform(({ obj }) =>
-    buildPublicUrl(obj.beforeImage?.key, obj.beforeImage?.bucket)
+    buildPublicUrl(obj.beforePreviewImage?.key, obj.beforePreviewImage?.bucket)
   )
   @ApiProperty({ type: String, format: "uri", nullable: true })
-  beforeImageUrl!: string | null;
+  beforePreviewImageUrl!: string | null;
 
   @Expose()
   @Transform(({ obj }) =>
-    buildPublicUrl(obj.afterImage?.key, obj.afterImage?.bucket)
+    buildPublicUrl(obj.afterPreviewImage?.key, obj.afterPreviewImage?.bucket)
   )
   @ApiProperty({ type: String, format: "uri", nullable: true })
-  afterImageUrl!: string | null;
+  afterPreviewImageUrl!: string | null;
 }

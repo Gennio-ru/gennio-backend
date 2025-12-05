@@ -21,12 +21,11 @@ import { DeleteFileResponseDto } from "./dto/delete-file-response.dto";
 import { FileDto } from "./dto/file.dto";
 import { UserId } from "src/common/decorators/user-id.decorator";
 import { ImageProcessingService } from "src/common/image/image-processing.service";
-import { RequireTokens } from "src/common/decorators/require-tokens.decorator";
-import { RequireTokensGuard } from "src/common/guards/require-tokens.guard";
 import { RolesGuard } from "../users/user-roles.guard";
 import { Roles } from "../users/user-roles.decorator";
 import { UserRole } from "../users/types/user-role.enum";
 import { plainModelToInstance } from "src/common/helpers/entity.helper";
+import { randomUUID } from "crypto";
 
 @ApiTags("files")
 @Controller("files")
@@ -83,8 +82,8 @@ export class FilesController {
     const saved = await this.filesService.uploadBuffer(
       {
         buffer: normalizedWebpBuffer,
-        originalname: file.originalname,
-        mimetype: "image/jpeg",
+        originalname: `${randomUUID()}.webp`,
+        mimetype: "image/webp",
         size: normalizedWebpBuffer.length,
       },
       {
@@ -138,8 +137,8 @@ export class FilesController {
     const saved = await this.filesService.uploadBuffer(
       {
         buffer: normalizedWebpBuffer,
-        originalname: file.originalname,
-        mimetype: "image/jpeg",
+        originalname: `${randomUUID()}.webp`,
+        mimetype: "image/webp",
         size: normalizedWebpBuffer.length,
       },
       {
