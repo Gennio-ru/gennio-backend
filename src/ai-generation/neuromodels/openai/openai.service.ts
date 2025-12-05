@@ -66,7 +66,7 @@ export class OpenAiImageService {
       params.size && params.size !== "auto" ? params.size : "1024x1024";
 
     const res = await this.client.images.generate({
-      model: "gpt-image-1",
+      model: "gpt-image-1-mini",
       prompt: params.prompt,
       size: resolvedSize,
       n: params.n,
@@ -98,7 +98,7 @@ export class OpenAiImageService {
     const imageFile = await this.prepareImageFile(image, imageFilename);
 
     const res = await this.client.images.edit({
-      model: "gpt-image-1",
+      model: "gpt-image-1-mini",
       image: imageFile,
       prompt,
       size: resolvedSize,
