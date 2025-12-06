@@ -117,18 +117,24 @@ export class AuthService {
 
   // === Регистрация по email+пароль, с отправкой письма ===
   async registerByEmail(dto: RegisterByEmailDto) {
+    const existing = await this.usersService.findByEmail(dto.email);
+    if (existing) {
+      throw new BadRequestException({
+        code: ErrorCode.EMAIL_ALREADY_EXISTS,
+        message: "Email is already registered",
+      });
+    }
+
     const user = await this.usersService.createByEmail(dto.email, dto.password);
     await this.usersService.markLastLogin(user.id);
 
     await this.sendEmailConfirmForUser(user);
 
-    // Управляем поведением флагом:
     const requireConfirm =
       (this.configService.get("REQUIRE_EMAIL_CONFIRM_BEFORE_LOGIN") ??
         "false") === "true";
 
     if (requireConfirm) {
-      // Ничего не выдаём, пока не подтвердит почту (фронт покажет экран “проверьте почту”)
       return {
         accessToken: undefined as any,
         refreshToken: undefined as any,
@@ -136,22 +142,40 @@ export class AuthService {
       };
     }
 
-    // Иначе — логиним как раньше
     return this.issueTokensAndPersistSession(user);
   }
 
   async registerByPhone(dto: RegisterByPhoneDto) {
+    const existing = await this.usersService.findByPhone(dto.phone);
+    if (existing) {
+      throw new BadRequestException({
+        code: ErrorCode.PHONE_ALREADY_EXISTS,
+        message: "Phone number is already registered",
+      });
+    }
+
     const user = await this.usersService.createByPhone(dto.phone, dto.password);
+
     await this.usersService.markLastLogin(user.id);
+
     return this.issueTokensAndPersistSession(user);
   }
 
   async loginByEmail(dto: LoginByEmailDto) {
     const user = await this.usersService.findByEmail(dto.email);
-    if (!user || !user.passwordHash)
-      throw new UnauthorizedException("Invalid credentials");
+    if (!user || !user.passwordHash) {
+      throw new BadRequestException({
+        handled: true,
+        code: ErrorCode.INVALID_CREDENTIALS,
+      });
+    }
     const isMatch = await bcrypt.compare(dto.password, user.passwordHash);
-    if (!isMatch) throw new UnauthorizedException("Invalid credentials");
+    if (!isMatch) {
+      throw new BadRequestException({
+        handled: true,
+        code: ErrorCode.INVALID_CREDENTIALS,
+      });
+    }
 
     this.ensureNotBlocked(user);
 
@@ -168,10 +192,19 @@ export class AuthService {
 
   async loginByPhone(dto: LoginByPhoneDto) {
     const user = await this.usersService.findByPhone(dto.phone);
-    if (!user || !user.passwordHash)
-      throw new UnauthorizedException("Invalid credentials");
+    if (!user || !user.passwordHash) {
+      throw new BadRequestException({
+        handled: true,
+        code: ErrorCode.INVALID_CREDENTIALS,
+      });
+    }
     const isMatch = await bcrypt.compare(dto.password, user.passwordHash);
-    if (!isMatch) throw new UnauthorizedException("Invalid credentials");
+    if (!isMatch) {
+      throw new BadRequestException({
+        handled: true,
+        code: ErrorCode.INVALID_CREDENTIALS,
+      });
+    }
 
     this.ensureNotBlocked(user);
 
