@@ -7,6 +7,7 @@ import { buildPublicUrl } from "src/common/utils/file-url.util";
 import { CategoryDto } from "src/modules/categories/dto/category.dto";
 import { FileDto } from "src/modules/files/dto/file.dto";
 import { UserRole } from "src/modules/users/types/user-role.enum";
+import { ModelType } from "src/modules/model-job/types/model-job.enum";
 
 export class PromptBaseDto implements IPromptBase {
   @Expose()
@@ -58,6 +59,10 @@ export class PromptBaseDto implements IPromptBase {
   @Expose()
   @ApiProperty({ enum: PromptType, enumName: "PromptType" })
   type!: PromptType;
+
+  @Expose()
+  @ApiProperty({ enum: ModelType, enumName: "ModelType" })
+  model!: ModelType;
 
   @Expose({ groups: [UserRole.Admin] })
   @ApiProperty({

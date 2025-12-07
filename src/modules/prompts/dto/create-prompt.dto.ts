@@ -1,6 +1,13 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsNotEmpty, IsOptional, IsString, IsUUID } from "class-validator";
+import {
+  IsEnum,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsUUID,
+} from "class-validator";
 import { IPromptCreate } from "../types/prompt-mutations.interface";
+import { ModelType } from "src/modules/model-job/types/model-job.enum";
 
 export class CreatePromptDto implements Omit<IPromptCreate, "type"> {
   @ApiProperty({ example: "Аниме-портрет" })
@@ -26,6 +33,13 @@ export class CreatePromptDto implements Omit<IPromptCreate, "type"> {
   @ApiProperty({ description: "Промпт шаблона" })
   @IsString()
   text: string;
+
+  @ApiProperty({
+    enum: ModelType,
+    enumName: "ModelType",
+  })
+  @IsEnum(ModelType)
+  model: ModelType;
 
   @ApiProperty({ description: "Категория" })
   @IsUUID()

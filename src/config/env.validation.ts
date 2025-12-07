@@ -78,6 +78,9 @@ export const envValidationSchema = Joi.object({
     .pattern(/^sk-[\w-]+/)
     .required(),
 
+  // ==== Google Gemini ====
+  GEMINI_API_SECRET: Joi.string().required(),
+
   // ==== Alerts / Telegram ====
   TG_TOKEN: Joi.string()
     .pattern(/^\d+:[\w-]+$/)

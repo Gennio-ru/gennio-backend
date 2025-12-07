@@ -1,5 +1,6 @@
 export enum ModelType {
   OpenAI = "OPENAI",
+  Gemini = "GEMINI",
 }
 
 export enum ModelJobStatusType {

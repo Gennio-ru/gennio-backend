@@ -10,7 +10,11 @@ import { ModelJob } from "./model-job.entity";
 import { ClientProxy } from "@nestjs/microservices";
 import { MODEL_JOB_CLIENT } from "./model-job.constants";
 import { IModelJobCreate } from "./types/model-job-mutations.interface";
-import { ModelJobStatusType, ModelJobType } from "./types/model-job.enum";
+import {
+  ModelJobStatusType,
+  ModelJobType,
+  ModelType,
+} from "./types/model-job.enum";
 import { FilesService } from "../files/files.service";
 import { ModelJobDto, ModelJobFullDto } from "./dto/model-job.dto";
 import { PromptsService } from "../prompts/prompts.service";
@@ -184,6 +188,7 @@ export class ModelJobService {
 
     const modelJob = this.repository.create({
       ...data,
+      model: data.model || ModelType.OpenAI,
       tokensCharged: tokens,
       resultsExpireAt,
     });
@@ -235,15 +240,15 @@ export class ModelJobService {
       this.gateway.sendJobUpdate(modelJobId, jobWithUrls);
     } catch (e) {
       let errorMessage: string;
-      let sendToLog: boolean = true;
+      let sendToLog = true;
 
-      if (e instanceof OpenAIApiError) {
-        if (e.code === "moderation_blocked") {
-          errorMessage = ErrorCode.MODERATION_BLOCKED;
-          sendToLog = false;
-        } else {
-          errorMessage = e.message ?? "Unknown OpenAI error";
-        }
+      const anyError = e as any;
+
+      if (anyError?.code === "moderation_blocked") {
+        errorMessage = ErrorCode.MODERATION_BLOCKED;
+        sendToLog = false;
+      } else if (e instanceof OpenAIApiError) {
+        errorMessage = e.message ?? "Unknown OpenAI error";
       } else if (e instanceof BadRequestException) {
         const resp = e.getResponse() as any;
 
@@ -350,6 +355,7 @@ export class ModelJobService {
           inputImageBase64: fileBuffer.toString("base64"),
           inputImageFilename: "input.jpeg",
           resolvedSize,
+          provider: payload.model,
         };
         break;
       }
@@ -371,6 +377,7 @@ export class ModelJobService {
           inputImageBase64: fileBuffer.toString("base64"),
           inputImageFilename: "input.jpeg",
           resolvedSize,
+          provider: payload.model,
         };
         break;
       }
@@ -383,6 +390,7 @@ export class ModelJobService {
         aiGenearationPayloadBase = {
           type: "IMAGE_GENERATE_BY_PROMPT_TEXT",
           promptText: payload.text,
+          provider: payload.model,
         };
         break;
       }
@@ -397,28 +405,23 @@ export class ModelJobService {
       aiGenearationPayloadBase as AiImageJobPayload
     );
 
-    //
-    // разруливаем ошибки воркера
-    //
     if (!res.ok) {
       const message = res.error || "ai-generation worker error";
       const status = res.status ?? 400;
 
-      const isSafety = status === 400 && /safety system/i.test(message); // твой кейс "Your request was rejected by the safety system"
+      const isModerationBlocked = res.code === "moderation_blocked";
 
-      // Всё, что < 500 — считаем бизнес-ошибкой OpenAI → 400
       if (status < 500) {
         throw new BadRequestException({
-          handled: true, // чтобы наверху понять, что это не "сломалось", а ожидаемая бизнес-ошибка
-          code: isSafety ? ErrorCode.MODERATION_BLOCKED : undefined,
-          provider: "openai",
+          handled: true,
+          code: isModerationBlocked ? ErrorCode.MODERATION_BLOCKED : undefined,
           status,
           requestId: res.requestId,
           message,
         });
       }
 
-      // 5xx — уже что-то серьёзное → 500, чтобы улетело в телегу
+      // 5xx — серьёзная тех. ошибка, улетит в телегу
       throw new Error(
         `ai-generation failed with status ${status}: ${message} (requestId=${
           res.requestId ?? "n/a"

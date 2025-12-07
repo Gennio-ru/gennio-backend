@@ -1,3 +1,5 @@
+import { ModelType } from "src/modules/model-job/types/model-job.enum";
+
 export type AiJobType =
   | "IMAGE_GENERATE_BY_PROMPT_TEXT"
   | "IMAGE_EDIT_BY_PROMPT_TEXT"
@@ -11,19 +13,27 @@ export interface AiImageJobPayload {
   inputImageBase64?: string | null;
   inputImageFilename?: string | null;
   resolvedSize?: "1024x1024" | "1024x1536" | "1536x1024";
+  provider: ModelType;
 }
 
-export interface AiImageJobResultOk {
+export type AiImageJobSuccessResult = {
   ok: true;
   imageBase64: string;
   usedTokens: Record<string, any>;
-}
+  status?: number | null;
+  requestId?: string | null;
+  code?: null;
+  error?: never;
+};
 
-export interface AiImageJobResultError {
+export type AiImageJobErrorResult = {
   ok: false;
   error: string;
-  requestId?: string | null;
   status?: number | null;
-}
+  requestId?: string | null;
+  code?: string | null;
+  imageBase64?: undefined;
+  usedTokens?: undefined;
+};
 
-export type AiImageJobResult = AiImageJobResultOk | AiImageJobResultError;
+export type AiImageJobResult = AiImageJobSuccessResult | AiImageJobErrorResult;

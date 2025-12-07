@@ -8,7 +8,8 @@ import {
   AllowedSize,
   ResolvedSize,
 } from "src/common/image/image-processing.service";
-import { GenerateImageResult, ImageQuality } from "./types";
+import { ImageQuality, OpenAIModel } from "./types";
+import { GenerateImageResult } from "../types";
 
 @Injectable()
 export class OpenAiImageService {
@@ -66,7 +67,7 @@ export class OpenAiImageService {
       params.size && params.size !== "auto" ? params.size : "1024x1024";
 
     const res = await this.client.images.generate({
-      model: "gpt-image-1-mini",
+      model: "gpt-image-1",
       prompt: params.prompt,
       size: resolvedSize,
       n: params.n,
@@ -76,7 +77,13 @@ export class OpenAiImageService {
 
     const imageBuffer = await this.toJpegBufferFromImagesResponse(res);
 
-    return { imageBuffer, usedTokens: res.usage || {} };
+    const usedTokens = {
+      ...res?.usage,
+      model: "gpt-image-1",
+      quality: params.quality,
+    };
+
+    return { imageBuffer, usedTokens };
   }
 
   /** Обработка входного изображения -> JPEG Buffer результата */
@@ -86,6 +93,7 @@ export class OpenAiImageService {
     imageFilename?: string;
     resolvedSize: ResolvedSize;
     quality: ImageQuality;
+    model?: OpenAIModel;
   }): Promise<GenerateImageResult> {
     const {
       image,
@@ -93,12 +101,13 @@ export class OpenAiImageService {
       imageFilename = "image.jpeg",
       resolvedSize,
       quality,
+      model = "gpt-image-1",
     } = params;
 
     const imageFile = await this.prepareImageFile(image, imageFilename);
 
     const res = await this.client.images.edit({
-      model: "gpt-image-1-mini",
+      model,
       image: imageFile,
       prompt,
       size: resolvedSize,
@@ -110,6 +119,12 @@ export class OpenAiImageService {
     // 3) Приводим результат к JPEG и отдаём буффер
     const imageBuffer = await this.toJpegBufferFromImagesResponse(res);
 
-    return { imageBuffer, usedTokens: res.usage || {} };
+    const usedTokens = {
+      ...res?.usage,
+      model,
+      quality,
+    };
+
+    return { imageBuffer, usedTokens };
   }
 }

@@ -4,6 +4,7 @@ import { Entity, Column, ManyToOne, JoinColumn } from "typeorm";
 import { FileEntity } from "../files/files.entity";
 import { BaseEntity } from "src/common/base/base.entity";
 import { Category } from "../categories/category.entity";
+import { ModelType } from "../model-job/types/model-job.enum";
 
 @Entity("prompts")
 export class Prompt extends BaseEntity implements IPrompt {
@@ -47,6 +48,12 @@ export class Prompt extends BaseEntity implements IPrompt {
     default: PromptType.ImageToImage,
   })
   type: PromptType;
+
+  @Column({
+    type: "enum",
+    enum: ModelType,
+  })
+  model: ModelType;
 
   @Column({ type: "text", default: "" })
   text: string;

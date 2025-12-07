@@ -28,7 +28,11 @@ import {
   ModelJobFullDto,
   ModelJobWithPreviewFileDto,
 } from "./dto/model-job.dto";
-import { ModelJobStatusType, ModelJobType } from "./types/model-job.enum";
+import {
+  ModelJobStatusType,
+  ModelJobType,
+  ModelType,
+} from "./types/model-job.enum";
 import { ModelTariffCode } from "../pricing/types/pricing.enum";
 import { ErrorResponseDto } from "src/common/errors/error-response.dto";
 import { RequireTokens } from "src/common/decorators/require-tokens.decorator";
@@ -111,7 +115,9 @@ export class ModelJobController {
       });
     }
 
-    return plainModelToInstance(ModelJobFullDto, modelJob);
+    return plainModelToInstance(ModelJobFullDto, modelJob, {
+      groups: [user.role],
+    });
   }
 
   @Post("/start-image-edit-by-prompt-id")
@@ -184,6 +190,7 @@ export class ModelJobController {
   ) {
     const data = await this.modelJobService.create({
       ...dto,
+      model: ModelType.OpenAI,
       type: ModelJobType.ImageGenerateByPromptText,
       userId,
       tariffCode: ModelTariffCode.ImageBasicGenerate,

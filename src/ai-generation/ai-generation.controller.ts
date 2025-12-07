@@ -4,17 +4,34 @@ import { OpenAiImageService } from "./neuromodels/openai/openai.service";
 import { AiImageJobPayload, AiImageJobResult } from "./ai-generation.types";
 import { AI_IMAGE_JOB_PATTERN } from "./ai-generation.constants";
 import { ConcurrencyGuard } from "./concurrency.guard";
+import { GeminiImageService } from "./neuromodels/gemini/gemini-image.service";
+import {
+  AI_IMAGE_PROVIDER_STRATEGIES,
+  AiImageProviderKey,
+} from "./ai-image-provider.strategies";
 
 @Controller()
 export class AiGenerationController {
   constructor(
-    private readonly openai: OpenAiImageService,
+    private readonly openAiImageService: OpenAiImageService,
+    private readonly geminiImageService: GeminiImageService,
     private readonly concurrencyGuard: ConcurrencyGuard
   ) {}
 
   @MessagePattern(AI_IMAGE_JOB_PATTERN)
   async handleImageJob(payload: AiImageJobPayload): Promise<AiImageJobResult> {
     return this.concurrencyGuard.run<AiImageJobResult>(async () => {
+      const providerKey: AiImageProviderKey = payload.provider;
+
+      const providerStrategy = AI_IMAGE_PROVIDER_STRATEGIES[providerKey];
+
+      if (!providerStrategy) {
+        return {
+          ok: false,
+          error: `Unsupported provider: ${providerKey}`,
+        };
+      }
+
       try {
         switch (payload.type) {
           case "IMAGE_GENERATE_BY_PROMPT_TEXT": {
@@ -25,12 +42,12 @@ export class AiGenerationController {
               };
             }
 
-            const { imageBuffer, usedTokens } = await this.openai.generateImage(
-              {
-                prompt: payload.promptText,
-                quality: "medium",
-              }
-            );
+            const { imageBuffer, usedTokens } =
+              await providerStrategy.generateImage({
+                payload,
+                openAiImageService: this.openAiImageService,
+                geminiImageService: this.geminiImageService,
+              });
 
             return {
               ok: true,
@@ -53,13 +70,12 @@ export class AiGenerationController {
               };
             }
 
-            const { imageBuffer, usedTokens } = await this.openai.editImage({
-              image: Buffer.from(payload.inputImageBase64, "base64"),
-              prompt: payload.promptText,
-              imageFilename: payload.inputImageFilename || "input.jpeg",
-              resolvedSize: payload.resolvedSize,
-              quality: "medium",
-            });
+            const { imageBuffer, usedTokens } =
+              await providerStrategy.editImage({
+                payload,
+                openAiImageService: this.openAiImageService,
+                geminiImageService: this.geminiImageService,
+              });
 
             return {
               ok: true,
@@ -74,18 +90,21 @@ export class AiGenerationController {
               error: `Unsupported AiJob type: ${payload.type}`,
             };
         }
-      } catch (e: any) {
+      } catch (error: any) {
         const message =
-          e?.message ||
+          error?.message ||
           "Unknown worker error (ai-generation microservice failed)";
-        const requestId = e?.requestId ?? e?.request_id ?? null;
-        const status = e?.status ?? null;
+        const requestId = error?.requestId ?? error?.request_id ?? null;
+        const status = error?.status ?? 400;
+
+        const isModerationBlocked = error?.code === "moderation_blocked";
 
         return {
           ok: false,
           error: message,
           requestId,
           status,
+          code: isModerationBlocked ? "moderation_blocked" : null,
         };
       }
     });
