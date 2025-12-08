@@ -2,7 +2,6 @@ import { OpenAiImageService } from "./neuromodels/openai/openai.service";
 import { GeminiImageService } from "./neuromodels/gemini/gemini-image.service";
 import { AiImageJobPayload } from "./ai-generation.types";
 import { ModelType } from "src/modules/model-job/types/model-job.enum";
-import { OpenAIModel } from "./neuromodels/openai/types";
 
 export type AiImageProviderKey = ModelType;
 
@@ -36,7 +35,7 @@ export const AI_IMAGE_PROVIDER_STRATEGIES: Record<
       const { imageBuffer, usedTokens } =
         await geminiImageService.generateImage({
           prompt: payload.promptText!,
-          // при необходимости сюда можно докинуть aspectRatio
+          aspectRatio: payload.aspectRatio,
         });
 
       return { imageBuffer, usedTokens };
@@ -51,7 +50,7 @@ export const AI_IMAGE_PROVIDER_STRATEGIES: Record<
       const { imageBuffer, usedTokens } = await geminiImageService.editImage({
         image: inputImageBuffer,
         prompt: payload.promptText!,
-        // сюда тоже можно прокинуть aspectRatio/mimeType при надобности
+        aspectRatio: payload.aspectRatio,
       });
 
       return { imageBuffer, usedTokens };
@@ -67,6 +66,7 @@ export const AI_IMAGE_PROVIDER_STRATEGIES: Record<
         await openAiImageService.generateImage({
           prompt: payload.promptText!,
           quality: "medium",
+          aspectRatio: payload.aspectRatio,
         });
 
       return { imageBuffer, usedTokens };
@@ -82,7 +82,7 @@ export const AI_IMAGE_PROVIDER_STRATEGIES: Record<
         image: inputImageBuffer,
         prompt: payload.promptText!,
         imageFilename: payload.inputImageFilename || "input.jpeg",
-        resolvedSize: payload.resolvedSize!,
+        aspectRatio: payload.aspectRatio,
         quality: "medium",
         model:
           payload.type === "IMAGE_EDIT_BY_PROMPT_ID"

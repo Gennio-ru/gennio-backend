@@ -7,6 +7,7 @@ export interface IModelJobBase {
   status: ModelJobStatusType;
   text: string | null;
   promptId: string | null;
+  aspectRatio: string | null;
   userId: string;
   inputFileId: string | null;
   outputFileId: string | null;

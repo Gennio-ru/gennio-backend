@@ -58,15 +58,10 @@ export class AiGenerationController {
 
           case "IMAGE_EDIT_BY_PROMPT_TEXT":
           case "IMAGE_EDIT_BY_PROMPT_ID": {
-            if (
-              !payload.promptText ||
-              !payload.inputImageBase64 ||
-              !payload.resolvedSize
-            ) {
+            if (!payload.promptText || !payload.inputImageBase64) {
               return {
                 ok: false,
-                error:
-                  "promptText, inputImageBase64 and resolvedSize are required",
+                error: "promptText and inputImageBase64 are required",
               };
             }
 

@@ -12,7 +12,7 @@ export interface AiImageJobPayload {
   // буфер исходного изображения (для edit)
   inputImageBase64?: string | null;
   inputImageFilename?: string | null;
-  resolvedSize?: "1024x1024" | "1024x1536" | "1536x1024";
+  aspectRatio?: string; // 1:1 || 2:3 ...
   provider: ModelType;
 }
 

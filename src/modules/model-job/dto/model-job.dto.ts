@@ -34,6 +34,13 @@ export class ModelJobBaseDto implements IModelJobBase {
   @ApiProperty({
     type: String,
     nullable: true,
+    example: "2:3",
+  })
+  aspectRatio: string | null;
+
+  @ApiProperty({
+    type: String,
+    nullable: true,
     example: "Мягкое освещение, крупный план",
   })
   promptId: string | null;

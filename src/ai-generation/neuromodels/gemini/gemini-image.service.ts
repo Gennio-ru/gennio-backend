@@ -10,6 +10,7 @@ import {
   GeminiModerationBlockedError,
   GeminiModerationFinishReason,
 } from "./errors";
+import { isGeminiAspectRatio } from "./helpers";
 
 type GeminiUsageMetadata = {
   promptTokenCount?: number;
@@ -32,7 +33,7 @@ export class GeminiImageService {
     // Если картинка есть – всё как раньше
     if (imagePart) {
       const buf = Buffer.from(imagePart.inlineData.data, "base64");
-      return sharp(buf).jpeg({ quality: 95 }).toBuffer();
+      return sharp(buf).jpeg({ quality: 97 }).toBuffer();
     }
 
     const finishReason = candidate?.finishReason ?? "UNKNOWN";
@@ -62,7 +63,7 @@ export class GeminiImageService {
   /** Генерация картинки Gemini 2.5 Flash Image */
   async generateImage(params: {
     prompt: string;
-    aspectRatio?: GeminiAspectRatio;
+    aspectRatio?: string;
   }): Promise<GenerateImageResult> {
     const { prompt, aspectRatio } = params;
 
@@ -71,7 +72,10 @@ export class GeminiImageService {
       contents: prompt,
       config: {
         imageConfig: {
-          aspectRatio,
+          aspectRatio:
+            aspectRatio && isGeminiAspectRatio(aspectRatio)
+              ? aspectRatio
+              : undefined,
         },
         responseModalities: ["Image"],
       },
@@ -93,7 +97,7 @@ export class GeminiImageService {
   async editImage(params: {
     image: Buffer;
     prompt: string;
-    aspectRatio?: GeminiAspectRatio;
+    aspectRatio?: string;
     mimeType?: string;
   }): Promise<GenerateImageResult> {
     const { image, prompt, aspectRatio, mimeType = "image/jpeg" } = params;
@@ -115,7 +119,10 @@ export class GeminiImageService {
       contents,
       config: {
         imageConfig: {
-          aspectRatio,
+          aspectRatio:
+            aspectRatio && isGeminiAspectRatio(aspectRatio)
+              ? aspectRatio
+              : undefined,
         },
         responseModalities: ["IMAGE"],
       },

@@ -43,6 +43,14 @@ export class StartImageEditByPromptTextDto implements IModelJobStart {
   @ApiProperty()
   @IsUUID()
   inputFileId!: string;
+
+  @ApiProperty({
+    example: "2:3",
+    description: "Формат",
+  })
+  @IsString()
+  @IsOptional()
+  aspectRatio?: string;
 }
 
 export class StartImageGenerateByPromptTextDto implements IModelJobStart {
@@ -55,4 +63,12 @@ export class StartImageGenerateByPromptTextDto implements IModelJobStart {
   @IsNotEmpty()
   @MaxLength(700, { message: "Текст не должен превышать 700 символов" })
   text: string;
+
+  @ApiProperty({
+    example: "2:3",
+    description: "Формат",
+  })
+  @IsString()
+  @IsOptional()
+  aspectRatio?: string;
 }

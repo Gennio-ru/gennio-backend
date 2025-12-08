@@ -9,10 +9,12 @@ export interface IModelJobCreate {
   inputFileId?: string;
   userId: string;
   tariffCode: ModelTariffCode;
+  aspectRatio?: string;
 }
 
 export interface IModelJobStart {
   text?: string;
   promptId?: string;
   inputFileId?: string;
+  aspectRatio?: string;
 }

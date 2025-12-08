@@ -338,7 +338,7 @@ export class ModelJobService {
         const fileBuffer = await this.filesService.getFileBufferById(
           payload.inputFileId
         );
-        const resolvedSize = this.getResolvedSizeFromFile(inputFile);
+        const aspectRatio = this.getAspectRatioFromFile(inputFile);
         const promptData = await this.promptsService.findOne(payload.promptId);
 
         const finalPrompt =
@@ -354,8 +354,8 @@ export class ModelJobService {
           promptText: finalPrompt,
           inputImageBase64: fileBuffer.toString("base64"),
           inputImageFilename: "input.jpeg",
-          resolvedSize,
-          provider: payload.model,
+          aspectRatio,
+          provider: promptData.model,
         };
         break;
       }
@@ -365,19 +365,17 @@ export class ModelJobService {
           throw new Error("не указано поле inputFileId");
         if (!payload.text) throw new Error("не указано поле text");
 
-        const inputFile = await this.filesService.getMeta(payload.inputFileId);
         const fileBuffer = await this.filesService.getFileBufferById(
           payload.inputFileId
         );
-        const resolvedSize = this.getResolvedSizeFromFile(inputFile);
 
         aiGenearationPayloadBase = {
           type: "IMAGE_EDIT_BY_PROMPT_TEXT",
           promptText: payload.text,
           inputImageBase64: fileBuffer.toString("base64"),
           inputImageFilename: "input.jpeg",
-          resolvedSize,
           provider: payload.model,
+          aspectRatio: payload.aspectRatio,
         };
         break;
       }
@@ -391,6 +389,7 @@ export class ModelJobService {
           type: "IMAGE_GENERATE_BY_PROMPT_TEXT",
           promptText: payload.text,
           provider: payload.model,
+          aspectRatio: payload.aspectRatio,
         };
         break;
       }
@@ -431,14 +430,19 @@ export class ModelJobService {
 
     const imageBuffer = Buffer.from(res.imageBase64, "base64");
 
+    const { extension, mimetype } =
+      await this.imageProcessingService.detectImageFormat(imageBuffer);
+
+    console.log(extension, mimetype);
+
     const resultPreviewWebpBuffer =
       await this.imageProcessingService.compressToWebp(imageBuffer, 80);
 
     const outputFile = await this.filesService.uploadBuffer(
       {
         buffer: imageBuffer,
-        originalname: "result.jpeg",
-        mimetype: "image/jpeg",
+        originalname: `gennio-result.${extension}`,
+        mimetype,
         size: imageBuffer.length,
       },
       { folder: "jobs", publicRead: true }
@@ -461,21 +465,53 @@ export class ModelJobService {
     };
   }
 
-  private getResolvedSizeFromFile(file: FileEntity): ResolvedSize {
-    const fromMeta = file.meta?.modelResolvedSize as ResolvedSize | undefined;
-    if (fromMeta) return fromMeta;
+  private getAspectRatioFromFile(
+    file: FileEntity
+  ): AspectRatioString | undefined {
+    const w = file.widthPx;
+    const h = file.heightPx;
 
-    // fallback по размерам — на всякий случай
-    const w = file.widthPx ?? 0;
-    const h = file.heightPx ?? 0;
+    if (!w || !h || w <= 0 || h <= 0) {
+      return undefined;
+    }
 
-    if (w === 1024 && h === 1024) return "1024x1024";
-    if (w === 1024 && h === 1536) return "1024x1536";
-    if (w === 1536 && h === 1024) return "1536x1024";
+    const actual = w / h;
 
-    // если вдруг что-то необычное — выбираем ближнее
-    if (w > h) return "1536x1024";
-    if (h > w) return "1024x1536";
-    return "1024x1024";
+    let best: AspectRatioString = "1:1";
+    let bestDiff = Number.POSITIVE_INFINITY;
+
+    for (const ar of KNOWN_ASPECT_RATIOS) {
+      const ratio = parseAspectRatioString(ar);
+      const diff = Math.abs(actual - ratio);
+
+      if (diff < bestDiff) {
+        bestDiff = diff;
+        best = ar;
+      }
+    }
+
+    // Если совсем мимо (очень нестандартный формат) — можно вернуть null
+    if (bestDiff > 0.2) {
+      return undefined;
+    }
+
+    return best;
   }
+}
+
+const KNOWN_ASPECT_RATIOS = [
+  "1:1",
+  "2:3",
+  "3:2",
+  "3:4",
+  "4:3",
+  "9:16",
+  "16:9",
+] as const;
+
+type AspectRatioString = (typeof KNOWN_ASPECT_RATIOS)[number];
+
+function parseAspectRatioString(r: AspectRatioString): number {
+  const [w, h] = r.split(":").map(Number);
+  return w / h;
 }

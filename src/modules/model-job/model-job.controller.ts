@@ -164,6 +164,7 @@ export class ModelJobController {
   ) {
     const data = await this.modelJobService.create({
       ...dto,
+      model: ModelType.Gemini,
       type: ModelJobType.ImageEditByPromptText,
       userId,
       tariffCode: ModelTariffCode.ImageBasicEdit,
