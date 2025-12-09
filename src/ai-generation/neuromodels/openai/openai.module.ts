@@ -5,7 +5,7 @@ import { OPENAI_CLIENT } from "./openai.constants";
 import { OpenAiImageService } from "./openai.service";
 
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true })],
+  imports: [ConfigModule],
   providers: [
     OpenAiImageService,
     {
@@ -14,7 +14,7 @@ import { OpenAiImageService } from "./openai.service";
         new OpenAI({
           apiKey: config.get<string>("OPEN_AI_API_SECRET"),
           maxRetries: 2,
-          timeout: 300_000, // дольше для генераций
+          timeout: 300_000,
         }),
       inject: [ConfigService],
     },

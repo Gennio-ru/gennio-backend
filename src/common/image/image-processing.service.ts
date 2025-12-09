@@ -55,7 +55,7 @@ export class ImageProcessingService {
     const resizeOptions =
       width >= height ? { width: maxSide } : { height: maxSide };
 
-    return image.resize(resizeOptions).jpeg({ quality: 90 }).toBuffer();
+    return image.resize(resizeOptions).toBuffer();
   }
 
   /**
@@ -128,7 +128,6 @@ export class ImageProcessingService {
     const out = await img
       .extract({ left, top, width: cropWidth, height: cropHeight })
       .resize(targetW, targetH) // приводим к точному размеру для модели
-      .jpeg({ quality: 90 })
       .toBuffer();
 
     return { buffer: out, width: targetW, height: targetH };
@@ -163,7 +162,7 @@ export class ImageProcessingService {
     inputBuffer: Buffer,
     targetKb: number = 150
   ): Promise<Buffer> {
-    let quality = 75;
+    let quality = 95;
     let output: Buffer = inputBuffer;
 
     for (; quality >= 40; quality -= 5) {
@@ -246,5 +245,42 @@ export class ImageProcessingService {
       .png({ compressionLevel: 9, palette: true, quality: q })
       .withMetadata({ orientation: 1 })
       .toBuffer();
+  }
+
+  /**
+   * Определить формат картинки по буферу и вернуть формат + mimetype + расширение
+   */
+  async detectImageFormat(buffer: Buffer): Promise<{
+    format: Format; // 'jpeg' | 'png' | 'webp'
+    extension: string; // 'jpg' | 'png' | 'webp'
+    mimetype: string; // 'image/jpeg' | 'image/png' | 'image/webp'
+  }> {
+    const meta = await sharp(buffer).metadata();
+    const raw = (meta.format || "").toLowerCase();
+
+    let format: Format;
+
+    if (raw === "jpg" || raw === "jpeg") {
+      format = "jpeg";
+    } else if (raw === "png") {
+      format = "png";
+    } else if (raw === "webp") {
+      format = "webp";
+    } else {
+      // на всякий случай — если модель/шарп отдали что-то экзотическое
+      format = "jpeg";
+    }
+
+    const extension =
+      format === "jpeg" ? "jpg" : format === "png" ? "png" : "webp";
+
+    const mimetype =
+      format === "jpeg"
+        ? "image/jpeg"
+        : format === "png"
+        ? "image/png"
+        : "image/webp";
+
+    return { format, extension, mimetype };
   }
 }

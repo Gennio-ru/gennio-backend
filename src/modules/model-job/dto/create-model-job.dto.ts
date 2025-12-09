@@ -1,28 +1,14 @@
 import { ApiProperty } from "@nestjs/swagger";
 import {
-  IsEnum,
   IsNotEmpty,
   IsOptional,
   IsString,
   IsUUID,
   MaxLength,
 } from "class-validator";
-import { IModelJobCreate } from "../types/model-job-mutations.interface";
-import { ModelType } from "../types/model-job.enum";
+import { IModelJobStart } from "../types/model-job-mutations.interface";
 
-export class StartProcessBaseDto
-  implements Omit<IModelJobCreate, "userId" | "type" | "tariffCode">
-{
-  @ApiProperty({ enum: ModelType, enumName: "ModelType" })
-  @IsEnum(ModelType)
-  @IsNotEmpty()
-  model!: ModelType;
-}
-
-export class StartImageEditByPromptIdDto
-  extends StartProcessBaseDto
-  implements Omit<IModelJobCreate, "userId" | "type" | "tariffCode">
-{
+export class StartImageEditByPromptIdDto implements IModelJobStart {
   @ApiProperty()
   @IsUUID()
   promptId!: string;
@@ -43,10 +29,7 @@ export class StartImageEditByPromptIdDto
   inputFileId!: string;
 }
 
-export class StartImageEditByPromptTextDto
-  extends StartProcessBaseDto
-  implements Omit<IModelJobCreate, "userId" | "type" | "tariffCode">
-{
+export class StartImageEditByPromptTextDto implements IModelJobStart {
   @ApiProperty({
     example: "Мягкое освещение, крупный план",
     maxLength: 700,
@@ -60,12 +43,17 @@ export class StartImageEditByPromptTextDto
   @ApiProperty()
   @IsUUID()
   inputFileId!: string;
+
+  @ApiProperty({
+    example: "2:3",
+    description: "Формат",
+  })
+  @IsString()
+  @IsOptional()
+  aspectRatio?: string;
 }
 
-export class StartImageGenerateByPromptTextDto
-  extends StartProcessBaseDto
-  implements Omit<IModelJobCreate, "userId" | "type" | "tariffCode">
-{
+export class StartImageGenerateByPromptTextDto implements IModelJobStart {
   @ApiProperty({
     example: "Мягкое освещение, крупный план",
     maxLength: 700,
@@ -75,4 +63,12 @@ export class StartImageGenerateByPromptTextDto
   @IsNotEmpty()
   @MaxLength(700, { message: "Текст не должен превышать 700 символов" })
   text: string;
+
+  @ApiProperty({
+    example: "2:3",
+    description: "Формат",
+  })
+  @IsString()
+  @IsOptional()
+  aspectRatio?: string;
 }

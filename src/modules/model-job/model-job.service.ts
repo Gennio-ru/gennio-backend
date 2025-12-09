@@ -10,7 +10,11 @@ import { ModelJob } from "./model-job.entity";
 import { ClientProxy } from "@nestjs/microservices";
 import { MODEL_JOB_CLIENT } from "./model-job.constants";
 import { IModelJobCreate } from "./types/model-job-mutations.interface";
-import { ModelJobStatusType, ModelJobType } from "./types/model-job.enum";
+import {
+  ModelJobStatusType,
+  ModelJobType,
+  ModelType,
+} from "./types/model-job.enum";
 import { FilesService } from "../files/files.service";
 import { ModelJobDto, ModelJobFullDto } from "./dto/model-job.dto";
 import { PromptsService } from "../prompts/prompts.service";
@@ -184,6 +188,7 @@ export class ModelJobService {
 
     const modelJob = this.repository.create({
       ...data,
+      model: data.model || ModelType.OpenAI,
       tokensCharged: tokens,
       resultsExpireAt,
     });
@@ -235,15 +240,15 @@ export class ModelJobService {
       this.gateway.sendJobUpdate(modelJobId, jobWithUrls);
     } catch (e) {
       let errorMessage: string;
-      let sendToLog: boolean = true;
+      let sendToLog = true;
 
-      if (e instanceof OpenAIApiError) {
-        if (e.code === "moderation_blocked") {
-          errorMessage = ErrorCode.MODERATION_BLOCKED;
-          sendToLog = false;
-        } else {
-          errorMessage = e.message ?? "Unknown OpenAI error";
-        }
+      const anyError = e as any;
+
+      if (anyError?.code === "moderation_blocked") {
+        errorMessage = ErrorCode.MODERATION_BLOCKED;
+        sendToLog = false;
+      } else if (e instanceof OpenAIApiError) {
+        errorMessage = e.message ?? "Unknown OpenAI error";
       } else if (e instanceof BadRequestException) {
         const resp = e.getResponse() as any;
 
@@ -333,7 +338,7 @@ export class ModelJobService {
         const fileBuffer = await this.filesService.getFileBufferById(
           payload.inputFileId
         );
-        const resolvedSize = this.getResolvedSizeFromFile(inputFile);
+        const aspectRatio = this.getAspectRatioFromFile(inputFile);
         const promptData = await this.promptsService.findOne(payload.promptId);
 
         const finalPrompt =
@@ -350,7 +355,8 @@ export class ModelJobService {
           promptText: finalPrompt,
           inputImageBase64: fileBuffer.toString("base64"),
           inputImageFilename: "input.jpeg",
-          resolvedSize,
+          aspectRatio,
+          provider: promptData.model,
         };
         break;
       }
@@ -360,18 +366,17 @@ export class ModelJobService {
           throw new Error("не указано поле inputFileId");
         if (!payload.text) throw new Error("не указано поле text");
 
-        const inputFile = await this.filesService.getMeta(payload.inputFileId);
         const fileBuffer = await this.filesService.getFileBufferById(
           payload.inputFileId
         );
-        const resolvedSize = this.getResolvedSizeFromFile(inputFile);
 
         aiGenearationPayloadBase = {
           type: "IMAGE_EDIT_BY_PROMPT_TEXT",
           promptText: payload.text,
           inputImageBase64: fileBuffer.toString("base64"),
           inputImageFilename: "input.jpeg",
-          resolvedSize,
+          provider: payload.model,
+          aspectRatio: payload.aspectRatio,
         };
         break;
       }
@@ -384,6 +389,8 @@ export class ModelJobService {
         aiGenearationPayloadBase = {
           type: "IMAGE_GENERATE_BY_PROMPT_TEXT",
           promptText: payload.text,
+          provider: payload.model,
+          aspectRatio: payload.aspectRatio,
         };
         break;
       }
@@ -398,28 +405,23 @@ export class ModelJobService {
       aiGenearationPayloadBase as AiImageJobPayload
     );
 
-    //
-    // разруливаем ошибки воркера
-    //
     if (!res.ok) {
       const message = res.error || "ai-generation worker error";
       const status = res.status ?? 400;
 
-      const isSafety = status === 400 && /safety system/i.test(message); // твой кейс "Your request was rejected by the safety system"
+      const isModerationBlocked = res.code === "moderation_blocked";
 
-      // Всё, что < 500 — считаем бизнес-ошибкой OpenAI → 400
       if (status < 500) {
         throw new BadRequestException({
-          handled: true, // чтобы наверху понять, что это не "сломалось", а ожидаемая бизнес-ошибка
-          code: isSafety ? ErrorCode.MODERATION_BLOCKED : undefined,
-          provider: "openai",
+          handled: true,
+          code: isModerationBlocked ? ErrorCode.MODERATION_BLOCKED : undefined,
           status,
           requestId: res.requestId,
           message,
         });
       }
 
-      // 5xx — уже что-то серьёзное → 500, чтобы улетело в телегу
+      // 5xx — серьёзная тех. ошибка, улетит в телегу
       throw new Error(
         `ai-generation failed with status ${status}: ${message} (requestId=${
           res.requestId ?? "n/a"
@@ -429,14 +431,19 @@ export class ModelJobService {
 
     const imageBuffer = Buffer.from(res.imageBase64, "base64");
 
+    const { extension, mimetype } =
+      await this.imageProcessingService.detectImageFormat(imageBuffer);
+
+    console.log(extension, mimetype);
+
     const resultPreviewWebpBuffer =
       await this.imageProcessingService.compressToWebp(imageBuffer, 80);
 
     const outputFile = await this.filesService.uploadBuffer(
       {
         buffer: imageBuffer,
-        originalname: "result.jpeg",
-        mimetype: "image/jpeg",
+        originalname: `gennio-result.${extension}`,
+        mimetype,
         size: imageBuffer.length,
       },
       { folder: "jobs", publicRead: true }
@@ -459,21 +466,53 @@ export class ModelJobService {
     };
   }
 
-  private getResolvedSizeFromFile(file: FileEntity): ResolvedSize {
-    const fromMeta = file.meta?.modelResolvedSize as ResolvedSize | undefined;
-    if (fromMeta) return fromMeta;
+  private getAspectRatioFromFile(
+    file: FileEntity
+  ): AspectRatioString | undefined {
+    const w = file.widthPx;
+    const h = file.heightPx;
 
-    // fallback по размерам — на всякий случай
-    const w = file.widthPx ?? 0;
-    const h = file.heightPx ?? 0;
+    if (!w || !h || w <= 0 || h <= 0) {
+      return undefined;
+    }
 
-    if (w === 1024 && h === 1024) return "1024x1024";
-    if (w === 1024 && h === 1536) return "1024x1536";
-    if (w === 1536 && h === 1024) return "1536x1024";
+    const actual = w / h;
 
-    // если вдруг что-то необычное — выбираем ближнее
-    if (w > h) return "1536x1024";
-    if (h > w) return "1024x1536";
-    return "1024x1024";
+    let best: AspectRatioString = "1:1";
+    let bestDiff = Number.POSITIVE_INFINITY;
+
+    for (const ar of KNOWN_ASPECT_RATIOS) {
+      const ratio = parseAspectRatioString(ar);
+      const diff = Math.abs(actual - ratio);
+
+      if (diff < bestDiff) {
+        bestDiff = diff;
+        best = ar;
+      }
+    }
+
+    // Если совсем мимо (очень нестандартный формат) — можно вернуть null
+    if (bestDiff > 0.2) {
+      return undefined;
+    }
+
+    return best;
   }
+}
+
+const KNOWN_ASPECT_RATIOS = [
+  "1:1",
+  "2:3",
+  "3:2",
+  "3:4",
+  "4:3",
+  "9:16",
+  "16:9",
+] as const;
+
+type AspectRatioString = (typeof KNOWN_ASPECT_RATIOS)[number];
+
+function parseAspectRatioString(r: AspectRatioString): number {
+  const [w, h] = r.split(":").map(Number);
+  return w / h;
 }

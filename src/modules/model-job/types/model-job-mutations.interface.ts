@@ -2,11 +2,19 @@ import { ModelTariffCode } from "src/modules/pricing/types/pricing.enum";
 import { ModelJobType, ModelType } from "./model-job.enum";
 
 export interface IModelJobCreate {
-  model: ModelType;
+  model?: ModelType;
   type: ModelJobType;
   text?: string;
   promptId?: string;
   inputFileId?: string;
   userId: string;
   tariffCode: ModelTariffCode;
+  aspectRatio?: string;
+}
+
+export interface IModelJobStart {
+  text?: string;
+  promptId?: string;
+  inputFileId?: string;
+  aspectRatio?: string;
 }

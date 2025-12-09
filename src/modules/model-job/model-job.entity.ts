@@ -25,6 +25,9 @@ export class ModelJob extends BaseEntity implements IModelJob {
   @Column({ type: "text", nullable: true })
   text: string | null;
 
+  @Column({ type: "varchar", length: 10, nullable: true })
+  aspectRatio: string | null;
+
   @Column({ type: "uuid", nullable: true })
   promptId: string | null;
 

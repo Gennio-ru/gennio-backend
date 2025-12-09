@@ -68,7 +68,7 @@ export class FilesController {
       await this.imageProcessingService.normalizeForModel(
         file.buffer,
         "auto",
-        512
+        1024
       );
 
     // 2) Один раз сжать + перевести в WebP
