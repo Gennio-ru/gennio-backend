@@ -18,3 +18,12 @@ export interface IModelJobStart {
   inputFileId?: string;
   aspectRatio?: string;
 }
+
+export interface IModelJobAdminStart {
+  text?: string;
+  promptId?: string;
+  inputFileId?: string;
+  aspectRatio?: string;
+  model: ModelType;
+  type: ModelJobType;
+}

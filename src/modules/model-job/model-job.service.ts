@@ -40,6 +40,9 @@ import { paginate } from "src/common/pagination/pagination.util";
 import { ConfigService } from "@nestjs/config";
 import { AiGenerationClientService } from "src/ai-generation/client/ai-generation.client.service";
 import { AiImageJobPayload } from "src/ai-generation/ai-generation.types";
+import { ModelTariffCode } from "../pricing/types/pricing.enum";
+import { User } from "../users/user.entity";
+import { UsersService } from "../users/users.service";
 
 type ImageJobPayload = IModelJobCreate & {
   type:
@@ -64,7 +67,8 @@ export class ModelJobService {
     private readonly pricingService: PricingService,
     private readonly logger: Logger,
     private readonly imageProcessingService: ImageProcessingService,
-    private readonly configService: ConfigService
+    private readonly configService: ConfigService,
+    private readonly usersService: UsersService
   ) {
     const raw = this.configService.get<string>("MODEL_JOB_RESULTS_TTL_HOURS");
 
@@ -173,12 +177,18 @@ export class ModelJobService {
   async create(data: IModelJobCreate): Promise<ModelJobDto> {
     const tokens = this.pricingService.getTokensForJob(data);
 
-    const user = await this.userTokenTransactionService.chargeForJob({
-      userId: data.userId,
-      tokens,
-      reason: TokenTransactionReason.JobCharge,
-      meta: { tariffCode: data.tariffCode, type: data.type },
-    });
+    let user: User;
+
+    if (data.tariffCode === ModelTariffCode.AdminGenerate) {
+      user = await this.usersService.findById(data.userId);
+    } else {
+      user = await this.userTokenTransactionService.chargeForJob({
+        userId: data.userId,
+        tokens,
+        reason: TokenTransactionReason.JobCharge,
+        meta: { tariffCode: data.tariffCode, type: data.type },
+      });
+    }
 
     // считаем срок жизни результата
     const resultsExpireAt =
@@ -283,7 +293,11 @@ export class ModelJobService {
           where: { id: modelJobId },
         });
 
-        if (job && job.tokensCharged > 0) {
+        if (
+          job &&
+          job.tariffCode !== ModelTariffCode.AdminGenerate &&
+          job.tokensCharged > 0
+        ) {
           await this.userTokenTransactionService.addTokens({
             userId: job.userId,
             tokens: job.tokensCharged,
