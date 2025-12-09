@@ -4,7 +4,6 @@ import sharp from "sharp";
 
 import { GEMINI_CLIENT } from "./gemini.constants";
 import { GenerateImageResult } from "../types";
-import { GeminiAspectRatio } from "./types";
 import {
   GEMINI_MODERATION_FINISH_REASONS,
   GeminiModerationBlockedError,
