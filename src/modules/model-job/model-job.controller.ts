@@ -11,6 +11,7 @@ import {
 } from "@nestjs/common";
 import { ModelJobService } from "./model-job.service";
 import {
+  StartAdminGenerateDto,
   StartImageEditByPromptIdDto,
   StartImageEditByPromptTextDto,
   StartImageGenerateByPromptTextDto,
@@ -195,6 +196,31 @@ export class ModelJobController {
       type: ModelJobType.ImageGenerateByPromptText,
       userId,
       tariffCode: ModelTariffCode.ImageBasicGenerate,
+    });
+
+    return plainModelToInstance(ModelJobDto, data);
+  }
+
+  @Post("start-admin-generate")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.Admin)
+  @ApiResponse({
+    status: 201,
+    description: "Генерация запущена",
+    type: ModelJobDto,
+  })
+  @ApiBadRequestResponse({
+    description: "Бизнес-ошибка (например, не хватает токенов)",
+    type: ErrorResponseDto,
+  })
+  async startAdminGenerate(
+    @Body() dto: StartAdminGenerateDto,
+    @UserId() userId: string
+  ) {
+    const data = await this.modelJobService.create({
+      ...dto,
+      userId,
+      tariffCode: ModelTariffCode.AdminGenerate,
     });
 
     return plainModelToInstance(ModelJobDto, data);

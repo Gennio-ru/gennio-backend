@@ -6,4 +6,5 @@ export enum ModelTariffCode {
   ImageBasicEdit = "IMAGE_BASIC_EDIT",
   ImageProGenerate = "IMAGE_PRO_GENERATE",
   ImageProEdit = "IMAGE_PRO_EDIT",
+  AdminGenerate = "ADMIN_GENERATE",
 }
