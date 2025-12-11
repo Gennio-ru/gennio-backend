@@ -81,15 +81,18 @@ async function bootstrap() {
     },
   });
 
-  // Swagger
-  const config = new DocumentBuilder()
-    .setTitle("AI Platform API")
-    .setDescription("Prompts / Generations / Users")
-    .setVersion("1.0.0")
-    .addBearerAuth()
-    .build();
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup("docs", app, document);
+  // Swagger — отключаем в production
+  const isProd = process.env.NODE_ENV === "production";
+  if (!isProd) {
+    const config = new DocumentBuilder()
+      .setTitle("AI Platform API")
+      .setDescription("Prompts / Generations / Users")
+      .setVersion("1.0.0")
+      .addBearerAuth()
+      .build();
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup("docs", app, document);
+  }
 
   await app.startAllMicroservices();
   const port = Number(process.env.PORT) || 3000;

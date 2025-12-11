@@ -70,7 +70,7 @@ export class AuthService {
       isActive: user.isActive,
     };
     return this.jwtService.sign(payload, {
-      secret: process.env.JWT_ACCESS_SECRET || "dev-secret",
+      secret: process.env.JWT_ACCESS_SECRET,
       expiresIn: process.env.JWT_ACCESS_TTL || "7d",
     });
   }
@@ -88,7 +88,7 @@ export class AuthService {
     const refreshToken = this.jwtService.sign(
       { sub: user.id, jti },
       {
-        secret: process.env.JWT_REFRESH_SECRET || "dev-refresh",
+        secret: process.env.JWT_REFRESH_SECRET,
         expiresIn: process.env.JWT_REFRESH_TTL || "30d",
       }
     );
@@ -262,7 +262,7 @@ export class AuthService {
     let payload: any;
     try {
       payload = this.jwtService.verify(refreshToken, {
-        secret: process.env.JWT_REFRESH_SECRET || "dev-refresh",
+        secret: process.env.JWT_REFRESH_SECRET,
         ignoreExpiration: false,
       });
     } catch (e) {
@@ -306,7 +306,7 @@ export class AuthService {
     if (!refreshToken) return;
     try {
       const payload: any = this.jwtService.verify(refreshToken, {
-        secret: process.env.JWT_REFRESH_SECRET || "dev-refresh",
+        secret: process.env.JWT_REFRESH_SECRET,
         ignoreExpiration: true,
       });
       const jti: string | undefined = payload?.jti;
@@ -389,8 +389,7 @@ export class AuthService {
     );
     const ttlSec = Math.floor(ttlMs / 1000);
     const expireHours = Math.ceil(ttlSec / 3600);
-    const secret =
-      this.configService.get("EMAIL_CONFIRM_SECRET") || "dev-email-confirm";
+    const secret = this.configService.get("EMAIL_CONFIRM_SECRET");
 
     const digest = this.hmacSha256Hex(raw, secret);
     await this.otpStore.setHashed("email_confirm", user.id, digest, ttlSec);
@@ -413,8 +412,7 @@ export class AuthService {
 
   /** Подтвердить email по ссылке */
   async confirmEmailByLink(userId: string, rawToken: string) {
-    const secret =
-      this.configService.get("EMAIL_CONFIRM_SECRET") || "dev-email-confirm";
+    const secret = this.configService.get("EMAIL_CONFIRM_SECRET");
     const digest = this.hmacSha256Hex(rawToken, secret);
 
     const res = await this.otpStore.compareHashedAndConsume(
@@ -458,8 +456,7 @@ export class AuthService {
     const ttlSec = Math.floor(ttlMs / 1000);
     const expireHours = Math.ceil(ttlSec / 3600);
 
-    const secret =
-      this.configService.get("PASSWORD_RESET_SECRET") || "dev-password-reset";
+    const secret = this.configService.get("PASSWORD_RESET_SECRET");
 
     const digest = this.hmacSha256Hex(raw, secret);
     await this.otpStore.setHashed("password_reset", user.id, digest, ttlSec);
@@ -498,8 +495,7 @@ export class AuthService {
   }): Promise<void> {
     const { userId, rawToken, newPassword } = params;
 
-    const secret =
-      this.configService.get("PASSWORD_RESET_SECRET") || "dev-password-reset";
+    const secret = this.configService.get("PASSWORD_RESET_SECRET");
     const digest = this.hmacSha256Hex(rawToken, secret);
 
     const res = await this.otpStore.compareHashedAndConsume(

@@ -44,7 +44,6 @@ import {
   RefundTokensDto,
   RefundTokensPreviewDto,
 } from "./dto/refund-tokens.dto";
-import { ErrorCode } from "src/common/errors/error-code.enum";
 
 @ApiTags("payments")
 @ApiBearerAuth()
@@ -165,7 +164,6 @@ export class PaymentsController {
     return plainModelToInstance(PaymentDto, payment);
   }
 
-  // Вебхук от YooKassa — БЕЗ guard'а
   @Post("yookassa/webhook")
   @ApiOperation({
     summary: "Вебхук от YooKassa",
