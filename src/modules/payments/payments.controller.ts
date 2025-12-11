@@ -44,7 +44,6 @@ import {
   RefundTokensDto,
   RefundTokensPreviewDto,
 } from "./dto/refund-tokens.dto";
-import { YookassaWebhookGuard } from "./guards/yookassa-webhook.guard";
 
 @ApiTags("payments")
 @ApiBearerAuth()
@@ -166,7 +165,6 @@ export class PaymentsController {
   }
 
   @Post("yookassa/webhook")
-  @UseGuards(YookassaWebhookGuard)
   @ApiOperation({
     summary: "Вебхук от YooKassa",
     description:
