@@ -8,7 +8,6 @@ import { UserTokenTransactionsModule } from "../tokens/user-token-transactions.m
 import { PaymentsGateway } from "./payments.gateway";
 import { UsersModule } from "../users/users.module";
 import { InternalYookassaController } from "./internal-yookassa.controller";
-import { YookassaWebhookGuard } from "./guards/yookassa-webhook.guard";
 
 @Module({
   imports: [
@@ -16,7 +15,7 @@ import { YookassaWebhookGuard } from "./guards/yookassa-webhook.guard";
     UserTokenTransactionsModule,
     UsersModule,
   ],
-  providers: [PaymentsService, YookassaClient, PaymentsGateway, YookassaWebhookGuard],
+  providers: [PaymentsService, YookassaClient, PaymentsGateway],
   controllers: [PaymentsController, InternalYookassaController],
   exports: [PaymentsService],
 })
