@@ -161,7 +161,7 @@ export class UsersService {
     if (!user.email) {
       throw new BadRequestException("User has email to verify");
     }
-    if (user.isPhoneVerified === isVerified) {
+    if (user.isEmailVerified === isVerified) {
       return user; // ничего менять не нужно
     }
 

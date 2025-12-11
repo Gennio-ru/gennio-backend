@@ -140,6 +140,7 @@ export class AuthController {
   }
 
   @Post("login/email")
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @ApiOperation({ summary: "Логин по email + пароль" })
   @ApiResponse({ status: 200, type: AuthResponseDto })
   async loginByEmail(
@@ -154,6 +155,7 @@ export class AuthController {
   }
 
   @Post("login/phone")
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @ApiOperation({ summary: "Логин по телефону + пароль" })
   @ApiResponse({ status: 200, type: AuthResponseDto })
   async loginByPhone(
@@ -291,6 +293,7 @@ export class AuthController {
   }
 
   @Post("password/reset/request")
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @HttpCode(200)
   @ApiOperation({ summary: "Запросить письмо для восстановления пароля" })
   @ApiResponse({ status: 200, schema: { example: { ok: true } } })
@@ -304,6 +307,7 @@ export class AuthController {
   }
 
   @Post("password/reset/confirm")
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @HttpCode(200)
   @ApiOperation({ summary: "Подтвердить восстановление пароля" })
   @ApiResponse({ status: 200, schema: { example: { ok: true } } })
