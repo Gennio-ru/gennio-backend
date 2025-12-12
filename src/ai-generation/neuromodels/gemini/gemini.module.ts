@@ -4,6 +4,7 @@ import { GoogleGenAI } from "@google/genai";
 
 import { GEMINI_CLIENT } from "./gemini.constants";
 import { GeminiImageService } from "./gemini-image.service";
+import { createGeminiClient } from "./gemini.client.factory";
 
 @Module({
   imports: [ConfigModule],
@@ -11,11 +12,7 @@ import { GeminiImageService } from "./gemini-image.service";
     GeminiImageService,
     {
       provide: GEMINI_CLIENT,
-      useFactory: (config: ConfigService) => {
-        const apiKey = config.get<string>("GEMINI_API_SECRET");
-
-        return new GoogleGenAI({ apiKey });
-      },
+      useFactory: (config: ConfigService) => createGeminiClient(config),
       inject: [ConfigService],
     },
   ],
