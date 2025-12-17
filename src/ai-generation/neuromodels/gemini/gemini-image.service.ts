@@ -9,7 +9,12 @@ import {
   GeminiModerationBlockedError,
   GeminiModerationFinishReason,
 } from "./errors";
-import { isGeminiAspectRatio } from "./helpers";
+import { isGeminiAspectRatio, isGeminiImageSize } from "./helpers";
+import { GeminiImageSizes } from "./types";
+
+export type GeminiImageModel =
+  | "gemini-2.5-flash-image"
+  | "gemini-3-pro-image-preview";
 
 type GeminiUsageMetadata = {
   promptTokenCount?: number;
@@ -30,7 +35,7 @@ export class GeminiImageService {
     const imagePart = parts.find((p: any) => p?.inlineData?.data);
 
     // Если картинка есть – всё как раньше
-    if (imagePart) {
+    if (imagePart?.inlineData?.data) {
       const buf = Buffer.from(imagePart.inlineData.data, "base64");
       return sharp(buf).jpeg({ quality: 97 }).toBuffer();
     }
@@ -59,83 +64,97 @@ export class GeminiImageService {
     );
   }
 
-  /** Генерация картинки Gemini 2.5 Flash Image */
+  /** Генерация картинки (Flash/Pro) */
   async generateImage(params: {
     prompt: string;
     aspectRatio?: string;
+    model?: GeminiImageModel;
+    imageSize?: GeminiImageSizes;
   }): Promise<GenerateImageResult> {
-    const { prompt, aspectRatio } = params;
+    const {
+      prompt,
+      aspectRatio,
+      model = "gemini-2.5-flash-image",
+      imageSize = GeminiImageSizes.SIZE_1K,
+    } = params;
 
     const response = await this.ai.models.generateContent({
-      model: "gemini-2.5-flash-image",
+      model,
       contents: prompt,
       config: {
         imageConfig: {
-          aspectRatio:
-            aspectRatio && isGeminiAspectRatio(aspectRatio)
-              ? aspectRatio
-              : undefined,
-        },
-        responseModalities: ["Image"],
-      },
-    });
-
-    console.dir(response, { depth: null });
-
-    const imageBuffer = await this.imageBufferFromResponse(response);
-
-    const usedTokens: GeminiUsageMetadata = {
-      ...response?.usageMetadata,
-      model: "gemini-2.5-flash-image",
-    };
-
-    return { imageBuffer, usedTokens };
-  }
-
-  /** Редактирование входного изображения (prompt + image) */
-  async editImage(params: {
-    image: Buffer;
-    prompt: string;
-    aspectRatio?: string;
-    mimeType?: string;
-  }): Promise<GenerateImageResult> {
-    const { image, prompt, aspectRatio, mimeType = "image/jpeg" } = params;
-
-    const base64Image = image.toString("base64");
-
-    const contents = [
-      { text: prompt },
-      {
-        inlineData: {
-          mimeType,
-          data: base64Image,
-        },
-      },
-    ];
-
-    const response = await this.ai.models.generateContent({
-      model: "gemini-2.5-flash-image",
-      contents,
-      config: {
-        imageConfig: {
-          aspectRatio:
-            aspectRatio && isGeminiAspectRatio(aspectRatio)
-              ? aspectRatio
-              : undefined,
+          ...(aspectRatio && isGeminiImageSize(aspectRatio)
+            ? { aspectRatio }
+            : {}),
+          ...(imageSize && isGeminiImageSize(imageSize) ? { imageSize } : {}),
         },
         responseModalities: ["IMAGE"],
       },
     });
 
-    console.dir(response, { depth: null });
+    const imageBuffer = await this.imageBufferFromResponse(response);
+
+    const usedTokens: GeminiUsageMetadata = {
+      ...response?.usageMetadata,
+      model,
+    };
+
+    return { imageBuffers: [imageBuffer], usedTokens };
+  }
+
+  /** Редактирование входного изображения (prompt + images) (Flash/Pro) */
+  async editImage(params: {
+    images: Buffer[];
+    prompt: string;
+    aspectRatio?: string;
+    mimeType?: string;
+    model?: GeminiImageModel;
+    imageSize?: GeminiImageSizes;
+  }): Promise<GenerateImageResult> {
+    const {
+      images,
+      prompt,
+      aspectRatio,
+      mimeType = "image/jpeg",
+      model = "gemini-2.5-flash-image",
+      imageSize = GeminiImageSizes.SIZE_1K,
+    } = params;
+
+    if (!images?.length) {
+      throw new Error("Gemini editImage: images is required");
+    }
+
+    const contents = [
+      { text: prompt },
+      ...images.map((image) => ({
+        inlineData: {
+          mimeType,
+          data: image.toString("base64"),
+        },
+      })),
+    ];
+
+    const response = await this.ai.models.generateContent({
+      model,
+      contents,
+      config: {
+        imageConfig: {
+          ...(aspectRatio && isGeminiImageSize(aspectRatio)
+            ? { aspectRatio }
+            : {}),
+          ...(imageSize && isGeminiImageSize(imageSize) ? { imageSize } : {}),
+        },
+        responseModalities: ["IMAGE"],
+      },
+    });
 
     const imageBuffer = await this.imageBufferFromResponse(response);
 
     const usedTokens: GeminiUsageMetadata = {
       ...response?.usageMetadata,
-      model: "gemini-2.5-flash-image",
+      model,
     };
 
-    return { imageBuffer, usedTokens };
+    return { imageBuffers: [imageBuffer], usedTokens };
   }
 }

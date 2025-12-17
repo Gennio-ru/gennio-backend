@@ -1,10 +1,13 @@
-export enum ModelTariffCode {
-  TextBasic = "TEXT_BASIC",
-  TextPro = "TEXT_PRO",
+export type ProviderAction = "edit" | "generate";
+export type ProviderPriceLevel = "standard" | "high";
 
-  ImageBasicGenerate = "IMAGE_BASIC_GENERATE",
-  ImageBasicEdit = "IMAGE_BASIC_EDIT",
-  ImageProGenerate = "IMAGE_PRO_GENERATE",
-  ImageProEdit = "IMAGE_PRO_EDIT",
-  AdminGenerate = "ADMIN_GENERATE",
-}
+export type ProviderCostProfile = {
+  generate: {
+    standard: number;
+    high: number;
+  };
+  edit: {
+    standard: number;
+    high: number;
+  };
+};

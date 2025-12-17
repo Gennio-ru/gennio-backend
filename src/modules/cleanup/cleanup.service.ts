@@ -1,7 +1,7 @@
-import { Injectable, OnModuleInit } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { In, Repository } from "typeorm";
 import { ConfigService } from "@nestjs/config";
 
 import { ModelJob } from "../model-job/model-job.entity";
@@ -9,6 +9,7 @@ import { FileEntity } from "../files/files.entity";
 import { FilesService } from "../files/files.service";
 import { Prompt } from "../prompts/prompt.entity";
 import { Logger } from "nestjs-pino";
+import { ModelJobFile } from "../model-job/model-job-file.entity"; // <-- поправь путь под свой проект
 
 @Injectable()
 export class CleanupService {
@@ -18,8 +19,13 @@ export class CleanupService {
   constructor(
     @InjectRepository(ModelJob)
     private readonly modelJobRepo: Repository<ModelJob>,
+
+    @InjectRepository(ModelJobFile)
+    private readonly modelJobFileRepo: Repository<ModelJobFile>,
+
     @InjectRepository(FileEntity)
     private readonly fileRepo: Repository<FileEntity>,
+
     private readonly filesService: FilesService,
     private readonly configService: ConfigService,
     private readonly logger: Logger
@@ -51,56 +57,90 @@ export class CleanupService {
     }
   }
 
+  /**
+   * 1) Чистим результаты ModelJob по TTL
+   * - находим job-ы, у которых истёк resultsExpireAt и resultsDeletedAt IS NULL
+   * - находим все связи файлов из model_job_files для этих job-ов
+   * - удаляем файлы (safe)
+   * - удаляем связи
+   * - ставим resultsDeletedAt
+   */
   private async cleanupExpiredModelJobResults(): Promise<number> {
     const now = new Date();
 
+    // Берём батч job-ов по TTL
     const jobs = await this.modelJobRepo
       .createQueryBuilder("job")
       .where("job.resultsExpireAt IS NOT NULL")
       .andWhere("job.resultsExpireAt < :now", { now })
       .andWhere("job.resultsDeletedAt IS NULL")
-      .andWhere(
-        "(job.outputFileId IS NOT NULL OR job.outputPreviewFileId IS NOT NULL)"
-      )
       .orderBy("job.resultsExpireAt", "ASC")
       .limit(this.batchSize)
       .getMany();
 
     if (!jobs.length) return 0;
 
-    this.logger.log(`Found ${jobs.length} expired ModelJob results`);
+    const jobIds = jobs.map((j) => j.id);
 
-    for (const job of jobs) {
-      try {
-        if (job.inputFileId) {
-          await this.safeDeleteFileById(job.inputFileId);
-          job.inputFileId = null;
-        }
+    // Подтягиваем все связи файлов для этих job-ов
+    const links = await this.modelJobFileRepo.find({
+      where: { modelJobId: In(jobIds) },
+      select: ["id", "modelJobId", "fileId"],
+    });
 
-        if (job.outputFileId) {
-          await this.safeDeleteFileById(job.outputFileId);
-          job.outputFileId = null;
-        }
+    // Если связей нет — всё равно отметим jobs как очищенные (чтобы не гонять их дальше)
+    if (!links.length) {
+      await this.modelJobRepo.update(
+        { id: In(jobIds) },
+        { resultsDeletedAt: new Date() }
+      );
+      this.logger.log(
+        `Found ${jobs.length} expired ModelJob results (no linked files)`
+      );
+      return jobs.length;
+    }
 
-        if (job.outputPreviewFileId) {
-          await this.safeDeleteFileById(job.outputPreviewFileId);
-          job.outputPreviewFileId = null;
-        }
+    this.logger.log(
+      `Found ${jobs.length} expired ModelJob results, links=${links.length}`
+    );
 
-        job.resultsDeletedAt = new Date();
-        await this.modelJobRepo.save(job);
-      } catch (e) {
-        this.logger.error(`Failed to cleanup ModelJob ${job.id}`, e as any);
-      }
+    // Чтобы не дёргать удаление одного и того же fileId несколько раз
+    const uniqueFileIds = Array.from(new Set(links.map((l) => l.fileId)));
+
+    // Удаляем файлы (safeDelete глотает ошибки)
+    for (const fileId of uniqueFileIds) {
+      await this.safeDeleteFileById(fileId);
+    }
+
+    // Удаляем связи (на случай если removeById не удаляет FileEntity или FK не каскадит)
+    try {
+      await this.modelJobFileRepo.delete({ modelJobId: In(jobIds) } as any);
+    } catch (e) {
+      this.logger.error(
+        "Failed to delete model_job_files links batch",
+        e as any
+      );
+    }
+
+    // Ставим resultsDeletedAt разом
+    try {
+      await this.modelJobRepo.update(
+        { id: In(jobIds) },
+        { resultsDeletedAt: new Date() }
+      );
+    } catch (e) {
+      this.logger.error("Failed to update resultsDeletedAt batch", e as any);
     }
 
     return jobs.length;
   }
 
-  //
-  // 2) Чистим обособленные файлы
-  //    — старше TTL, не привязаны ни к ModelJob, ни к Prompt
-  //
+  /**
+   * 2) Чистим осиротевшие файлы:
+   *  - старше TTL
+   *  - не привязаны ни к Prompt (основные/превью)
+   *  - не привязаны к ModelJob через model_job_files
+   */
   private async cleanupOrphanFiles(): Promise<number> {
     const now = new Date();
     const cutoff = new Date(
@@ -109,14 +149,8 @@ export class CleanupService {
 
     const files = await this.fileRepo
       .createQueryBuilder("file")
-      // Привязки к ModelJob
-      .leftJoin(ModelJob, "jobInput", "jobInput.inputFileId = file.id")
-      .leftJoin(ModelJob, "jobOutput", "jobOutput.outputFileId = file.id")
-      .leftJoin(
-        ModelJob,
-        "jobPreview",
-        "jobPreview.outputPreviewFileId = file.id"
-      )
+      // Привязки к ModelJob через отдельную таблицу
+      .leftJoin(ModelJobFile, "mjf", "mjf.fileId = file.id")
       // Привязки к Prompt (основные картинки)
       .leftJoin(Prompt, "promptBefore", "promptBefore.beforeImageId = file.id")
       .leftJoin(Prompt, "promptAfter", "promptAfter.afterImageId = file.id")
@@ -133,17 +167,13 @@ export class CleanupService {
       )
       // Файл старше TTL
       .where("file.createdAt < :cutoff", { cutoff })
-      // Ни одной ссылки из ModelJob
-      .andWhere("jobInput.id IS NULL")
-      .andWhere("jobOutput.id IS NULL")
-      .andWhere("jobPreview.id IS NULL")
-      // Ни одной ссылки из Prompt (основные картинки)
+      // Нет ссылок из ModelJob
+      .andWhere("mjf.id IS NULL")
+      // Нет ссылок из Prompt
       .andWhere("promptBefore.id IS NULL")
       .andWhere("promptAfter.id IS NULL")
-      // Ни одной ссылки из Prompt (превью)
       .andWhere("promptBeforePreview.id IS NULL")
       .andWhere("promptAfterPreview.id IS NULL")
-      // Нам нужен только id файла
       .select(["file.id"])
       .orderBy("file.createdAt", "ASC")
       .limit(this.batchSize)
@@ -170,9 +200,9 @@ export class CleanupService {
     return cleaned;
   }
 
-  //
-  // Унифицированное удаление файла по id
-  //
+  /**
+   * Унифицированное удаление файла по id
+   */
   private async safeDeleteFileById(fileId: string): Promise<void> {
     try {
       await this.filesService.removeById(fileId);

@@ -15,6 +15,7 @@ import {
   StartImageEditByPromptIdDto,
   StartImageEditByPromptTextDto,
   StartImageGenerateByPromptTextDto,
+  StartImageGenerateByStyleReferenceDto,
 } from "./dto/create-model-job.dto";
 import { UserId } from "src/common/decorators/user-id.decorator";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
@@ -31,10 +32,10 @@ import {
 } from "./dto/model-job.dto";
 import {
   ModelJobStatusType,
+  ModelJobTariffCode,
   ModelJobType,
   ModelType,
 } from "./types/model-job.enum";
-import { ModelTariffCode } from "../pricing/types/pricing.enum";
 import { ErrorResponseDto } from "src/common/errors/error-response.dto";
 import { RequireTokens } from "src/common/decorators/require-tokens.decorator";
 import { RequireTokensGuard } from "src/common/guards/require-tokens.guard";
@@ -89,8 +90,9 @@ export class ModelJobController {
   async lastGenerations(
     @UserId() userId: string
   ): Promise<ModelJobWithPreviewFileDto[]> {
-    const modelJobs = await this.modelJobService.lastModelJobs(userId);
-
+    const modelJobs = await this.modelJobService.lastModelJobsWithPreviews(
+      userId
+    );
     return plainModelToInstanceArray(ModelJobWithPreviewFileDto, modelJobs);
   }
 
@@ -122,7 +124,7 @@ export class ModelJobController {
   }
 
   @Post("/start-image-edit-by-prompt-id")
-  @RequireTokens(7)
+  @RequireTokens(1)
   @UseGuards(JwtAuthGuard, RequireTokensGuard)
   @ApiResponse({
     status: 201,
@@ -141,14 +143,13 @@ export class ModelJobController {
       ...dto,
       type: ModelJobType.ImageEditByPromptId,
       userId,
-      tariffCode: ModelTariffCode.ImageBasicEdit,
     });
 
     return plainModelToInstance(ModelJobDto, data);
   }
 
   @Post("/start-image-edit-by-prompt-text")
-  @RequireTokens(7)
+  @RequireTokens(1)
   @UseGuards(JwtAuthGuard, RequireTokensGuard)
   @ApiResponse({
     status: 201,
@@ -168,14 +169,39 @@ export class ModelJobController {
       model: ModelType.Gemini,
       type: ModelJobType.ImageEditByPromptText,
       userId,
-      tariffCode: ModelTariffCode.ImageBasicEdit,
+    });
+
+    return plainModelToInstance(ModelJobDto, data);
+  }
+
+  @Post("/start-image-edit-by-style-reference")
+  @RequireTokens(1)
+  @UseGuards(JwtAuthGuard, RequireTokensGuard)
+  @ApiResponse({
+    status: 201,
+    description: "Генерация запущена",
+    type: ModelJobDto,
+  })
+  @ApiBadRequestResponse({
+    description: "Бизнес-ошибка (например, не хватает токенов)",
+    type: ErrorResponseDto,
+  })
+  async startImageEditByStyleReference(
+    @Body() dto: StartImageGenerateByStyleReferenceDto,
+    @UserId() userId: string
+  ) {
+    const data = await this.modelJobService.create({
+      ...dto,
+      model: ModelType.Gemini,
+      type: ModelJobType.ImageEditByStyleReference,
+      userId,
     });
 
     return plainModelToInstance(ModelJobDto, data);
   }
 
   @Post("start-image-generate")
-  @RequireTokens(7)
+  @RequireTokens(1)
   @UseGuards(JwtAuthGuard, RequireTokensGuard)
   @ApiResponse({
     status: 201,
@@ -195,7 +221,6 @@ export class ModelJobController {
       model: ModelType.OpenAI,
       type: ModelJobType.ImageGenerateByPromptText,
       userId,
-      tariffCode: ModelTariffCode.ImageBasicGenerate,
     });
 
     return plainModelToInstance(ModelJobDto, data);
@@ -220,7 +245,7 @@ export class ModelJobController {
     const data = await this.modelJobService.create({
       ...dto,
       userId,
-      tariffCode: ModelTariffCode.AdminGenerate,
+      tariffCode: ModelJobTariffCode.Admin,
     });
 
     return plainModelToInstance(ModelJobDto, data);

@@ -1,6 +1,6 @@
 import { Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { In, Repository } from "typeorm";
 import {
   S3Client,
   PutObjectCommand,
@@ -44,6 +44,29 @@ export class FilesService {
     this.baseUrl = this.cfg.get<string>("YANDEX_S3_ENDPOINT")!;
     this.defaultPublic =
       (this.cfg.get<string>("FILES_DEFAULT_PUBLIC") ?? "false") === "true";
+  }
+
+  /**
+   * Достаёт FileEntity по списку id одним запросом.
+   * ВАЖНО: порядок в ответе НЕ гарантируется (как обычно при IN()).
+   */
+  async findByIds(ids: string[]): Promise<FileEntity[]> {
+    const unique = Array.from(new Set((ids ?? []).filter(Boolean)));
+    if (!unique.length) return [];
+
+    return this.repository.find({
+      where: { id: In(unique) },
+    });
+  }
+
+  /**
+   * Удобно для восстановления исходного порядка:
+   * const map = await filesService.findByIdsMap(ids)
+   * const ordered = ids.map(id => map.get(id) ?? null).filter(Boolean)
+   */
+  async findByIdsMap(ids: string[]): Promise<Map<string, FileEntity>> {
+    const files = await this.findByIds(ids);
+    return new Map(files.map((f) => [f.id, f]));
   }
 
   /**
@@ -180,6 +203,11 @@ export class FilesService {
     if (!file) throw new NotFoundException("File not found");
 
     return file;
+  }
+
+  async getMetaMany(ids: string[]) {
+    if (!ids.length) return [];
+    return await this.repository.findBy({ id: In(ids) });
   }
 
   private async streamToBuffer(stream: Readable): Promise<Buffer> {

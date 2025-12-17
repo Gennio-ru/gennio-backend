@@ -1,15 +1,23 @@
 import { IModelJob } from "./types/model-job.interface";
-import { Entity, Column, ManyToOne, JoinColumn, RelationId } from "typeorm";
+import {
+  Entity,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  RelationId,
+  OneToMany,
+} from "typeorm";
 import { BaseEntity } from "src/common/base/base.entity";
 import {
   ModelJobStatusType,
+  ModelJobTariffCode,
   ModelJobType,
   ModelType,
 } from "./types/model-job.enum";
-import { ModelTariffCode } from "../pricing/types/pricing.enum";
 import { FileEntity } from "../files/files.entity";
 import { User } from "../users/user.entity";
 import { Prompt } from "../prompts/prompt.entity";
+import { ModelJobFile } from "./model-job-file.entity";
 
 @Entity("model_jobs")
 export class ModelJob extends BaseEntity implements IModelJob {
@@ -28,6 +36,9 @@ export class ModelJob extends BaseEntity implements IModelJob {
   @Column({ type: "varchar", length: 10, nullable: true })
   aspectRatio: string | null;
 
+  @Column({ type: "varchar", length: 10, nullable: true })
+  imageSize: string | null;
+
   @Column({ type: "uuid", nullable: true })
   promptId: string | null;
 
@@ -42,41 +53,18 @@ export class ModelJob extends BaseEntity implements IModelJob {
   @JoinColumn({ name: "userId" })
   user!: User;
 
-  @Column({ type: "uuid", nullable: true })
-  inputFileId!: string | null;
-
-  @ManyToOne(() => FileEntity, {
-    onDelete: "SET NULL",
-    nullable: true,
-  })
-  @JoinColumn({ name: "inputFileId" })
-  inputFile!: FileEntity | null;
-
-  @Column({ type: "uuid", nullable: true })
-  outputFileId!: string | null;
-
-  @ManyToOne(() => FileEntity, {
-    onDelete: "SET NULL",
-    nullable: true,
-  })
-  @JoinColumn({ name: "outputFileId" })
-  outputFile!: FileEntity | null;
-
-  @Column({ type: "uuid", nullable: true })
-  outputPreviewFileId!: string | null;
-
-  @ManyToOne(() => FileEntity, {
-    onDelete: "SET NULL",
-    nullable: true,
-  })
-  @JoinColumn({ name: "outputPreviewFileId" })
-  outputPreviewFile!: FileEntity | null;
+  @OneToMany(() => ModelJobFile, (x) => x.modelJob)
+  files!: ModelJobFile[];
 
   @Column({ type: "text", nullable: true })
   outputText: string | null;
 
-  @Column({ type: "enum", enum: ModelTariffCode })
-  tariffCode: ModelTariffCode;
+  @Column({
+    type: "enum",
+    enum: ModelJobTariffCode,
+    default: ModelJobTariffCode.User,
+  })
+  tariffCode: ModelJobTariffCode;
 
   @Column({ type: "int" })
   tokensCharged: number;

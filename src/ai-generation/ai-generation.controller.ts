@@ -42,39 +42,63 @@ export class AiGenerationController {
               };
             }
 
-            const { imageBuffer, usedTokens } =
+            const { imageBuffers, usedTokens } =
               await providerStrategy.generateImage({
                 payload,
                 openAiImageService: this.openAiImageService,
                 geminiImageService: this.geminiImageService,
               });
 
+            const imageBase64Items = imageBuffers.map((b) =>
+              b.toString("base64")
+            );
+
             return {
               ok: true,
-              imageBase64: imageBuffer.toString("base64"),
+              imageBase64:
+                imageBase64Items.length <= 1
+                  ? imageBase64Items[0] ?? ""
+                  : imageBase64Items,
               usedTokens,
             };
           }
 
           case "IMAGE_EDIT_BY_PROMPT_TEXT":
           case "IMAGE_EDIT_BY_PROMPT_ID": {
-            if (!payload.promptText || !payload.inputImageBase64) {
+            const inputImageBase64Items = Array.isArray(payload.inputImageBase64)
+              ? payload.inputImageBase64
+              : payload.inputImageBase64
+              ? [payload.inputImageBase64]
+              : [];
+
+            const inputImagesCount = inputImageBase64Items.filter(
+              (x): x is string => typeof x === "string" && x.length > 0
+            ).length;
+
+            if (!payload.promptText || inputImagesCount === 0) {
               return {
                 ok: false,
                 error: "promptText and inputImageBase64 are required",
               };
             }
 
-            const { imageBuffer, usedTokens } =
+            const { imageBuffers, usedTokens } =
               await providerStrategy.editImage({
                 payload,
                 openAiImageService: this.openAiImageService,
                 geminiImageService: this.geminiImageService,
               });
 
+            const imageBase64Items = imageBuffers.map((b) =>
+              b.toString("base64")
+            );
+
             return {
               ok: true,
-              imageBase64: imageBuffer.toString("base64"),
+              imageBase64:
+                imageBase64Items.length <= 1
+                  ? imageBase64Items[0] ?? ""
+                  : imageBase64Items,
               usedTokens,
             };
           }
