@@ -479,7 +479,7 @@ export class ModelJobService {
       if (!payload.text) throw new Error("Не указано поле text");
 
       const res = await this.aiGenerationClientService.sendJob({
-        type: "IMAGE_GENERATE_BY_PROMPT_TEXT",
+        type: payload.type,
         promptText: payload.text,
         provider: payload.model,
         aspectRatio: payload.aspectRatio,
@@ -594,10 +594,7 @@ export class ModelJobService {
     );
 
     const res = await this.aiGenerationClientService.sendJob({
-      type:
-        payload.type === ModelJobType.ImageEditByPromptId
-          ? "IMAGE_EDIT_BY_PROMPT_ID"
-          : "IMAGE_EDIT_BY_PROMPT_TEXT",
+      type: payload.type,
       promptText: promptTextBase!,
       inputImageBase64: inputFileBuffers.map((b) => b.toString("base64")),
       provider,

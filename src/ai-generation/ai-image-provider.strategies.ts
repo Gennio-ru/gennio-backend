@@ -1,7 +1,10 @@
 import { OpenAiImageService } from "./neuromodels/openai/openai.service";
 import { GeminiImageService } from "./neuromodels/gemini/gemini-image.service";
 import { AiImageJobPayload } from "./ai-generation.types";
-import { ModelType } from "src/modules/model-job/types/model-job.enum";
+import {
+  ModelJobType,
+  ModelType,
+} from "src/modules/model-job/types/model-job.enum";
 import { GeminiImageSizes } from "./neuromodels/gemini/types";
 
 export type AiImageProviderKey = ModelType;
@@ -61,7 +64,7 @@ export const AI_IMAGE_PROVIDER_STRATEGIES: Record<
         prompt: payload.promptText!,
         aspectRatio: payload.aspectRatio,
         model:
-          payload.type === "IMAGE_EDIT_BY_PROMPT_ID"
+          payload.type === ModelJobType.ImageEditByPromptId
             ? "gemini-2.5-flash-image"
             : "gemini-3-pro-image-preview",
         imageSize: payload.imageSize as GeminiImageSizes,
@@ -104,7 +107,7 @@ export const AI_IMAGE_PROVIDER_STRATEGIES: Record<
         aspectRatio: payload.aspectRatio,
         quality: "medium",
         model:
-          payload.type === "IMAGE_EDIT_BY_PROMPT_ID"
+          payload.type === ModelJobType.ImageEditByPromptId
             ? "gpt-image-1-mini"
             : "gpt-image-1",
       });

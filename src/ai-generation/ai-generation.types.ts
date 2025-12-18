@@ -1,12 +1,10 @@
-import { ModelType } from "src/modules/model-job/types/model-job.enum";
-
-export type AiJobType =
-  | "IMAGE_GENERATE_BY_PROMPT_TEXT"
-  | "IMAGE_EDIT_BY_PROMPT_TEXT"
-  | "IMAGE_EDIT_BY_PROMPT_ID";
+import {
+  ModelJobType,
+  ModelType,
+} from "src/modules/model-job/types/model-job.enum";
 
 export interface AiImageJobPayload {
-  type: AiJobType;
+  type: ModelJobType;
   promptText?: string;
   promptId?: string;
   // буфер исходного изображения (для edit)
