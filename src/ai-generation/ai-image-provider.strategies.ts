@@ -41,7 +41,7 @@ export const AI_IMAGE_PROVIDER_STRATEGIES: Record<
           prompt: payload.promptText!,
           aspectRatio: payload.aspectRatio,
           imageSize: payload.imageSize as GeminiImageSizes,
-          model: "gemini-2.5-flash-image",
+          model: "gemini-3-pro-image-preview",
         });
 
       return { imageBuffers, usedTokens };

@@ -86,7 +86,11 @@ export class GeminiImageService {
           ...(aspectRatio && isGeminiAspectRatio(aspectRatio)
             ? { aspectRatio }
             : {}),
-          ...(imageSize && isGeminiImageSize(imageSize) ? { imageSize } : {}),
+          ...(imageSize &&
+          isGeminiImageSize(imageSize) &&
+          model !== "gemini-2.5-flash-image"
+            ? { imageSize }
+            : {}),
         },
         responseModalities: ["IMAGE"],
       },
@@ -124,6 +128,8 @@ export class GeminiImageService {
       throw new Error("Gemini editImage: images is required");
     }
 
+    console.log(params);
+
     const contents = [
       { text: prompt },
       ...images.map((image) => ({
@@ -142,7 +148,11 @@ export class GeminiImageService {
           ...(aspectRatio && isGeminiAspectRatio(aspectRatio)
             ? { aspectRatio }
             : {}),
-          ...(imageSize && isGeminiImageSize(imageSize) ? { imageSize } : {}),
+          ...(imageSize &&
+          isGeminiImageSize(imageSize) &&
+          model !== "gemini-2.5-flash-image"
+            ? { imageSize }
+            : {}),
         },
         responseModalities: ["IMAGE"],
       },

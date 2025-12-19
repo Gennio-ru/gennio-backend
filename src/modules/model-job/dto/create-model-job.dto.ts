@@ -147,7 +147,8 @@ export class StartAdminGenerateDto implements IModelJobAdminStart {
   @IsArray()
   @ArrayMinSize(1)
   @IsUUID("4", { each: true })
-  inputFileIds!: string[];
+  @IsOptional()
+  inputFileIds?: string[];
 
   @ApiProperty({
     enum: ModelType,
