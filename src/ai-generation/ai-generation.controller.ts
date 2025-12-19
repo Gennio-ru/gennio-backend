@@ -9,6 +9,7 @@ import {
   AI_IMAGE_PROVIDER_STRATEGIES,
   AiImageProviderKey,
 } from "./ai-image-provider.strategies";
+import { ModelJobType } from "src/modules/model-job/types/model-job.enum";
 
 @Controller()
 export class AiGenerationController {
@@ -34,7 +35,7 @@ export class AiGenerationController {
 
       try {
         switch (payload.type) {
-          case "IMAGE_GENERATE_BY_PROMPT_TEXT": {
+          case ModelJobType.ImageGenerateByPromptText: {
             if (!payload.promptText) {
               return {
                 ok: false,
@@ -63,9 +64,12 @@ export class AiGenerationController {
             };
           }
 
-          case "IMAGE_EDIT_BY_PROMPT_TEXT":
-          case "IMAGE_EDIT_BY_PROMPT_ID": {
-            const inputImageBase64Items = Array.isArray(payload.inputImageBase64)
+          case ModelJobType.ImageEditByPromptText:
+          case ModelJobType.ImageEditByPromptId:
+          case ModelJobType.ImageEditByStyleReference: {
+            const inputImageBase64Items = Array.isArray(
+              payload.inputImageBase64
+            )
               ? payload.inputImageBase64
               : payload.inputImageBase64
               ? [payload.inputImageBase64]

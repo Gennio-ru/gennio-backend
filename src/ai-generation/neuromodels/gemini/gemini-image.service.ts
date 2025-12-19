@@ -1,5 +1,5 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, ThinkingLevel } from "@google/genai";
 import sharp from "sharp";
 
 import { GEMINI_CLIENT } from "./gemini.constants";
@@ -83,7 +83,7 @@ export class GeminiImageService {
       contents: prompt,
       config: {
         imageConfig: {
-          ...(aspectRatio && isGeminiImageSize(aspectRatio)
+          ...(aspectRatio && isGeminiAspectRatio(aspectRatio)
             ? { aspectRatio }
             : {}),
           ...(imageSize && isGeminiImageSize(imageSize) ? { imageSize } : {}),
@@ -139,7 +139,7 @@ export class GeminiImageService {
       contents,
       config: {
         imageConfig: {
-          ...(aspectRatio && isGeminiImageSize(aspectRatio)
+          ...(aspectRatio && isGeminiAspectRatio(aspectRatio)
             ? { aspectRatio }
             : {}),
           ...(imageSize && isGeminiImageSize(imageSize) ? { imageSize } : {}),

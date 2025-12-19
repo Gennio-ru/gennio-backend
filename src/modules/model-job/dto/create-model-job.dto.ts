@@ -41,12 +41,12 @@ export class StartImageEditByPromptIdDto implements IModelJobStart {
 export class StartImageEditByPromptTextDto implements IModelJobStart {
   @ApiProperty({
     example: "Мягкое освещение, крупный план",
-    maxLength: 700,
-    description: "Не более 700 символов",
+    maxLength: 1000,
+    description: "Не более 1000 символов",
   })
   @IsString()
   @IsNotEmpty()
-  @MaxLength(700, { message: "Текст не должен превышать 700 символов" })
+  @MaxLength(1000, { message: "Текст не должен превышать 1000 символов" })
   text: string;
 
   @ApiProperty({ type: [String], format: "uuid" })
@@ -75,12 +75,12 @@ export class StartImageEditByPromptTextDto implements IModelJobStart {
 export class StartImageGenerateByPromptTextDto implements IModelJobStart {
   @ApiProperty({
     example: "Мягкое освещение, крупный план",
-    maxLength: 700,
-    description: "Не более 700 символов",
+    maxLength: 1000,
+    description: "Не более 1000 символов",
   })
   @IsString()
   @IsNotEmpty()
-  @MaxLength(700, { message: "Текст не должен превышать 700 символов" })
+  @MaxLength(1000, { message: "Текст не должен превышать 1000 символов" })
   text: string;
 
   @ApiProperty({
@@ -119,12 +119,12 @@ export class StartImageGenerateByStyleReferenceDto implements IModelJobStart {
 export class StartAdminGenerateDto implements IModelJobAdminStart {
   @ApiProperty({
     example: "Мягкое освещение, крупный план",
-    maxLength: 700,
-    description: "Не более 700 символов",
+    maxLength: 2000,
+    description: "Не более 2000 символов",
   })
   @IsString()
   @IsNotEmpty()
-  @MaxLength(700, { message: "Текст не должен превышать 700 символов" })
+  @MaxLength(2000, { message: "Текст не должен превышать 2000 символов" })
   text: string;
 
   @ApiProperty({
