@@ -5,6 +5,7 @@ Recreate the scene as a new shot, not a direct edit.
 The body, pose, and full geometry should follow the second image.
 Reconstruction is allowed to the extent necessary to match the pose and emotions of the scene.
 The face should be synthesized from scratch and must not inherit facial proportions from the second image.
+Body proportions should remain consistent with the person from the first image. 
 `;
 
 // export const styleReferencePrompt = `Use the identity from the first image and generate a new image in the style of the second image.
