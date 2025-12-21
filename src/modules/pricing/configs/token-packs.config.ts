@@ -2,7 +2,7 @@ export enum TokensPackId {
   STARTER = "STARTER",
   BASIC = "BASIC",
   ADVANCED = "ADVANCED",
-  PRO = "PRO",
+  MAXIMUM = "MAXIMUM",
 }
 
 export type TokensPackConfig = {
@@ -31,7 +31,7 @@ export const TOKEN_PACKS: Record<TokensPackId, TokensPackConfig> = {
     id: TokensPackId.BASIC,
     name: "Базовый",
     subtitle: "С приятным бонусом",
-    tokens: 300,
+    tokens: 320,
     priceRub: 300,
     bonusTokens: 20,
   },
@@ -39,16 +39,16 @@ export const TOKEN_PACKS: Record<TokensPackId, TokensPackConfig> = {
     id: TokensPackId.ADVANCED,
     name: "Продвинутый",
     subtitle: "Уверенный запас",
-    tokens: 600,
+    tokens: 660,
     priceRub: 600,
     bonusTokens: 60,
     highlight: true,
   },
-  [TokensPackId.PRO]: {
-    id: TokensPackId.PRO,
+  [TokensPackId.MAXIMUM]: {
+    id: TokensPackId.MAXIMUM,
     name: "Максимальный",
     subtitle: "Самый выгодный",
-    tokens: 1000,
+    tokens: 1140,
     priceRub: 1000,
     bonusTokens: 140,
   },
