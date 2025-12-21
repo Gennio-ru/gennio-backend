@@ -12,5 +12,4 @@ export type TokensPackPaymentMeta = {
   packId: string;
   tokens: number;
   priceRub: number;
-  generations: number;
 };

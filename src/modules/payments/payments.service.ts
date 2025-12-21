@@ -138,7 +138,6 @@ export class PaymentsService {
       packId: pack.id,
       tokens: pack.tokens,
       priceRub: pack.priceRub,
-      generations: pack.generations,
     };
 
     const payment = this.paymentsRepo.create({
