@@ -18,13 +18,13 @@ export class Name1765980508150 implements MigrationInterface {
       `CREATE INDEX "IDX_2c7a865e9736dbf1ce75627145" ON "model_job_files" ("modelJobId", "kind") `
     );
     await queryRunner.query(
-      `ALTER TABLE "model_jobs" DROP COLUMN "inputFileIds"`
+      `ALTER TABLE "model_jobs" DROP COLUMN "inputFileId"`
     );
     await queryRunner.query(
-      `ALTER TABLE "model_jobs" DROP COLUMN "outputFileIds"`
+      `ALTER TABLE "model_jobs" DROP COLUMN "outputFileId"`
     );
     await queryRunner.query(
-      `ALTER TABLE "model_jobs" DROP COLUMN "outputPreviewFileIds"`
+      `ALTER TABLE "model_jobs" DROP COLUMN "outputPreviewFileId"`
     );
     await queryRunner.query(
       `ALTER TABLE "model_job_files" ADD CONSTRAINT "FK_0603d6a10d9592b3424329f13e2" FOREIGN KEY ("modelJobId") REFERENCES "model_jobs"("id") ON DELETE CASCADE ON UPDATE NO ACTION`
@@ -34,29 +34,5 @@ export class Name1765980508150 implements MigrationInterface {
     );
   }
 
-  public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(
-      `ALTER TABLE "model_job_files" DROP CONSTRAINT "FK_396cda5b8114a1afbb35a5863d2"`
-    );
-    await queryRunner.query(
-      `ALTER TABLE "model_job_files" DROP CONSTRAINT "FK_0603d6a10d9592b3424329f13e2"`
-    );
-    await queryRunner.query(
-      `ALTER TABLE "model_jobs" ADD "outputPreviewFileIds" uuid array NOT NULL DEFAULT '{}'`
-    );
-    await queryRunner.query(
-      `ALTER TABLE "model_jobs" ADD "outputFileIds" uuid array NOT NULL DEFAULT '{}'`
-    );
-    await queryRunner.query(
-      `ALTER TABLE "model_jobs" ADD "inputFileIds" uuid array NOT NULL DEFAULT '{}'`
-    );
-    await queryRunner.query(
-      `DROP INDEX "public"."IDX_2c7a865e9736dbf1ce75627145"`
-    );
-    await queryRunner.query(
-      `DROP INDEX "public"."IDX_396cda5b8114a1afbb35a5863d"`
-    );
-    await queryRunner.query(`DROP TABLE "model_job_files"`);
-    await queryRunner.query(`DROP TYPE "public"."model_job_files_kind_enum"`);
-  }
+  public async down(): Promise<void> {}
 }
