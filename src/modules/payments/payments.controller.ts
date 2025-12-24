@@ -177,7 +177,7 @@ export class PaymentsController {
   async yookassaWebhook(
     @Body() body: any
   ): Promise<YookassaWebhookResponseDto> {
-    await this.paymentsService.handleYookassaWebhook(body);
+    await this.paymentsService.handleRobokassaResult(body);
     return { accepted: true };
   }
 

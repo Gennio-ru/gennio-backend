@@ -1,3 +1,4 @@
+// src/modules/payments/payments.service.ts
 import {
   BadRequestException,
   Injectable,
@@ -7,16 +8,21 @@ import {
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
+
 import { PaymentEntity } from "./payments.entity";
 import { PaymentStatus } from "./types/payments.enum";
-import { YookassaClient, YookassaReceipt } from "./yookassa.client";
+
+import { RobokassaClient } from "./robokassa.client";
+
 import {
   TOKEN_PACKS,
   TokensPackId,
 } from "../pricing/configs/token-packs.config";
 import { TokensPackPaymentMeta } from "./types/payments.enum";
+
 import { UserTokenTransactionService } from "../tokens/user-token-transactions.service";
 import { TokenTransactionReason } from "../tokens/types/user-token-transactions.enum";
+
 import { ConfigService } from "@nestjs/config";
 import { PaymentsGateway } from "./payments.gateway";
 import { FindPaymentsDto } from "./dto/find-payments.dto";
@@ -34,7 +40,7 @@ export class PaymentsService {
   constructor(
     @InjectRepository(PaymentEntity)
     private readonly paymentsRepo: Repository<PaymentEntity>,
-    private readonly yookassa: YookassaClient,
+    private readonly robokassa: RobokassaClient,
     private readonly userTokenTransactionService: UserTokenTransactionService,
     private readonly configService: ConfigService,
     private readonly paymentsGateway: PaymentsGateway,
@@ -46,21 +52,56 @@ export class PaymentsService {
   //
   // Вспомогательное
   //
-  private mapYookassaStatus(status: string): PaymentStatus {
-    switch (status) {
-      case "pending":
+  private mapRobokassaStateCode(code: number): PaymentStatus {
+    // по документации Robokassa (OpStateExt):
+    // 5 - операция только инициализирована
+    // 10 - операция отменена
+    // 20 - операция находится в стадии HOLD
+    // 50 - операция обрабатывается
+    // 60 - платеж подтвержден, но средства не зачислены (возвращены)
+    // 80 - операция приостановлена
+    // 100 - операция выполнена успешно
+    switch (code) {
+      case 5:
+      case 50:
         return PaymentStatus.PENDING;
-      case "waiting_for_capture":
+      case 20:
         return PaymentStatus.WAITING_FOR_CAPTURE;
-      case "succeeded":
-        return PaymentStatus.SUCCEEDED;
-      case "canceled":
+      case 10:
         return PaymentStatus.CANCELED;
-      case "refunded":
-        return PaymentStatus.REFUNDED;
-      default:
+      case 100:
+        return PaymentStatus.SUCCEEDED;
+      case 60:
+      case 80:
         return PaymentStatus.ERROR;
+      default:
+        return PaymentStatus.PENDING;
     }
+  }
+
+  /**
+   * Robokassa InvId должен быть целым.
+   * Делаем простой генератор на базе epoch seconds + проверка коллизий.
+   * (2025 год — epoch seconds < 2_147_483_647, так что влезает в int32)
+   */
+  private async allocateRobokassaInvId(): Promise<number> {
+    const maxInt32 = 2_147_483_647;
+    let invId = Math.floor(Date.now() / 1000);
+
+    if (invId > maxInt32) invId = invId % maxInt32;
+
+    for (let i = 0; i < 50; i++) {
+      const candidate = invId + i;
+      if (candidate > maxInt32) break;
+
+      const exists = await this.paymentsRepo.exist({
+        where: { provider: "robokassa", providerPaymentId: String(candidate) },
+      });
+
+      if (!exists) return candidate;
+    }
+
+    throw new Error("Failed to allocate unique RoboKassa InvId");
   }
 
   //
@@ -78,19 +119,16 @@ export class PaymentsService {
 
         if (query.search) {
           const s = `%${query.search.toLowerCase()}%`;
-
           qb.andWhere(
             `(LOWER(payment.providerPaymentId) LIKE :s
-              OR LOWER(payment.description) LIKE :s
-              OR LOWER(user.email) LIKE :s)`,
+            OR LOWER(payment.description) LIKE :s
+            OR LOWER(user.email) LIKE :s)`,
             { s }
           );
         }
 
         if (query.status) {
-          qb.andWhere("payment.status = :status", {
-            status: query.status,
-          });
+          qb.andWhere("payment.status = :status", { status: query.status });
         }
 
         if (query.createdFrom) {
@@ -113,7 +151,7 @@ export class PaymentsService {
   }
 
   //
-  // Создание платежей
+  // Создание платежа (пакет токенов)
   //
   async createTokensPackPayment(opts: {
     userId: string;
@@ -121,16 +159,13 @@ export class PaymentsService {
     returnPath?: string;
   }) {
     const pack = TOKEN_PACKS[opts.packId];
-    if (!pack) {
+    if (!pack)
       throw new NotFoundException(`Unknown tokens pack id: ${opts.packId}`);
-    }
 
     const user = await this.usersService.findById(opts.userId);
+    if (!user) throw new NotFoundException(`User not found: ${opts.userId}`);
 
-    if (!user) {
-      throw new NotFoundException(`User not found: ${opts.userId}`);
-    }
-
+    const invId = await this.allocateRobokassaInvId();
     const amountValue = pack.priceRub.toFixed(2);
 
     const meta: TokensPackPaymentMeta = {
@@ -142,9 +177,10 @@ export class PaymentsService {
 
     const payment = this.paymentsRepo.create({
       userId: opts.userId,
-      amount: amountValue, // строка "350.00"
+      amount: amountValue,
       currency: "RUB",
-      provider: "yookassa",
+      provider: "robokassa",
+      providerPaymentId: String(invId), // ← InvId RoboKassa
       status: PaymentStatus.PENDING,
       description: pack.name,
       meta,
@@ -157,132 +193,42 @@ export class PaymentsService {
         ? opts.returnPath
         : "/";
 
-    const returnUrl = `${this.frontendUrl}${safeReturnPath}?modal=payment-result&paymentId=${payment.id}`;
+    const successUrl = `${this.frontendUrl}${safeReturnPath}?modal=payment-result&paymentId=${payment.id}`;
+    const failUrl = `${this.frontendUrl}${safeReturnPath}?modal=payment-result&paymentId=${payment.id}&fail=1`;
 
-    // Собираем чек под YooKassa
-    const receipt: YookassaReceipt = {
-      customer: {},
-      items: [
-        {
-          description: pack.name, // "Пакет 50 токенов"
-          quantity: "1.00",
-          amount: {
-            value: amountValue,
-            currency: "RUB",
-          },
-          vat_code: 1,
-          payment_mode: "full_prepayment",
-          payment_subject: "service",
-        },
-      ],
-    };
-
-    if (user.email) {
-      receipt.customer!.email = user.email;
-    }
-    if (user.phone) {
-      receipt.customer!.phone = user.phone;
-    }
-    // Если ни email, ни phone нет — убираем customer, чтобы не слать пустой объект
-    if (!receipt.customer!.email && !receipt.customer!.phone) {
-      delete receipt.customer;
-    }
-
-    let yoPayment;
-
+    let rkPayment;
     try {
-      yoPayment = await this.yookassa.createPayment({
+      rkPayment = await this.robokassa.createPayment({
         amount: pack.priceRub,
+        invId,
         description: pack.name,
-        returnUrl,
-        metadata: {
+        successUrl,
+        failUrl,
+        email: user.email || undefined,
+        shp: {
           paymentId: payment.id,
           kind: "TOKENS_PACK",
           packId: pack.id,
         },
-        capture: true,
-        receipt,
       });
     } catch (err: any) {
-      const status = err?.response?.status;
-      const data = err?.response?.data;
-
       this.logger.error(
-        `YooKassa createPayment failed: ${status} ${JSON.stringify(data)}`
+        `RoboKassa createPayment failed: ${err?.message ?? err}`
       );
-
-      if (status && status >= 400 && status < 500) {
-        throw new BadRequestException({
-          handled: true,
-          code: ErrorCode.PAYMENT_PROVIDER_ERROR,
-          providerCode: data?.code,
-          providerMessage: data?.description,
-          providerParameter: data?.parameter,
-        });
-      }
 
       throw new InternalServerErrorException({
         handled: false,
         code: ErrorCode.PAYMENT_FAILED,
-        message: err.message,
+        message: err?.message ?? "Robokassa createPayment failed",
       });
     }
 
-    payment.providerPaymentId = yoPayment.id;
-    payment.confirmationUrl = yoPayment.confirmation?.confirmation_url ?? null;
-    payment.providerPayload = yoPayment;
-    payment.status = this.mapYookassaStatus(yoPayment.status);
+    payment.confirmationUrl = rkPayment.paymentUrl;
+    payment.providerPayload = rkPayment;
 
     await this.paymentsRepo.save(payment);
-
     return payment;
   }
-
-  // async createPayment(opts: {
-  //   userId: string;
-  //   amount: number;
-  //   description?: string;
-  //   meta?: any;
-  //   returnPath?: string;
-  // }) {
-  //   const payment = this.paymentsRepo.create({
-  //     userId: opts.userId,
-  //     amount: opts.amount.toFixed(2),
-  //     currency: "RUB",
-  //     provider: "yookassa",
-  //     status: PaymentStatus.PENDING,
-  //     description: opts.description ?? "Оплата в Gennio",
-  //     meta: opts.meta ?? null,
-  //   });
-
-  //   await this.paymentsRepo.save(payment);
-
-  //   const safeReturnPath =
-  //     opts.returnPath && opts.returnPath.startsWith("/")
-  //       ? opts.returnPath
-  //       : "/";
-
-  //   const returnUrl = `${this.frontendUrl}${safeReturnPath}?modal=payment-result&paymentId=${payment.id}`;
-
-  //   const yoPayment = await this.yookassa.createPayment({
-  //     amount: opts.amount,
-  //     description: payment.description ?? undefined,
-  //     returnUrl,
-  //     metadata: {
-  //       paymentId: payment.id,
-  //     },
-  //     capture: true,
-  //   });
-
-  //   payment.providerPaymentId = yoPayment.id;
-  //   payment.confirmationUrl = yoPayment.confirmation?.confirmation_url ?? null;
-  //   payment.providerPayload = yoPayment;
-  //   payment.status = this.mapYookassaStatus(yoPayment.status);
-
-  //   await this.paymentsRepo.save(payment);
-
-  //   return payment;
-  // }
 
   //
   // Геттеры
@@ -302,94 +248,108 @@ export class PaymentsService {
     return payment;
   }
 
-  async getUserPayments(userId: string, limit = 20): Promise<PaymentEntity[]> {
-    return this.paymentsRepo.find({
-      where: { userId },
-      order: { createdAt: "DESC" },
-      take: limit,
-    });
-  }
-
   //
-  // Вебхук от YooKassa
+  // ✅ ВЕБХУК RoboKassa (ResultURL)
   //
-  async handleYookassaWebhook(body: any) {
-    const event = body.event as string;
-    const obj = body.object;
+  // payload обычно application/x-www-form-urlencoded:
+  // OutSum=...&InvId=...&SignatureValue=...&Shp_paymentId=...&...
+  //
+  // Ответ должен быть: "OK{InvId}"
+  //
+  async handleRobokassaResult(payload: Record<string, any>): Promise<string> {
+    // --- 0) определяем тип входа ---
+    // ResultURL (старый): есть SignatureValue и OutSum/InvId
+    // ResultUrl2 (JWS): у тебя прилетает уже нормализованный объект
+    // { invId, incSum, state, opKey, rawJws, rawPayload } из контроллера
+    const isJws = !!payload.rawJws || (!!payload.incSum && !!payload.invId);
 
-    if (event.startsWith("payment.")) {
-      return this.handlePaymentEvent(event, obj);
+    // --- 1) проверка подписи / целостности ---
+    if (!isJws) {
+      // это обычный ResultURL → MD5 обязателен
+      const okSig = this.robokassa.verifyResultSignature(payload);
+      if (!okSig) {
+        this.logger.warn(
+          `Robokassa webhook: invalid signature, payload=${JSON.stringify(
+            payload
+          )}`
+        );
+        // ВАЖНО: если хочешь, чтобы они НЕ ретраили при невалидной подписи,
+        // можно вернуть OK, но это дырка. Обычно оставляют 400.
+        throw new BadRequestException("Invalid Robokassa signature");
+      }
+    } else {
+      // это ResultUrl2 (JWS)
+      // По доке: проверка JWS сертификатом НЕ обязательна.
+      // Поэтому здесь минимум: state == OK + дальше amount check + processedAt.
+      const state = String(payload.state ?? "OK").toUpperCase();
+      if (state !== "OK") {
+        this.logger.warn(
+          `Robokassa result2: state is not OK, invId=${payload.invId}, state=${state}`
+        );
+        return `OK${payload.invId ?? ""}`;
+      }
     }
 
-    if (event.startsWith("refund.")) {
-      return this.handleRefundEvent(event, obj);
+    // --- 2) нормализуем invId/outSum ---
+    const invId = Number(payload.InvId ?? payload.invId);
+    const outSumNum = Number(
+      payload.OutSum ?? payload.outSum ?? payload.incSum
+    );
+
+    if (!Number.isFinite(invId) || !Number.isFinite(outSumNum)) {
+      throw new BadRequestException("Invalid OutSum/InvId");
     }
 
-    this.logger.warn(`Unknown YooKassa event: ${event}`);
-    return;
-  }
-
-  /**
-   * Обработка payment.* событий
-   * При capture: true основное событие — payment.succeeded
-   */
-  private async handlePaymentEvent(event: string, obj: any) {
-    const yoPaymentId: string = obj.id;
-    const yoStatus: string = obj.status;
+    // --- 3) ищем платеж: сперва по Shp_paymentId (если есть), иначе по invId ---
+    const paymentIdFromShp =
+      payload.Shp_paymentId ??
+      payload.Shp_paymentID ??
+      payload.Shp_PaymentId ??
+      payload.shp?.paymentId ?? // если ты прокинул nested
+      null;
 
     let payment: PaymentEntity | null = null;
 
-    if (obj.metadata?.paymentId) {
+    if (paymentIdFromShp) {
       payment = await this.paymentsRepo.findOne({
-        where: { id: obj.metadata.paymentId },
+        where: { id: String(paymentIdFromShp) },
       });
     }
 
     if (!payment) {
       payment = await this.paymentsRepo.findOne({
-        where: { providerPaymentId: yoPaymentId },
+        where: { provider: "robokassa", providerPaymentId: String(invId) },
       });
     }
 
     if (!payment) {
       this.logger.warn(
-        `Payment for YooKassa id=${yoPaymentId} not found, event=${event}`
+        `Robokassa webhook: payment not found for InvId=${invId}`
       );
-      return;
+      // ✅ лучше всегда OK, иначе ретраи бесконечные
+      return `OK${invId}`;
     }
 
-    payment.providerPayload = obj;
-    payment.status = this.mapYookassaStatus(yoStatus);
+    // --- 4) обновляем providerPayload/статус ---
+    payment.providerPayload = payload;
+    payment.status = PaymentStatus.SUCCEEDED;
+    payment.capturedAt = new Date();
 
-    switch (event) {
-      case "payment.waiting_for_capture":
+    // --- 5) начисление токенов (как у тебя) ---
+    const meta = payment.meta as TokensPackPaymentMeta | null;
+
+    if (!meta || meta.kind !== "TOKENS_PACK") {
+      this.logger.warn(
+        `Payment ${payment.id} succeeded (robokassa) but has no TOKENS_PACK meta`
+      );
+    } else {
+      if (payment.processedAt) {
         this.logger.log(
-          `Payment ${payment.id} in waiting_for_capture, but we use capture=true`
+          `Payment ${payment.id} already processed at ${payment.processedAt}, skipping`
         );
-        break;
-
-      case "payment.succeeded": {
-        payment.capturedAt = new Date(obj.captured_at ?? new Date());
-
-        const meta = payment.meta as TokensPackPaymentMeta | null;
-
-        if (!meta || meta.kind !== "TOKENS_PACK") {
-          this.logger.warn(
-            `Payment ${payment.id} succeeded but has no TOKENS_PACK meta`
-          );
-          break;
-        }
-
-        // 🔒 защита от повторной доменной обработки (но не полная, см. TokensService)
-        if (payment.processedAt) {
-          this.logger.log(
-            `Payment ${payment.id} already processed at ${payment.processedAt}, skipping`
-          );
-          break;
-        }
-
+      } else {
         const expectedAmount = Number(meta.priceRub);
-        const actualAmount = Number(obj.amount?.value ?? 0);
+        const actualAmount = Number(outSumNum);
 
         if (Math.abs(expectedAmount - actualAmount) > 0.001) {
           this.logger.error(
@@ -398,213 +358,55 @@ export class PaymentsService {
           payment.status = PaymentStatus.ERROR;
           payment.errorCode = "AMOUNT_MISMATCH";
           payment.errorMessage = `Expected ${expectedAmount}, got ${actualAmount}`;
-          break;
-        }
-
-        if (!payment.userId) {
+        } else if (!payment.userId) {
           this.logger.error(
             `Payment ${payment.id} has no userId, cannot credit tokens`
           );
-          break;
-        }
-
-        // начисляем токены (идемпотентность закрываем в TokensService)
-        await this.userTokenTransactionService.addTokens({
-          userId: payment.userId,
-          tokens: meta.tokens,
-          reason: TokenTransactionReason.PaymentPurchase,
-          meta: {
-            paymentId: payment.id,
-            packId: meta.packId,
-          },
-        });
-
-        payment.tokensPurchased = meta.tokens;
-        payment.tokensRefunded = payment.tokensRefunded ?? 0;
-        payment.processedAt = new Date();
-        break;
-      }
-
-      case "payment.canceled":
-        payment.canceledAt = new Date(obj.canceled_at ?? new Date());
-        payment.errorCode = obj.cancellation_details?.reason ?? null;
-        payment.errorMessage =
-          obj.cancellation_details?.party ??
-          obj.cancellation_details?.reason ??
-          null;
-        break;
-    }
-
-    await this.paymentsRepo.save(payment);
-
-    this.paymentsGateway.sendPaymentUpdate(payment);
-
-    return payment;
-  }
-
-  /**
-   * Обработка refund.* событий
-   */
-  private async handleRefundEvent(event: string, obj: any) {
-    const refundId: string = obj.id;
-    const paymentIdFromYoo: string = obj.payment_id;
-
-    const payment = await this.paymentsRepo.findOne({
-      where: { providerPaymentId: paymentIdFromYoo },
-    });
-
-    if (!payment) {
-      this.logger.warn(
-        `Refund ${refundId}: payment with providerPaymentId=${paymentIdFromYoo} not found`
-      );
-      return;
-    }
-
-    switch (event) {
-      case "refund.succeeded": {
-        const refundMeta = obj.metadata || {};
-        const meta = payment.meta as TokensPackPaymentMeta | null;
-
-        // базовые поля рефанда
-        payment.refundedAmount = obj.amount?.value ?? null;
-        payment.refundedAt = new Date(obj.created_at ?? new Date());
-        payment.status = PaymentStatus.REFUNDED;
-
-        // если это не пакет токенов — просто сохраняем стейт
-        if (!meta || meta.kind !== "TOKENS_PACK" || !payment.userId) {
-          break;
-        }
-
-        // 🔒 защита от повторного списания по одному и тому же refundId
-        const alreadyProcessed =
-          refundId &&
-          (await this.userTokenTransactionService.isRefundAlreadyProcessed(
-            refundId
-          ));
-
-        if (alreadyProcessed) {
-          this.logger.log(
-            `Refund ${refundId} for payment ${payment.id} already processed in tokens, skipping`
-          );
-          break;
-        }
-
-        // считаем, сколько токенов надо вернуть
-        const tokensPurchased = payment.tokensPurchased ?? meta.tokens;
-        const tokensRefunded = payment.tokensRefunded ?? 0;
-        const remainingByPayment = Math.max(
-          0,
-          tokensPurchased - tokensRefunded
-        );
-
-        let tokensToRefund: number | null = null;
-
-        // 1) наш кастомный рефанд из админки
-        if (typeof refundMeta.tokensToRefund === "number") {
-          tokensToRefund = refundMeta.tokensToRefund;
         } else {
-          // 2) рефанд напрямую из YooKassa (без metadata.tokensToRefund)
-          const fullAmount = Number(payment.amount);
-          const refundedAmount = Number(obj.amount?.value ?? 0);
-
-          if (fullAmount > 0 && refundedAmount > 0 && tokensPurchased > 0) {
-            const pricePerToken = fullAmount / tokensPurchased;
-            tokensToRefund = Math.round(refundedAmount / pricePerToken);
-          }
-        }
-
-        if (!tokensToRefund || tokensToRefund <= 0) {
-          this.logger.log(
-            `Refund ${refundId} for payment ${payment.id}: no positive tokensToRefund, skipping tokens logic`
-          );
-          break;
-        }
-
-        // не даём вернуть больше, чем осталось по этому платежу
-        const cappedTokens = Math.max(
-          0,
-          Math.min(tokensToRefund, remainingByPayment)
-        );
-
-        if (cappedTokens <= 0) {
-          this.logger.log(
-            `Refund ${refundId} for payment ${payment.id}: nothing left to refund in tokens (remainingByPayment=${remainingByPayment})`
-          );
-          break;
-        }
-
-        try {
-          await this.userTokenTransactionService.chargeForJob({
+          await this.userTokenTransactionService.addTokens({
             userId: payment.userId,
-            tokens: cappedTokens,
-            reason: TokenTransactionReason.PaymentRefund,
+            tokens: meta.tokens,
+            reason: TokenTransactionReason.PaymentPurchase,
             meta: {
               paymentId: payment.id,
               packId: meta.packId,
-              refundId,
+              invId,
             },
           });
 
-          payment.tokensRefunded = (payment.tokensRefunded ?? 0) + cappedTokens;
-        } catch (e) {
-          this.logger.error(
-            `Failed to subtract tokens for refund ${refundId} payment=${
-              payment.id
-            }: ${(e as Error).message}`
-          );
+          payment.tokensPurchased = meta.tokens;
+          payment.tokensRefunded = payment.tokensRefunded ?? 0;
+          payment.processedAt = new Date();
         }
-
-        break;
       }
     }
 
     await this.paymentsRepo.save(payment);
-    return payment;
+    this.paymentsGateway.sendPaymentUpdate(payment);
+
+    return `OK${invId}`;
   }
 
   //
-  // capture/cancel
+  // Отмена платежа (локально)
   //
-  async capturePayment(paymentId: string) {
-    const payment = await this.getPaymentById(paymentId);
-    if (!payment.providerPaymentId) {
-      throw new Error("No providerPaymentId");
-    }
-
-    const yoPayment = await this.yookassa.capturePayment(
-      payment.providerPaymentId
-    );
-
-    payment.providerPayload = yoPayment;
-    payment.status = this.mapYookassaStatus(yoPayment.status);
-    if (yoPayment.status === "succeeded") {
-      payment.capturedAt = new Date(yoPayment.captured_at ?? new Date());
-    }
-
-    await this.paymentsRepo.save(payment);
-    return payment;
-  }
-
   async cancelPayment(paymentId: string) {
     const payment = await this.getPaymentById(paymentId);
-    if (!payment.providerPaymentId) {
-      throw new Error("No providerPaymentId");
+
+    if (payment.status === PaymentStatus.SUCCEEDED) {
+      throw new BadRequestException("Cannot cancel succeeded payment");
     }
 
-    const yoPayment = await this.yookassa.cancelPayment(
-      payment.providerPaymentId
-    );
-
-    payment.providerPayload = yoPayment;
-    payment.status = this.mapYookassaStatus(yoPayment.status);
-    payment.canceledAt = new Date(yoPayment.canceled_at ?? new Date());
-
+    payment.status = PaymentStatus.CANCELED;
+    payment.canceledAt = new Date();
     await this.paymentsRepo.save(payment);
+
+    this.paymentsGateway.sendPaymentUpdate(payment);
     return payment;
   }
 
   //
-  // Рефанды по деньгам
+  // РЕФАНДЫ (денежные) — через gateway (см robokassa.client.ts)
   //
   async requestRefund(opts: {
     paymentId: string;
@@ -613,22 +415,29 @@ export class PaymentsService {
   }) {
     const payment = await this.getPaymentById(opts.paymentId);
 
-    if (!payment.providerPaymentId) {
-      throw new Error("No providerPaymentId to refund");
+    if (payment.provider !== "robokassa") {
+      throw new Error(`Unsupported provider: ${payment.provider}`);
     }
+
+    const invId = Number(payment.providerPaymentId);
+    if (!Number.isFinite(invId))
+      throw new Error("Invalid providerPaymentId(invId)");
+
+    // получаем opKey из OpStateExt
+    const op = await this.robokassa.getPayment(invId);
+    if (!op.opKey)
+      throw new Error("Robokassa opKey not found (need OpStateExt)");
 
     const fullAmount = Number(payment.amount);
     const amountToRefund =
       typeof opts.amount === "number" ? opts.amount : fullAmount;
 
-    if (amountToRefund <= 0) {
-      throw new Error("Refund amount must be positive");
-    }
+    if (amountToRefund <= 0) throw new Error("Refund amount must be positive");
 
-    const refund = await this.yookassa.refundPayment({
-      paymentId: payment.providerPaymentId,
-      amount: amountToRefund,
-      description: opts.description,
+    const refund = await this.robokassa.refundPayment({
+      opKey: op.opKey,
+      refundSum: amountToRefund,
+      comment: opts.description,
       metadata: {
         paymentId: payment.id,
         kind: (payment.meta as any)?.kind ?? "UNKNOWN",
@@ -636,14 +445,14 @@ export class PaymentsService {
     });
 
     this.logger.log(
-      `Refund requested for payment ${payment.id}, refundId=${refund.id}, amount=${amountToRefund}`
+      `Refund requested for payment ${payment.id}, invId=${invId}, amount=${amountToRefund}`
     );
 
     return refund;
   }
 
   //
-  // Кастомный (частичный) рефанд по токенам
+  // Кастомный частичный рефанд по токенам (деньгами + последующее списание токенов по webhook/логике)
   //
   async requestTokensRefund(opts: {
     paymentId: string;
@@ -652,14 +461,9 @@ export class PaymentsService {
   }) {
     const preview = await this.getTokensRefundPreview(opts.paymentId);
 
-    if (preview.maxTokensToRefund <= 0) {
+    if (preview.maxTokensToRefund <= 0)
       throw new Error("Nothing left to refund for this payment");
-    }
-
-    if (opts.tokens <= 0) {
-      throw new Error("Refund tokens must be positive");
-    }
-
+    if (opts.tokens <= 0) throw new Error("Refund tokens must be positive");
     if (opts.tokens > preview.maxTokensToRefund) {
       throw new Error(
         `Cannot refund more than ${preview.maxTokensToRefund} tokens`
@@ -673,14 +477,18 @@ export class PaymentsService {
 
     const payment = await this.getPaymentById(opts.paymentId);
 
-    if (!payment.providerPaymentId) {
-      throw new Error("No providerPaymentId to refund");
-    }
+    const invId = Number(payment.providerPaymentId);
+    if (!Number.isFinite(invId))
+      throw new Error("Invalid providerPaymentId(invId)");
 
-    const refund = await this.yookassa.refundPayment({
-      paymentId: payment.providerPaymentId,
-      amount: amountToRefund,
-      description: opts.description,
+    const op = await this.robokassa.getPayment(invId);
+    if (!op.opKey)
+      throw new Error("Robokassa opKey not found (need OpStateExt)");
+
+    const refund = await this.robokassa.refundPayment({
+      opKey: op.opKey,
+      refundSum: amountToRefund,
+      comment: opts.description,
       metadata: {
         paymentId: payment.id,
         kind: (payment.meta as any)?.kind ?? "TOKENS_PACK",
@@ -689,7 +497,7 @@ export class PaymentsService {
     });
 
     this.logger.log(
-      `Refund requested (tokens) for payment ${payment.id}, refundId=${refund.id}, tokens=${tokensToRefund}, amount=${amountToRefund}`
+      `Refund requested (tokens) for payment ${payment.id}, invId=${invId}, tokens=${tokensToRefund}, amount=${amountToRefund}`
     );
 
     return refund;

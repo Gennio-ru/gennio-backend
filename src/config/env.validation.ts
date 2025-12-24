@@ -94,10 +94,12 @@ export const envValidationSchema = Joi.object({
     .default("info"),
 
   // ==== YooKassa ====
-  YOOKASSA_MODE: Joi.string().valid("gateway", "direct").default("gateway"),
+  ROBOKASSA_MODE: Joi.string().valid("gateway", "direct").required(),
 
-  YOOKASSA_SHOP_ID: Joi.string().required(),
-  YOOKASSA_SECRET_KEY: Joi.string().required(),
+  ROBOKASSA_SHOP_ID: Joi.string().required(),
+  ROBOKASSA_PASSWORD1: Joi.string().required(),
+  ROBOKASSA_PASSWORD2: Joi.string().required(),
+  ROBOKASSA_RESULT_URL: Joi.string().uri().optional(),
 
   PAYMENTS_GATEWAY_URL: Joi.string().required(),
   PAYMENTS_GATEWAY_API_KEY: Joi.string().required(),
