@@ -127,12 +127,12 @@ export class OpenAiImageService {
       quality: params.quality,
     };
 
-    return { imageBuffer, usedTokens };
+    return { imageBuffers: [imageBuffer], usedTokens };
   }
 
   /** Обработка входного изображения -> JPEG Buffer результата */
   async editImage(params: {
-    image: Buffer;
+    images: Buffer[];
     prompt: string;
     imageFilename?: string;
     aspectRatio?: string;
@@ -140,7 +140,7 @@ export class OpenAiImageService {
     model?: OpenAIModel;
   }): Promise<GenerateImageResult> {
     const {
-      image,
+      images,
       prompt,
       imageFilename = "image.jpeg",
       aspectRatio,
@@ -148,7 +148,7 @@ export class OpenAiImageService {
       model = "gpt-image-1",
     } = params;
 
-    const imageFile = await this.prepareImageFile(image, imageFilename);
+    const imageFile = await this.prepareImageFile(images[0], imageFilename);
 
     const size =
       aspectRatio && isOpenAIAspectRatio(aspectRatio)
@@ -177,6 +177,6 @@ export class OpenAiImageService {
       quality,
     };
 
-    return { imageBuffer, usedTokens };
+    return { imageBuffers: [imageBuffer], usedTokens };
   }
 }

@@ -1,12 +1,39 @@
-import { ModelTariffCode } from "./pricing.enum";
+import {
+  ModelJobType,
+  ModelType,
+} from "src/modules/model-job/types/model-job.enum";
+import { ProviderAction, ProviderCostProfile } from "./pricing.enum";
 
-export const PRICING: Record<ModelTariffCode, { tokens: number }> = {
-  [ModelTariffCode.TextBasic]: { tokens: 1 },
-  [ModelTariffCode.TextPro]: { tokens: 2 },
+const GEMINI_COST: ProviderCostProfile = {
+  generate: {
+    standard: 20,
+    high: 35,
+  },
+  edit: {
+    standard: 20,
+    high: 35,
+  },
+};
 
-  [ModelTariffCode.ImageBasicGenerate]: { tokens: 10 },
-  [ModelTariffCode.ImageBasicEdit]: { tokens: 10 },
-  [ModelTariffCode.ImageProGenerate]: { tokens: 14 },
-  [ModelTariffCode.ImageProEdit]: { tokens: 14 },
-  [ModelTariffCode.AdminGenerate]: { tokens: 0 },
-} as const;
+const OPENAI_COST: ProviderCostProfile = {
+  generate: {
+    standard: 10,
+    high: 10,
+  },
+  edit: {
+    standard: 10,
+    high: 10,
+  },
+};
+
+export const PROVIDER_COST_OBJECT: Record<ModelType, ProviderCostProfile> = {
+  [ModelType.Gemini]: GEMINI_COST,
+  [ModelType.OpenAI]: OPENAI_COST,
+};
+
+export const PROVIDER_ACTION_OBJECT: Record<ModelJobType, ProviderAction> = {
+  [ModelJobType.ImageEditByPromptId]: "edit",
+  [ModelJobType.ImageEditByPromptText]: "edit",
+  [ModelJobType.ImageEditByStyleReference]: "edit",
+  [ModelJobType.ImageGenerateByPromptText]: "generate",
+};

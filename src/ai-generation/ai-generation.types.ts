@@ -1,24 +1,22 @@
-import { ModelType } from "src/modules/model-job/types/model-job.enum";
-
-export type AiJobType =
-  | "IMAGE_GENERATE_BY_PROMPT_TEXT"
-  | "IMAGE_EDIT_BY_PROMPT_TEXT"
-  | "IMAGE_EDIT_BY_PROMPT_ID";
+import {
+  ModelJobType,
+  ModelType,
+} from "src/modules/model-job/types/model-job.enum";
 
 export interface AiImageJobPayload {
-  type: AiJobType;
+  type: ModelJobType;
   promptText?: string;
   promptId?: string;
   // буфер исходного изображения (для edit)
-  inputImageBase64?: string | null;
-  inputImageFilename?: string | null;
+  inputImageBase64?: string | string[] | null;
   aspectRatio?: string; // 1:1 || 2:3 ...
+  imageSize?: string; // 1K || 2K ...
   provider: ModelType;
 }
 
 export type AiImageJobSuccessResult = {
   ok: true;
-  imageBase64: string;
+  imageBase64: string | string[];
   usedTokens: Record<string, any>;
   status?: number | null;
   requestId?: string | null;

@@ -7,3 +7,9 @@ export enum GeminiAspectRatio {
   RATIO_9_16 = "9:16",
   RATIO_16_9 = "16:9",
 }
+
+export enum GeminiImageSizes {
+  SIZE_1K = "1K",
+  SIZE_2K = "2K",
+  SIZE_4K = "4K",
+}

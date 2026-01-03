@@ -1,4 +1,4 @@
 export interface GenerateImageResult {
-  imageBuffer: Buffer;
+  imageBuffers: Buffer[];
   usedTokens: Record<string, any>;
 }

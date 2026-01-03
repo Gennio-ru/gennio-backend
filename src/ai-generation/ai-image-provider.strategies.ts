@@ -1,7 +1,11 @@
 import { OpenAiImageService } from "./neuromodels/openai/openai.service";
 import { GeminiImageService } from "./neuromodels/gemini/gemini-image.service";
 import { AiImageJobPayload } from "./ai-generation.types";
-import { ModelType } from "src/modules/model-job/types/model-job.enum";
+import {
+  ModelJobType,
+  ModelType,
+} from "src/modules/model-job/types/model-job.enum";
+import { GeminiImageSizes } from "./neuromodels/gemini/types";
 
 export type AiImageProviderKey = ModelType;
 
@@ -13,12 +17,12 @@ export interface AiImageProviderStrategyContext {
 
 export interface AiImageProviderStrategy {
   generateImage: (context: AiImageProviderStrategyContext) => Promise<{
-    imageBuffer: Buffer;
+    imageBuffers: Buffer[];
     usedTokens: Record<string, any>;
   }>;
 
   editImage: (context: AiImageProviderStrategyContext) => Promise<{
-    imageBuffer: Buffer;
+    imageBuffers: Buffer[];
     usedTokens: Record<string, any>;
   }>;
 }
@@ -32,28 +36,41 @@ export const AI_IMAGE_PROVIDER_STRATEGIES: Record<
       payload,
       geminiImageService,
     }: AiImageProviderStrategyContext) {
-      const { imageBuffer, usedTokens } =
+      const { imageBuffers, usedTokens } =
         await geminiImageService.generateImage({
           prompt: payload.promptText!,
           aspectRatio: payload.aspectRatio,
+          imageSize: payload.imageSize as GeminiImageSizes,
+          model: "gemini-3-pro-image-preview",
         });
 
-      return { imageBuffer, usedTokens };
+      return { imageBuffers, usedTokens };
     },
 
     async editImage({
       payload,
       geminiImageService,
     }: AiImageProviderStrategyContext) {
-      const inputImageBuffer = Buffer.from(payload.inputImageBase64!, "base64");
+      const inputImageBase64Items = Array.isArray(payload.inputImageBase64)
+        ? payload.inputImageBase64
+        : [payload.inputImageBase64];
 
-      const { imageBuffer, usedTokens } = await geminiImageService.editImage({
-        image: inputImageBuffer,
+      const inputImages = inputImageBase64Items
+        .filter((x): x is string => typeof x === "string" && x.length > 0)
+        .map((b64) => Buffer.from(b64, "base64"));
+
+      const { imageBuffers, usedTokens } = await geminiImageService.editImage({
+        images: inputImages,
         prompt: payload.promptText!,
         aspectRatio: payload.aspectRatio,
+        model:
+          payload.type === ModelJobType.ImageEditByPromptId
+            ? "gemini-2.5-flash-image"
+            : "gemini-3-pro-image-preview",
+        imageSize: payload.imageSize as GeminiImageSizes,
       });
 
-      return { imageBuffer, usedTokens };
+      return { imageBuffers, usedTokens };
     },
   },
 
@@ -62,35 +79,40 @@ export const AI_IMAGE_PROVIDER_STRATEGIES: Record<
       payload,
       openAiImageService,
     }: AiImageProviderStrategyContext) {
-      const { imageBuffer, usedTokens } =
+      const { imageBuffers, usedTokens } =
         await openAiImageService.generateImage({
           prompt: payload.promptText!,
           quality: "medium",
           aspectRatio: payload.aspectRatio,
         });
 
-      return { imageBuffer, usedTokens };
+      return { imageBuffers, usedTokens };
     },
 
     async editImage({
       payload,
       openAiImageService,
     }: AiImageProviderStrategyContext) {
-      const inputImageBuffer = Buffer.from(payload.inputImageBase64!, "base64");
+      const inputImageBase64Items = Array.isArray(payload.inputImageBase64)
+        ? payload.inputImageBase64
+        : [payload.inputImageBase64];
 
-      const { imageBuffer, usedTokens } = await openAiImageService.editImage({
-        image: inputImageBuffer,
+      const inputImages = inputImageBase64Items
+        .filter((x): x is string => typeof x === "string" && x.length > 0)
+        .map((b64) => Buffer.from(b64, "base64"));
+
+      const { imageBuffers, usedTokens } = await openAiImageService.editImage({
+        images: inputImages,
         prompt: payload.promptText!,
-        imageFilename: payload.inputImageFilename || "input.jpeg",
         aspectRatio: payload.aspectRatio,
         quality: "medium",
         model:
-          payload.type === "IMAGE_EDIT_BY_PROMPT_ID"
+          payload.type === ModelJobType.ImageEditByPromptId
             ? "gpt-image-1-mini"
             : "gpt-image-1",
       });
 
-      return { imageBuffer, usedTokens };
+      return { imageBuffers, usedTokens };
     },
   },
 };

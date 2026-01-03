@@ -5,18 +5,24 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { IsNull, Repository } from "typeorm";
+import { In, IsNull, Repository } from "typeorm";
 import { ModelJob } from "./model-job.entity";
 import { ClientProxy } from "@nestjs/microservices";
-import { MODEL_JOB_CLIENT } from "./model-job.constants";
+import { MODEL_JOB_CLIENT, styleReferencePrompt } from "./model-job.constants";
 import { IModelJobCreate } from "./types/model-job-mutations.interface";
 import {
+  ModelJobFileKind,
   ModelJobStatusType,
+  ModelJobTariffCode,
   ModelJobType,
   ModelType,
 } from "./types/model-job.enum";
 import { FilesService } from "../files/files.service";
-import { ModelJobDto, ModelJobFullDto } from "./dto/model-job.dto";
+import {
+  ModelJobDto,
+  ModelJobFullDto,
+  ModelJobWithPreviewFileDto,
+} from "./dto/model-job.dto";
 import { PromptsService } from "../prompts/prompts.service";
 import { ModelJobGateway } from "./model-job.gateway";
 import {
@@ -39,17 +45,13 @@ import { PaginationResult } from "src/common/pagination/pagination.interface";
 import { paginate } from "src/common/pagination/pagination.util";
 import { ConfigService } from "@nestjs/config";
 import { AiGenerationClientService } from "src/ai-generation/client/ai-generation.client.service";
-import { AiImageJobPayload } from "src/ai-generation/ai-generation.types";
-import { ModelTariffCode } from "../pricing/types/pricing.enum";
+import {
+  AiImageJobPayload,
+  AiImageJobResult,
+} from "src/ai-generation/ai-generation.types";
 import { User } from "../users/user.entity";
 import { UsersService } from "../users/users.service";
-
-type ImageJobPayload = IModelJobCreate & {
-  type:
-    | ModelJobType.ImageEditByPromptId
-    | ModelJobType.ImageEditByPromptText
-    | ModelJobType.ImageGenerateByPromptText;
-};
+import { ModelJobFile } from "./model-job-file.entity";
 
 @Injectable()
 export class ModelJobService {
@@ -58,6 +60,8 @@ export class ModelJobService {
   constructor(
     @InjectRepository(ModelJob)
     private readonly repository: Repository<ModelJob>,
+    @InjectRepository(ModelJobFile)
+    private readonly modelJobFileRepo: Repository<ModelJobFile>,
     private readonly aiGenerationClientService: AiGenerationClientService,
     private readonly filesService: FilesService,
     private readonly promptsService: PromptsService,
@@ -76,39 +80,94 @@ export class ModelJobService {
     this.resultsTtlHours = Number.isFinite(parsed) && parsed > 0 ? parsed : 24;
   }
 
+  private normalizeInputIds(payload: IModelJobCreate): string[] {
+    const ids: string[] = Array.isArray(payload.inputFileIds)
+      ? payload.inputFileIds
+      : [];
+
+    const seen = new Set<string>();
+    return ids.filter((id) => !!id && !seen.has(id) && (seen.add(id), true));
+  }
+
+  private async replaceJobFiles(params: {
+    modelJobId: string;
+    kind: ModelJobFileKind;
+    fileIds: string[];
+  }) {
+    const { modelJobId, kind, fileIds } = params;
+
+    await this.modelJobFileRepo.delete({ modelJobId, kind });
+
+    if (!fileIds.length) return;
+
+    const rows = fileIds.map((fileId, idx) =>
+      this.modelJobFileRepo.create({
+        modelJobId,
+        fileId,
+        kind,
+        position: idx,
+      })
+    );
+
+    await this.modelJobFileRepo.save(rows);
+  }
+
   async findOne(id: string): Promise<ModelJobFullDto> {
-    const modelJob = await this.repository.findOne({
-      where: { id },
-      relations: {
-        inputFile: true,
-        outputFile: true,
-        outputPreviewFile: true,
-        user: true,
-        prompt: true,
-      },
-    });
+    const job = await this.repository
+      .createQueryBuilder("job")
+      .leftJoinAndSelect("job.user", "user")
+      .leftJoinAndSelect("job.prompt", "prompt")
+      .leftJoinAndSelect("job.files", "jf")
+      .leftJoinAndSelect("jf.file", "file")
+      .where("job.id = :id", { id })
+      .orderBy("jf.kind", "ASC")
+      .addOrderBy("jf.position", "ASC")
+      .getOne();
 
-    if (!modelJob) {
-      throw new NotFoundException("Model job not found");
-    }
+    if (!job) throw new NotFoundException("Model job not found");
 
-    const safeUrl = (file?: FileEntity | null) =>
-      file
-        ? this.filesService.getFileUrl(file).catch(() => null)
-        : Promise.resolve(null);
+    const byKind = (kind: ModelJobFileKind) =>
+      (job.files ?? [])
+        .filter((x) => x.kind === kind)
+        .sort((a, b) => a.position - b.position)
+        .map((x) => x.file)
+        .filter(Boolean);
 
-    const [outputFileUrl, outputPreviewFileUrl, inputFileUrl] =
+    const inputFiles = byKind(ModelJobFileKind.Input);
+    const outputFiles = byKind(ModelJobFileKind.Output);
+    const outputPreviewFiles = byKind(ModelJobFileKind.Preview);
+
+    const [inputFileUrls, outputFileUrls, outputPreviewFileUrls] =
       await Promise.all([
-        safeUrl(modelJob.outputFile),
-        safeUrl(modelJob.outputPreviewFile),
-        safeUrl(modelJob.inputFile),
+        Promise.all(
+          inputFiles.map((f) =>
+            this.filesService.getFileUrl(f).catch(() => null)
+          )
+        ),
+        Promise.all(
+          outputFiles.map((f) =>
+            this.filesService.getFileUrl(f).catch(() => null)
+          )
+        ),
+        Promise.all(
+          outputPreviewFiles.map((f) =>
+            this.filesService.getFileUrl(f).catch(() => null)
+          )
+        ),
       ]);
 
     return {
-      ...modelJob,
-      outputFileUrl,
-      outputPreviewFileUrl,
-      inputFileUrl,
+      ...(job as any),
+
+      inputFiles,
+      outputFiles,
+      outputPreviewFiles,
+
+      inputFileUrls: inputFileUrls.filter((u): u is string => !!u),
+      outputFileUrls: outputFileUrls.filter((u): u is string => !!u),
+      outputPreviewFileUrls: outputPreviewFileUrls.filter(
+        (u): u is string => !!u
+      ),
     };
   }
 
@@ -161,8 +220,10 @@ export class ModelJobService {
     });
   }
 
-  async lastModelJobs(userId: string): Promise<ModelJob[]> {
-    return this.repository.find({
+  async lastModelJobsWithPreviews(
+    userId: string
+  ): Promise<ModelJobWithPreviewFileDto[]> {
+    const jobs = await this.repository.find({
       where: {
         userId,
         status: ModelJobStatusType.succeeded,
@@ -170,8 +231,47 @@ export class ModelJobService {
       },
       take: 30,
       order: { createdAt: "DESC" },
-      relations: { outputPreviewFile: true },
+      relations: { prompt: true },
     });
+
+    const jobIds = jobs.map((j) => j.id);
+    if (!jobIds.length) return [];
+
+    const previewLinks = await this.modelJobFileRepo.find({
+      where: {
+        modelJobId: In(jobIds),
+        kind: ModelJobFileKind.Preview,
+      },
+      relations: { file: true },
+      order: { position: "ASC" },
+    });
+
+    const byJob = new Map<string, FileEntity[]>();
+    for (const link of previewLinks) {
+      const arr = byJob.get(link.modelJobId) ?? [];
+      arr.push(link.file);
+      byJob.set(link.modelJobId, arr);
+    }
+
+    const out = await Promise.all(
+      jobs.map(async (job) => {
+        const outputPreviewFiles = byJob.get(job.id) ?? [];
+        const urls = await Promise.all(
+          outputPreviewFiles.map((f) =>
+            this.filesService.getFileUrl(f).catch(() => null)
+          )
+        );
+
+        return {
+          ...(job as any),
+          outputPreviewFiles,
+          outputPreviewFileUrls: urls.filter((u): u is string => !!u),
+          outputPreviewFileIds: outputPreviewFiles.map((f) => f.id),
+        };
+      })
+    );
+
+    return out as any;
   }
 
   async create(data: IModelJobCreate): Promise<ModelJobDto> {
@@ -179,7 +279,7 @@ export class ModelJobService {
 
     let user: User;
 
-    if (data.tariffCode === ModelTariffCode.AdminGenerate) {
+    if (data.tariffCode === ModelJobTariffCode.Admin) {
       user = await this.usersService.findById(data.userId);
     } else {
       user = await this.userTokenTransactionService.chargeForJob({
@@ -204,6 +304,13 @@ export class ModelJobService {
     });
 
     await this.repository.save(modelJob);
+
+    const inputIds = this.normalizeInputIds(data);
+    await this.replaceJobFiles({
+      modelJobId: modelJob.id,
+      kind: ModelJobFileKind.Input,
+      fileIds: inputIds,
+    });
 
     const payload: ModelJobCreatedPayload = {
       modelJobId: modelJob.id,
@@ -235,13 +342,22 @@ export class ModelJobService {
     }
 
     try {
-      const { outputFileId, outputPreviewFileId, usedTokens } =
-        await this.processImageJob(data as ImageJobPayload);
+      const { outputFileIds, outputPreviewFileIds, usedTokens } =
+        await this.processImageJob(data as IModelJobCreate);
+
+      await this.replaceJobFiles({
+        modelJobId,
+        kind: ModelJobFileKind.Output,
+        fileIds: outputFileIds,
+      });
+      await this.replaceJobFiles({
+        modelJobId,
+        kind: ModelJobFileKind.Preview,
+        fileIds: outputPreviewFileIds,
+      });
 
       await this.repository.update(modelJobId, {
         status: ModelJobStatusType.succeeded,
-        outputFileId,
-        outputPreviewFileId,
         usedTokens,
         finishedAt: new Date(),
       });
@@ -295,7 +411,7 @@ export class ModelJobService {
 
         if (
           job &&
-          job.tariffCode !== ModelTariffCode.AdminGenerate &&
+          job.tariffCode !== ModelJobTariffCode.Admin &&
           job.tokensCharged > 0
         ) {
           await this.userTokenTransactionService.addTokens({
@@ -333,96 +449,23 @@ export class ModelJobService {
     }
   }
 
-  private async processImageJob(payload: ImageJobPayload): Promise<{
-    outputFileId: string;
-    outputPreviewFileId: string;
+  private async processImageJob(payload: IModelJobCreate): Promise<{
+    outputFileIds: string[];
+    outputPreviewFileIds: string[];
     usedTokens: Record<string, any>;
   }> {
-    // 1) готовим входные данные (файл и prompt)
-    let aiGenearationPayloadBase: Partial<AiImageJobPayload> = {};
+    const normalizeBase64Items = (v?: string | string[] | null) =>
+      (Array.isArray(v) ? v : v ? [v] : []).filter(
+        (x): x is string => typeof x === "string" && x.length > 0
+      );
 
-    switch (payload.type) {
-      case ModelJobType.ImageEditByPromptId: {
-        if (!payload.inputFileId)
-          throw new Error("не указано поле inputFileId");
+    const inputIds = this.normalizeInputIds(payload);
 
-        if (!payload.promptId) throw new Error("promptId is not found");
+    const assertAiResult = (res: AiImageJobResult) => {
+      if (res.ok) return res;
 
-        const inputFile = await this.filesService.getMeta(payload.inputFileId);
-        const fileBuffer = await this.filesService.getFileBufferById(
-          payload.inputFileId
-        );
-        const aspectRatio = this.getAspectRatioFromFile(inputFile);
-        const promptData = await this.promptsService.findOne(payload.promptId);
-
-        const finalPrompt =
-          `${promptData.text}
-          If the image contains a person and the description does not clearly ask to make them older or scarier, keep them about the same age and at least as visually pleasant as in the original photo. Do not add wrinkles, aging, distort or exaggerate facial features, and do not make them look older or less attractive. If there is no person in the image, ignore these instructions completely and do not invent people.
-
-          The visual style and mood described above should stay the same; only the content may be adjusted.` +
-          (payload.text
-            ? `\n\n### Additional instructions\n${payload.text}`
-            : "");
-
-        aiGenearationPayloadBase = {
-          type: "IMAGE_EDIT_BY_PROMPT_ID",
-          promptText: finalPrompt,
-          inputImageBase64: fileBuffer.toString("base64"),
-          inputImageFilename: "input.jpeg",
-          aspectRatio,
-          provider: promptData.model,
-        };
-        break;
-      }
-
-      case ModelJobType.ImageEditByPromptText: {
-        if (!payload.inputFileId)
-          throw new Error("не указано поле inputFileId");
-        if (!payload.text) throw new Error("не указано поле text");
-
-        const fileBuffer = await this.filesService.getFileBufferById(
-          payload.inputFileId
-        );
-
-        aiGenearationPayloadBase = {
-          type: "IMAGE_EDIT_BY_PROMPT_TEXT",
-          promptText: payload.text,
-          inputImageBase64: fileBuffer.toString("base64"),
-          inputImageFilename: "input.jpeg",
-          provider: payload.model,
-          aspectRatio: payload.aspectRatio,
-        };
-        break;
-      }
-
-      case ModelJobType.ImageGenerateByPromptText: {
-        if (!payload.text) {
-          throw new Error("Не указано поле text");
-        }
-
-        aiGenearationPayloadBase = {
-          type: "IMAGE_GENERATE_BY_PROMPT_TEXT",
-          promptText: payload.text,
-          provider: payload.model,
-          aspectRatio: payload.aspectRatio,
-        };
-        break;
-      }
-
-      default: {
-        const _exhaustive: never = payload.type;
-        throw new Error(`Unsupported image job type: ${_exhaustive}`);
-      }
-    }
-
-    const res = await this.aiGenerationClientService.sendJob(
-      aiGenearationPayloadBase as AiImageJobPayload
-    );
-
-    if (!res.ok) {
       const message = res.error || "ai-generation worker error";
       const status = res.status ?? 400;
-
       const isModerationBlocked = res.code === "moderation_blocked";
 
       if (status < 500) {
@@ -435,49 +478,183 @@ export class ModelJobService {
         });
       }
 
-      // 5xx — серьёзная тех. ошибка, улетит в телегу
       throw new Error(
         `ai-generation failed with status ${status}: ${message} (requestId=${
           res.requestId ?? "n/a"
         })`
       );
-    }
-
-    const imageBuffer = Buffer.from(res.imageBase64, "base64");
-
-    const { extension, mimetype } =
-      await this.imageProcessingService.detectImageFormat(imageBuffer);
-
-    console.log(extension, mimetype);
-
-    const resultPreviewWebpBuffer =
-      await this.imageProcessingService.compressToWebp(imageBuffer, 80);
-
-    const outputFile = await this.filesService.uploadBuffer(
-      {
-        buffer: imageBuffer,
-        originalname: `gennio-result.${extension}`,
-        mimetype,
-        size: imageBuffer.length,
-      },
-      { folder: "jobs", publicRead: true }
-    );
-
-    const outputPreviewFile = await this.filesService.uploadBuffer(
-      {
-        buffer: resultPreviewWebpBuffer,
-        originalname: "resultPreview.webp",
-        mimetype: "image/webp",
-        size: resultPreviewWebpBuffer.length,
-      },
-      { folder: "jobs", publicRead: true }
-    );
-
-    return {
-      outputFileId: outputFile.id,
-      outputPreviewFileId: outputPreviewFile.id,
-      usedTokens: res.usedTokens,
     };
+
+    const uploadBase64Items = async (base64Items: string[]) => {
+      const outputFileIds: string[] = [];
+      const outputPreviewFileIds: string[] = [];
+
+      for (const imageBase64 of base64Items) {
+        const imageBuffer = Buffer.from(imageBase64, "base64");
+        const { extension, mimetype } =
+          await this.imageProcessingService.detectImageFormat(imageBuffer);
+
+        const previewWebp = await this.imageProcessingService.compressToWebp(
+          imageBuffer,
+          80
+        );
+
+        const outputFile = await this.filesService.uploadBuffer(
+          {
+            buffer: imageBuffer,
+            originalname: `gennio-result.${extension}`,
+            mimetype,
+            size: imageBuffer.length,
+          },
+          { folder: "jobs", publicRead: true }
+        );
+
+        const outputPreviewFile = await this.filesService.uploadBuffer(
+          {
+            buffer: previewWebp,
+            originalname: "resultPreview.webp",
+            mimetype: "image/webp",
+            size: previewWebp.length,
+          },
+          { folder: "jobs", publicRead: true }
+        );
+
+        outputFileIds.push(outputFile.id);
+        outputPreviewFileIds.push(outputPreviewFile.id);
+      }
+
+      return { outputFileIds, outputPreviewFileIds };
+    };
+
+    const extractBase64Items = (res: AiImageJobResult) => {
+      const base64Items = normalizeBase64Items(res.imageBase64);
+      if (!base64Items.length)
+        throw new Error("ai-generation returned no image");
+      return base64Items;
+    };
+
+    switch (payload.type) {
+      case ModelJobType.ImageGenerateByPromptText: {
+        if (!payload.text) throw new Error("Не указано поле text");
+
+        const res = assertAiResult(
+          await this.aiGenerationClientService.sendJob({
+            type: payload.type,
+            promptText: payload.text,
+            provider: payload.model,
+            aspectRatio: payload.aspectRatio,
+          } as AiImageJobPayload)
+        );
+
+        const base64Items = extractBase64Items(res);
+        const { outputFileIds, outputPreviewFileIds } = await uploadBase64Items(
+          base64Items
+        );
+
+        return {
+          outputFileIds,
+          outputPreviewFileIds,
+          usedTokens: res.usedTokens ?? {},
+        };
+      }
+
+      case ModelJobType.ImageEditByPromptId:
+      case ModelJobType.ImageEditByPromptText: {
+        if (inputIds.length === 0) {
+          throw new Error("не указано поле inputFileIds");
+        }
+
+        let promptTextBase: string;
+        let provider: ModelType | undefined = payload.model;
+
+        if (payload.type === ModelJobType.ImageEditByPromptId) {
+          if (!payload.promptId) throw new Error("promptId is not found");
+
+          const promptData = await this.promptsService.findOne(
+            payload.promptId
+          );
+          provider = promptData.model;
+
+          promptTextBase =
+            `${promptData.text}\n\n` +
+            `The visual style and mood described above should stay the same; only the content may be adjusted.` +
+            (payload.text
+              ? `\n\n### Additional instructions\n${payload.text}`
+              : "");
+        } else {
+          if (!payload.text) throw new Error("не указано поле text");
+          promptTextBase = payload.text;
+        }
+
+        // aspect ratio: если не задан — можно попробовать взять из меты первого файла
+        let aspectRatio = payload.aspectRatio;
+        if (!aspectRatio && inputIds.length > 0) {
+          const meta = await this.filesService.getMeta(inputIds[0]);
+          aspectRatio = this.getAspectRatioFromFile(meta);
+        }
+
+        const inputFileBuffers = await Promise.all(
+          inputIds.map((id) => this.filesService.getFileBufferById(id))
+        );
+
+        const res = assertAiResult(
+          await this.aiGenerationClientService.sendJob({
+            type: payload.type,
+            promptText: promptTextBase,
+            inputImageBase64: inputFileBuffers.map((b) => b.toString("base64")),
+            provider,
+            aspectRatio,
+            imageSize: payload.imageSize,
+          } as AiImageJobPayload)
+        );
+
+        const base64Items = extractBase64Items(res);
+        const { outputFileIds, outputPreviewFileIds } = await uploadBase64Items(
+          base64Items
+        );
+
+        return {
+          outputFileIds,
+          outputPreviewFileIds,
+          usedTokens: { items: [res.usedTokens ?? {}] },
+        };
+      }
+
+      case ModelJobType.ImageEditByStyleReference: {
+        if (inputIds.length === 0) {
+          throw new Error("не указано поле inputFileIds");
+        }
+
+        const inputFileBuffers = await Promise.all(
+          inputIds.map((id) => this.filesService.getFileBufferById(id))
+        );
+
+        const res = assertAiResult(
+          await this.aiGenerationClientService.sendJob({
+            type: payload.type,
+            promptText: styleReferencePrompt,
+            inputImageBase64: inputFileBuffers.map((b) => b.toString("base64")),
+            provider: payload.model,
+            aspectRatio: payload.aspectRatio,
+            imageSize: payload.imageSize,
+          } as AiImageJobPayload)
+        );
+
+        const base64Items = extractBase64Items(res);
+        const { outputFileIds, outputPreviewFileIds } = await uploadBase64Items(
+          base64Items
+        );
+
+        return {
+          outputFileIds,
+          outputPreviewFileIds,
+          usedTokens: { items: [res.usedTokens ?? {}] },
+        };
+      }
+
+      default:
+        throw new Error(`Unsupported image job type: ${payload.type}`);
+    }
   }
 
   private getAspectRatioFromFile(

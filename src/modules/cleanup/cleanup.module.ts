@@ -5,11 +5,12 @@ import { CleanupService } from "./cleanup.service";
 import { ModelJob } from "../model-job/model-job.entity";
 import { FileEntity } from "../files/files.entity";
 import { FilesModule } from "../files/files.module";
+import { ModelJobFile } from "../model-job/model-job-file.entity";
 
 @Module({
   imports: [
     ScheduleModule.forRoot(),
-    TypeOrmModule.forFeature([ModelJob, FileEntity]),
+    TypeOrmModule.forFeature([ModelJob, ModelJobFile, FileEntity]),
     FilesModule,
   ],
   providers: [CleanupService],

@@ -1,5 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import {
+  ArrayMinSize,
+  IsArray,
   IsEnum,
   IsNotEmpty,
   IsOptional,
@@ -12,7 +14,6 @@ import {
   IModelJobStart,
 } from "../types/model-job-mutations.interface";
 import { ModelJobType, ModelType } from "../types/model-job.enum";
-import { Transform } from "class-transformer";
 
 export class StartImageEditByPromptIdDto implements IModelJobStart {
   @ApiProperty()
@@ -30,25 +31,29 @@ export class StartImageEditByPromptIdDto implements IModelJobStart {
   @MaxLength(300, { message: "Текст не должен превышать 300 символов" })
   text?: string;
 
-  @ApiProperty()
-  @IsUUID()
-  inputFileId!: string;
+  @ApiProperty({ type: [String], format: "uuid" })
+  @IsArray()
+  @ArrayMinSize(1)
+  @IsUUID("4", { each: true })
+  inputFileIds!: string[];
 }
 
 export class StartImageEditByPromptTextDto implements IModelJobStart {
   @ApiProperty({
     example: "Мягкое освещение, крупный план",
-    maxLength: 700,
-    description: "Не более 700 символов",
+    maxLength: 1000,
+    description: "Не более 1000 символов",
   })
   @IsString()
   @IsNotEmpty()
-  @MaxLength(700, { message: "Текст не должен превышать 700 символов" })
+  @MaxLength(1000, { message: "Текст не должен превышать 1000 символов" })
   text: string;
 
-  @ApiProperty()
-  @IsUUID()
-  inputFileId!: string;
+  @ApiProperty({ type: [String], format: "uuid" })
+  @IsArray()
+  @ArrayMinSize(1)
+  @IsUUID("4", { each: true })
+  inputFileIds!: string[];
 
   @ApiProperty({
     example: "2:3",
@@ -57,17 +62,25 @@ export class StartImageEditByPromptTextDto implements IModelJobStart {
   @IsString()
   @IsOptional()
   aspectRatio?: string;
+
+  @ApiProperty({
+    example: "2K",
+    description: "Разрешение",
+  })
+  @IsString()
+  @IsOptional()
+  imageSize?: string;
 }
 
 export class StartImageGenerateByPromptTextDto implements IModelJobStart {
   @ApiProperty({
     example: "Мягкое освещение, крупный план",
-    maxLength: 700,
-    description: "Не более 700 символов",
+    maxLength: 1000,
+    description: "Не более 1000 символов",
   })
   @IsString()
   @IsNotEmpty()
-  @MaxLength(700, { message: "Текст не должен превышать 700 символов" })
+  @MaxLength(1000, { message: "Текст не должен превышать 1000 символов" })
   text: string;
 
   @ApiProperty({
@@ -79,15 +92,39 @@ export class StartImageGenerateByPromptTextDto implements IModelJobStart {
   aspectRatio?: string;
 }
 
+export class StartImageGenerateByStyleReferenceDto implements IModelJobStart {
+  @ApiProperty({ type: [String], format: "uuid" })
+  @IsArray()
+  @ArrayMinSize(1)
+  @IsUUID("4", { each: true })
+  inputFileIds!: string[];
+
+  @ApiProperty({
+    example: "2:3",
+    description: "Формат",
+  })
+  @IsString()
+  @IsOptional()
+  aspectRatio?: string;
+
+  @ApiProperty({
+    example: "2K",
+    description: "Разрешение",
+  })
+  @IsString()
+  @IsOptional()
+  imageSize?: string;
+}
+
 export class StartAdminGenerateDto implements IModelJobAdminStart {
   @ApiProperty({
     example: "Мягкое освещение, крупный план",
-    maxLength: 700,
-    description: "Не более 700 символов",
+    maxLength: 2000,
+    description: "Не более 2000 символов",
   })
   @IsString()
   @IsNotEmpty()
-  @MaxLength(700, { message: "Текст не должен превышать 700 символов" })
+  @MaxLength(2000, { message: "Текст не должен превышать 2000 символов" })
   text: string;
 
   @ApiProperty({
@@ -98,11 +135,20 @@ export class StartAdminGenerateDto implements IModelJobAdminStart {
   @IsOptional()
   aspectRatio?: string;
 
-  @ApiPropertyOptional()
-  @IsUUID()
+  @ApiProperty({
+    example: "2K",
+    description: "Разрешение",
+  })
+  @IsString()
   @IsOptional()
-  @Transform(({ value }) => (value === "" ? undefined : value))
-  inputFileId?: string;
+  imageSize?: string;
+
+  @ApiProperty({ type: [String], format: "uuid" })
+  @IsArray()
+  @ArrayMinSize(1)
+  @IsUUID("4", { each: true })
+  @IsOptional()
+  inputFileIds?: string[];
 
   @ApiProperty({
     enum: ModelType,

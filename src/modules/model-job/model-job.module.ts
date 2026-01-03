@@ -16,10 +16,11 @@ import { ImageModule } from "src/common/image/image.module";
 import { ModelJobWatchdogService } from "./model-job-watchdog.service";
 import { AiGenerationClientModule } from "src/ai-generation/client/ai-generation.client.module";
 import { UsersModule } from "../users/users.module";
+import { ModelJobFile } from "./model-job-file.entity";
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([ModelJob]),
+    TypeOrmModule.forFeature([ModelJob, ModelJobFile]),
     RabbitmqModule.register({
       name: MODEL_JOB_CLIENT,
     }),

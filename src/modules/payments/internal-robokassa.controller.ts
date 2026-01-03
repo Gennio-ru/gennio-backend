@@ -6,13 +6,12 @@ import {
   UnauthorizedException,
 } from "@nestjs/common";
 import { ApiOperation, ApiTags } from "@nestjs/swagger";
-import { PaymentsService } from "./payments.service";
 import { ConfigService } from "@nestjs/config";
-import { YookassaWebhookResponseDto } from "./dto/payments.dto";
+import { PaymentsService } from "./payments.service";
 
 @ApiTags("payments-internal")
-@Controller("internal/yookassa")
-export class InternalYookassaController {
+@Controller("internal/robokassa")
+export class InternalRobokassaController {
   constructor(
     private readonly paymentsService: PaymentsService,
     private readonly configService: ConfigService
@@ -20,24 +19,22 @@ export class InternalYookassaController {
 
   @Post("webhook")
   @ApiOperation({
-    summary: "Внутренний вебхук от платежного шлюза (проксирующего YooKassa)",
+    summary: "Внутренний вебхук от RU-шлюза (проксирующего Robokassa)",
     description:
-      "Используется только нашим RU-шлюзом. Защищён секретным заголовком.",
+      "Вызывается только вашим прокси. Защищён секретным заголовком.",
   })
   async handleInternalWebhook(
     @Headers("x-internal-webhook-key") key: string | undefined,
-    @Body() body: unknown
-  ): Promise<YookassaWebhookResponseDto> {
+    @Body() body: any
+  ): Promise<{ accepted: true }> {
     const expected =
       this.configService.get<string>("INTERNAL_WEBHOOK_KEY") ?? null;
-
     if (!expected || key !== expected) {
       throw new UnauthorizedException("Invalid internal webhook key");
     }
 
-    await this.paymentsService.handleYookassaWebhook(
-      body as Record<string, unknown>
-    );
+    // body должен содержать outSum/invId/shp/raw (или просто raw, но лучше единый контракт)
+    await this.paymentsService.handleRobokassaResult(body);
 
     return { accepted: true };
   }

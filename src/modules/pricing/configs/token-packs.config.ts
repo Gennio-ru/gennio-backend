@@ -1,47 +1,55 @@
 export enum TokensPackId {
-  ONCE = "ONCE",
   STARTER = "STARTER",
   BASIC = "BASIC",
-  PRO = "PRO",
+  ADVANCED = "ADVANCED",
+  MAXIMUM = "MAXIMUM",
 }
 
 export type TokensPackConfig = {
   id: TokensPackId;
   name: string;
-  tokens: number;
-  generations: number;
-  priceRub: number;
+
+  priceRub: number; // сколько платит пользователь
+  tokens: number; // сколько токенов получает
   highlight?: boolean;
+  badge?: string; // "Выгодно", "Популярное", "+10% бонус"
+  subtitle?: string; // короткое пояснение
+
+  // опционально: чтобы в UI легко показать выгоду
+  bonusTokens?: number; // tokens - priceRub (если токен ≈ рублю)
 };
 
 export const TOKEN_PACKS: Record<TokensPackId, TokensPackConfig> = {
-  [TokensPackId.ONCE]: {
-    id: TokensPackId.ONCE,
-    name: "1 генерация",
-    tokens: 10,
-    generations: 1,
-    priceRub: 10,
-  },
   [TokensPackId.STARTER]: {
     id: TokensPackId.STARTER,
-    name: "10 генераций",
-    tokens: 100,
-    generations: 10,
-    priceRub: 100,
+    name: "Стартовый",
+    subtitle: "Для знакомства с сервисом",
+    tokens: 60,
+    priceRub: 1,
   },
   [TokensPackId.BASIC]: {
     id: TokensPackId.BASIC,
-    name: "25 генераций",
-    tokens: 270,
-    generations: 25,
-    priceRub: 250,
+    name: "Базовый",
+    subtitle: "С приятным бонусом",
+    tokens: 320,
+    priceRub: 300,
+    bonusTokens: 20,
   },
-  [TokensPackId.PRO]: {
-    id: TokensPackId.PRO,
-    name: "50 генераций",
-    tokens: 550,
-    generations: 50,
-    priceRub: 500,
+  [TokensPackId.ADVANCED]: {
+    id: TokensPackId.ADVANCED,
+    name: "Продвинутый",
+    subtitle: "Уверенный запас",
+    tokens: 660,
+    priceRub: 600,
+    bonusTokens: 60,
     highlight: true,
+  },
+  [TokensPackId.MAXIMUM]: {
+    id: TokensPackId.MAXIMUM,
+    name: "Максимальный",
+    subtitle: "Самый выгодный",
+    tokens: 1140,
+    priceRub: 1000,
+    bonusTokens: 140,
   },
 };

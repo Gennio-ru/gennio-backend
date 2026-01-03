@@ -12,6 +12,7 @@ export const GEMINI_MODERATION_FINISH_REASONS = [
   "PROHIBITED_CONTENT",
   "NO_IMAGE",
   "IMAGE_OTHER",
+  "OTHER",
 ] as const;
 
 export type GeminiModerationFinishReason =

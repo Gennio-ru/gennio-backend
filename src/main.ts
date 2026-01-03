@@ -11,6 +11,7 @@ import AppDataSource from "./data-source";
 import { Logger } from "nestjs-pino";
 import { AllExceptionsFilter } from "./common/filters/http-exception.filter";
 import sharp from "sharp";
+import * as express from "express";
 
 const cpuCount = os.cpus().length;
 
@@ -20,6 +21,8 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     bufferLogs: true,
   });
+
+  app.use("/api/payments/robokassa/result2", express.text({ type: "*/*" }));
 
   app.useLogger(app.get(Logger));
   app.useGlobalFilters(new AllExceptionsFilter(app.get(Logger)));

@@ -1,6 +1,10 @@
 import { ISchema } from "src/common/base/base.interface";
-import { ModelJobStatusType, ModelType } from "./model-job.enum";
-import { ModelTariffCode } from "src/modules/pricing/types/pricing.enum";
+import {
+  ModelJobStatusType,
+  ModelJobTariffCode,
+  ModelType,
+} from "./model-job.enum";
+import { ModelJobFile } from "../model-job-file.entity";
 
 export interface IModelJobBase {
   model: ModelType;
@@ -8,12 +12,11 @@ export interface IModelJobBase {
   text: string | null;
   promptId: string | null;
   aspectRatio: string | null;
+  imageSize: string | null;
   userId: string;
-  inputFileId: string | null;
-  outputFileId: string | null;
-  outputPreviewFileId: string | null;
+  files: ModelJobFile[] | null;
   outputText: string | null;
-  tariffCode: ModelTariffCode;
+  tariffCode: ModelJobTariffCode;
   tokensCharged: number;
   usedTokens: Record<string, any> | null;
   error: string | null;
