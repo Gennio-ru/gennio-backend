@@ -236,8 +236,6 @@ export class RobokassaClient {
 
     const base = parts.join(":");
 
-    console.log("BASE", base);
-
     return this.md5Hex(base);
   }
 
@@ -310,6 +308,7 @@ export class RobokassaClient {
     const { params: shpParams } = this.buildShpPairs(shp);
 
     const resultUrl2 = this.configService.get<string>("ROBOKASSA_RESULT_URL");
+    console.log(resultUrl2);
 
     const receiptJson = params.receipt
       ? JSON.stringify(params.receipt)
