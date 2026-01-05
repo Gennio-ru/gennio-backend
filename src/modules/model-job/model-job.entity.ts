@@ -1,12 +1,5 @@
 import { IModelJob } from "./types/model-job.interface";
-import {
-  Entity,
-  Column,
-  ManyToOne,
-  JoinColumn,
-  RelationId,
-  OneToMany,
-} from "typeorm";
+import { Entity, Column, ManyToOne, JoinColumn, OneToMany } from "typeorm";
 import { BaseEntity } from "src/common/base/base.entity";
 import {
   ModelJobStatusType,
@@ -14,7 +7,6 @@ import {
   ModelJobType,
   ModelType,
 } from "./types/model-job.enum";
-import { FileEntity } from "../files/files.entity";
 import { User } from "../users/user.entity";
 import { Prompt } from "../prompts/prompt.entity";
 import { ModelJobFile } from "./model-job-file.entity";

@@ -1,7 +1,7 @@
 import { ModelJobTariffCode, ModelJobType, ModelType } from "./model-job.enum";
 
 export interface IModelJobCreate {
-  model?: ModelType;
+  model: ModelType;
   type: ModelJobType;
   text?: string;
   promptId?: string;
