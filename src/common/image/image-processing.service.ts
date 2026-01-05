@@ -133,6 +133,12 @@ export class ImageProcessingService {
     return { buffer: out, width: targetW, height: targetH };
   }
 
+  private async applyExifRotation(buffer: Buffer): Promise<Buffer> {
+    // rotate() применит EXIF Orientation и "запечёт" его в пикселях
+    // метаданные по умолчанию не сохраняются — это хорошо (orientation уйдёт)
+    return sharp(buffer, { failOnError: false }).rotate().toBuffer();
+  }
+
   /**
    * Нормализация для нейросети:
    * - даунскейл
@@ -149,7 +155,8 @@ export class ImageProcessingService {
     width: number;
     height: number;
   }> {
-    const downscaled = await this.downscaleImageIfNeeded(buffer, maxSide);
+    const oriented = await this.applyExifRotation(buffer);
+    const downscaled = await this.downscaleImageIfNeeded(oriented, maxSide);
     const resolvedSize = await this.pickBestSizeForImage(downscaled, size);
     const cropped = await this.cropToSizeAspect(downscaled, resolvedSize);
     return { ...cropped, resolvedSize };
@@ -166,7 +173,8 @@ export class ImageProcessingService {
     let output: Buffer = inputBuffer;
 
     for (; quality >= 40; quality -= 5) {
-      const candidate = await sharp(inputBuffer)
+      const candidate = await sharp(inputBuffer, { failOnError: false })
+        .rotate()
         .webp({
           quality,
           effort: 6,
@@ -177,12 +185,8 @@ export class ImageProcessingService {
 
       const sizeKb = candidate.length / 1024;
 
-      if (sizeKb <= targetKb) {
-        output = candidate;
-        break;
-      }
-
       output = candidate;
+      if (sizeKb <= targetKb) break;
     }
 
     return output;
