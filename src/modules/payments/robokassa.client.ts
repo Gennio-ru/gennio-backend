@@ -236,6 +236,8 @@ export class RobokassaClient {
 
     const base = parts.join(":");
 
+    console.log("BASE", base);
+
     return this.md5Hex(base);
   }
 
@@ -312,15 +314,12 @@ export class RobokassaClient {
     const receiptJson = params.receipt
       ? JSON.stringify(params.receipt)
       : undefined;
-    const receiptForSignature = receiptJson
-      ? encodeURIComponent(receiptJson)
-      : undefined;
 
     const signatureValue = this.calcPaymentSignature({
       outSum,
       invId: params.invId,
       shp: params.shp,
-      receipt: receiptForSignature,
+      receipt: receiptJson,
       resultUrl2,
       successUrl2: params.successUrl,
       successUrl2Method: "GET",
