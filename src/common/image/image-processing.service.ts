@@ -168,7 +168,6 @@ export class ImageProcessingService {
 
     for (; quality >= 40; quality -= 5) {
       const candidate = await sharp(inputBuffer, { failOnError: false })
-        .rotate()
         .webp({
           quality,
           effort: 6,
