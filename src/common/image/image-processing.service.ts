@@ -149,7 +149,8 @@ export class ImageProcessingService {
     width: number;
     height: number;
   }> {
-    const downscaled = await this.downscaleImageIfNeeded(buffer, maxSide);
+    const oriented = await sharp(buffer).rotate().toBuffer();
+    const downscaled = await this.downscaleImageIfNeeded(oriented, maxSide);
     const resolvedSize = await this.pickBestSizeForImage(downscaled, size);
     const cropped = await this.cropToSizeAspect(downscaled, resolvedSize);
     return { ...cropped, resolvedSize };
@@ -166,7 +167,7 @@ export class ImageProcessingService {
     let output: Buffer = inputBuffer;
 
     for (; quality >= 40; quality -= 5) {
-      const candidate = await sharp(inputBuffer)
+      const candidate = await sharp(inputBuffer, { failOnError: false })
         .webp({
           quality,
           effort: 6,
@@ -177,12 +178,8 @@ export class ImageProcessingService {
 
       const sizeKb = candidate.length / 1024;
 
-      if (sizeKb <= targetKb) {
-        output = candidate;
-        break;
-      }
-
       output = candidate;
+      if (sizeKb <= targetKb) break;
     }
 
     return output;
@@ -229,21 +226,16 @@ export class ImageProcessingService {
     if (format === "jpeg") {
       return img
         .jpeg({ quality: q, mozjpeg: true, progressive: true })
-        .withMetadata({ orientation: 1 })
         .toBuffer();
     }
 
     if (format === "webp") {
-      return img
-        .webp({ quality: q, effort: 5 })
-        .withMetadata({ orientation: 1 })
-        .toBuffer();
+      return img.webp({ quality: q, effort: 5 }).toBuffer();
     }
 
     // PNG
     return img
       .png({ compressionLevel: 9, palette: true, quality: q })
-      .withMetadata({ orientation: 1 })
       .toBuffer();
   }
 

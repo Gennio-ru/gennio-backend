@@ -7,6 +7,20 @@ import { XMLParser } from "fast-xml-parser";
 
 type RoboKassaMode = "gateway" | "direct";
 
+export type RobokassaReceipt = {
+  sno?: string;
+  items: Array<{
+    name: string;
+    quantity: number;
+    sum?: number;
+    cost?: number;
+    payment_method?: string;
+    payment_object?: string;
+    tax: string;
+    nomenclature_code?: string;
+  }>;
+};
+
 /**
  * Параметры создания платежа (мы редиректим юзера на RoboKassa).
  */
@@ -22,6 +36,8 @@ export type RobokassaCreatePaymentParams = {
   // доп. поля заказа (Shp_*), например { paymentId, kind, packId }
   shp?: Record<string, string | number | boolean | null | undefined>;
   email?: string;
+
+  receipt?: RobokassaReceipt;
 };
 
 /**
@@ -292,11 +308,17 @@ export class RobokassaClient {
     const { params: shpParams } = this.buildShpPairs(shp);
 
     const resultUrl2 = this.configService.get<string>("ROBOKASSA_RESULT_URL");
+    console.log(resultUrl2);
+
+    const receiptJson = params.receipt
+      ? JSON.stringify(params.receipt)
+      : undefined;
 
     const signatureValue = this.calcPaymentSignature({
       outSum,
       invId: params.invId,
       shp: params.shp,
+      receipt: receiptJson,
       resultUrl2,
       successUrl2: params.successUrl,
       successUrl2Method: "GET",
@@ -317,6 +339,7 @@ export class RobokassaClient {
       FailUrl2Method: "GET",
       ...(params.email ? { Email: params.email } : {}),
       ...shpParams,
+      ...(receiptJson ? { Receipt: receiptJson } : {}),
     });
 
     return {

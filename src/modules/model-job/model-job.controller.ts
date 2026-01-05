@@ -53,10 +53,14 @@ import { PaginationResult } from "src/common/pagination/pagination.interface";
 import { ReqUser } from "src/common/decorators/req-user.decorator";
 import { ReqUserData } from "../auth/strategies/jwt-access.strategy";
 import { ErrorCode } from "src/common/errors/error-code.enum";
+import { PromptsService } from "../prompts/prompts.service";
 
 @Controller("model-job")
 export class ModelJobController {
-  constructor(private readonly modelJobService: ModelJobService) {}
+  constructor(
+    private readonly modelJobService: ModelJobService,
+    private readonly promptsService: PromptsService
+  ) {}
 
   // Список генераций с фильтрами и пагинацией
   @Get()
@@ -139,10 +143,13 @@ export class ModelJobController {
     @Body() dto: StartImageEditByPromptIdDto,
     @UserId() userId: string
   ) {
+    const promptData = await this.promptsService.findOne(dto.promptId);
+
     const data = await this.modelJobService.create({
       ...dto,
       type: ModelJobType.ImageEditByPromptId,
       userId,
+      model: promptData.model,
     });
 
     return plainModelToInstance(ModelJobDto, data);
