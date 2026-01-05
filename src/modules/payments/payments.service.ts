@@ -196,6 +196,19 @@ export class PaymentsService {
     const successUrl = `${this.frontendUrl}${safeReturnPath}?modal=payment-result&paymentId=${payment.id}`;
     const failUrl = `${this.frontendUrl}${safeReturnPath}?modal=payment-result&paymentId=${payment.id}&fail=1`;
 
+    const receipt = {
+      items: [
+        {
+          name: pack.name,
+          quantity: 1,
+          sum: Number(pack.priceRub.toFixed(2)),
+          payment_method: "full_payment",
+          payment_object: "service",
+          tax: "none",
+        },
+      ],
+    };
+
     let rkPayment;
     try {
       rkPayment = await this.robokassa.createPayment({
@@ -210,6 +223,7 @@ export class PaymentsService {
           kind: "TOKENS_PACK",
           packId: pack.id,
         },
+        receipt,
       });
     } catch (err: any) {
       this.logger.error(
