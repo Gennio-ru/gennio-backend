@@ -25,7 +25,7 @@ export const TOKEN_PACKS: Record<TokensPackId, TokensPackConfig> = {
     name: "Стартовый",
     subtitle: "Для знакомства с сервисом",
     tokens: 60,
-    priceRub: 1,
+    priceRub: 60,
   },
   [TokensPackId.BASIC]: {
     id: TokensPackId.BASIC,
