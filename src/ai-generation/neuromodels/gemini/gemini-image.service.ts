@@ -29,6 +29,14 @@ export class GeminiImageService {
 
   /** Достаём картинку из ответа Gemini и приводим к JPEG Buffer */
   private async imageBufferFromResponse(response: any): Promise<Buffer> {
+    const promptBlockReason = response?.promptFeedback?.blockReason;
+
+    if (promptBlockReason && promptBlockReason !== "BLOCK_REASON_UNSPECIFIED") {
+      throw new GeminiModerationBlockedError(
+        `Gemini blocked request on prompt level. blockReason=${promptBlockReason}`
+      );
+    }
+
     const candidate = response?.candidates?.[0];
 
     const parts = candidate?.content?.parts ?? [];
@@ -127,8 +135,6 @@ export class GeminiImageService {
     if (!images?.length) {
       throw new Error("Gemini editImage: images is required");
     }
-
-    console.log(params);
 
     const contents = [
       { text: prompt },
