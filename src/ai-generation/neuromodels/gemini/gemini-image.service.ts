@@ -164,8 +164,6 @@ export class GeminiImageService {
       },
     });
 
-    console.log("!!!", response);
-
     const imageBuffer = await this.imageBufferFromResponse(response);
 
     const usedTokens: GeminiUsageMetadata = {
