@@ -36,10 +36,7 @@ import { Logger } from "nestjs-pino";
 import { APIError as OpenAIApiError } from "openai";
 import { ErrorCode } from "src/common/errors/error-code.enum";
 import { FileEntity } from "../files/files.entity";
-import {
-  ImageProcessingService,
-  ResolvedSize,
-} from "src/common/image/image-processing.service";
+import { ImageProcessingService } from "src/common/image/image-processing.service";
 import { FindModelJobsDto } from "./dto/find-model-jobs.dto";
 import { PaginationResult } from "src/common/pagination/pagination.interface";
 import { paginate } from "src/common/pagination/pagination.util";
@@ -72,7 +69,7 @@ export class ModelJobService {
     private readonly logger: Logger,
     private readonly imageProcessingService: ImageProcessingService,
     private readonly configService: ConfigService,
-    private readonly usersService: UsersService
+    private readonly usersService: UsersService,
   ) {
     const raw = this.configService.get<string>("MODEL_JOB_RESULTS_TTL_HOURS");
 
@@ -106,7 +103,7 @@ export class ModelJobService {
         fileId,
         kind,
         position: idx,
-      })
+      }),
     );
 
     await this.modelJobFileRepo.save(rows);
@@ -141,18 +138,18 @@ export class ModelJobService {
       await Promise.all([
         Promise.all(
           inputFiles.map((f) =>
-            this.filesService.getFileUrl(f).catch(() => null)
-          )
+            this.filesService.getFileUrl(f).catch(() => null),
+          ),
         ),
         Promise.all(
           outputFiles.map((f) =>
-            this.filesService.getFileUrl(f).catch(() => null)
-          )
+            this.filesService.getFileUrl(f).catch(() => null),
+          ),
         ),
         Promise.all(
           outputPreviewFiles.map((f) =>
-            this.filesService.getFileUrl(f).catch(() => null)
-          )
+            this.filesService.getFileUrl(f).catch(() => null),
+          ),
         ),
       ]);
 
@@ -166,7 +163,7 @@ export class ModelJobService {
       inputFileUrls: inputFileUrls.filter((u): u is string => !!u),
       outputFileUrls: outputFileUrls.filter((u): u is string => !!u),
       outputPreviewFileUrls: outputPreviewFileUrls.filter(
-        (u): u is string => !!u
+        (u): u is string => !!u,
       ),
     };
   }
@@ -175,7 +172,7 @@ export class ModelJobService {
   // Поиск / список
   //
   async findMany(
-    query: FindModelJobsDto
+    query: FindModelJobsDto,
   ): Promise<PaginationResult<ModelJobDto>> {
     return paginate<ModelJob>(this.repository, query, "modelJob", (qb) => {
       qb.leftJoinAndSelect("modelJob.user", "user");
@@ -186,7 +183,7 @@ export class ModelJobService {
         qb.andWhere(
           `(LOWER(modelJob.text) LIKE :s
                 OR LOWER(user.email) LIKE :s)`,
-          { s }
+          { s },
         );
       }
 
@@ -205,14 +202,14 @@ export class ModelJobService {
       if (query.createdFrom) {
         qb.andWhere(
           `(modelJob.createdAt AT TIME ZONE 'Europe/Moscow')::date >= :fromDate`,
-          { fromDate: query.createdFrom }
+          { fromDate: query.createdFrom },
         );
       }
 
       if (query.createdTo) {
         qb.andWhere(
           `(modelJob.createdAt AT TIME ZONE 'Europe/Moscow')::date <= :toDate`,
-          { toDate: query.createdTo }
+          { toDate: query.createdTo },
         );
       }
 
@@ -221,7 +218,7 @@ export class ModelJobService {
   }
 
   async lastModelJobsWithPreviews(
-    userId: string
+    userId: string,
   ): Promise<ModelJobWithPreviewFileDto[]> {
     const jobs = await this.repository.find({
       where: {
@@ -258,8 +255,8 @@ export class ModelJobService {
         const outputPreviewFiles = byJob.get(job.id) ?? [];
         const urls = await Promise.all(
           outputPreviewFiles.map((f) =>
-            this.filesService.getFileUrl(f).catch(() => null)
-          )
+            this.filesService.getFileUrl(f).catch(() => null),
+          ),
         );
 
         return {
@@ -268,7 +265,7 @@ export class ModelJobService {
           outputPreviewFileUrls: urls.filter((u): u is string => !!u),
           outputPreviewFileIds: outputPreviewFiles.map((f) => f.id),
         };
-      })
+      }),
     );
 
     return out as any;
@@ -319,7 +316,7 @@ export class ModelJobService {
 
     this.client.emit<ModelJobCreatedPayload>(
       MODEL_JOB_RMQ_EVENTS.CREATED,
-      payload
+      payload,
     );
 
     return { ...modelJob, user };
@@ -333,7 +330,7 @@ export class ModelJobService {
         status: ModelJobStatusType.processing,
         startedAt: new Date(),
         error: null,
-      }
+      },
     );
 
     if (startRes.affected !== 1) {
@@ -456,7 +453,7 @@ export class ModelJobService {
   }> {
     const normalizeBase64Items = (v?: string | string[] | null) =>
       (Array.isArray(v) ? v : v ? [v] : []).filter(
-        (x): x is string => typeof x === "string" && x.length > 0
+        (x): x is string => typeof x === "string" && x.length > 0,
       );
 
     const inputIds = this.normalizeInputIds(payload);
@@ -481,7 +478,7 @@ export class ModelJobService {
       throw new Error(
         `ai-generation failed with status ${status}: ${message} (requestId=${
           res.requestId ?? "n/a"
-        })`
+        })`,
       );
     };
 
@@ -496,7 +493,7 @@ export class ModelJobService {
 
         const previewWebp = await this.imageProcessingService.compressToWebp(
           imageBuffer,
-          80
+          80,
         );
 
         const outputFile = await this.filesService.uploadBuffer(
@@ -506,7 +503,7 @@ export class ModelJobService {
             mimetype,
             size: imageBuffer.length,
           },
-          { folder: "jobs", publicRead: true }
+          { folder: "jobs", publicRead: true },
         );
 
         const outputPreviewFile = await this.filesService.uploadBuffer(
@@ -516,7 +513,7 @@ export class ModelJobService {
             mimetype: "image/webp",
             size: previewWebp.length,
           },
-          { folder: "jobs", publicRead: true }
+          { folder: "jobs", publicRead: true },
         );
 
         outputFileIds.push(outputFile.id);
@@ -543,13 +540,12 @@ export class ModelJobService {
             promptText: payload.text,
             provider: payload.model,
             aspectRatio: payload.aspectRatio,
-          } as AiImageJobPayload)
+          } as AiImageJobPayload),
         );
 
         const base64Items = extractBase64Items(res);
-        const { outputFileIds, outputPreviewFileIds } = await uploadBase64Items(
-          base64Items
-        );
+        const { outputFileIds, outputPreviewFileIds } =
+          await uploadBase64Items(base64Items);
 
         return {
           outputFileIds,
@@ -571,7 +567,7 @@ export class ModelJobService {
           if (!payload.promptId) throw new Error("promptId is not found");
 
           const promptData = await this.promptsService.findOne(
-            payload.promptId
+            payload.promptId,
           );
           provider = promptData.model;
 
@@ -594,7 +590,7 @@ export class ModelJobService {
         }
 
         const inputFileBuffers = await Promise.all(
-          inputIds.map((id) => this.filesService.getFileBufferById(id))
+          inputIds.map((id) => this.filesService.getFileBufferById(id)),
         );
 
         const res = assertAiResult(
@@ -605,13 +601,12 @@ export class ModelJobService {
             provider,
             aspectRatio,
             imageSize: payload.imageSize,
-          } as AiImageJobPayload)
+          } as AiImageJobPayload),
         );
 
         const base64Items = extractBase64Items(res);
-        const { outputFileIds, outputPreviewFileIds } = await uploadBase64Items(
-          base64Items
-        );
+        const { outputFileIds, outputPreviewFileIds } =
+          await uploadBase64Items(base64Items);
 
         return {
           outputFileIds,
@@ -626,7 +621,7 @@ export class ModelJobService {
         }
 
         const inputFileBuffers = await Promise.all(
-          inputIds.map((id) => this.filesService.getFileBufferById(id))
+          inputIds.map((id) => this.filesService.getFileBufferById(id)),
         );
 
         const res = assertAiResult(
@@ -637,13 +632,12 @@ export class ModelJobService {
             provider: payload.model,
             aspectRatio: payload.aspectRatio,
             imageSize: payload.imageSize,
-          } as AiImageJobPayload)
+          } as AiImageJobPayload),
         );
 
         const base64Items = extractBase64Items(res);
-        const { outputFileIds, outputPreviewFileIds } = await uploadBase64Items(
-          base64Items
-        );
+        const { outputFileIds, outputPreviewFileIds } =
+          await uploadBase64Items(base64Items);
 
         return {
           outputFileIds,
@@ -658,7 +652,7 @@ export class ModelJobService {
   }
 
   private getAspectRatioFromFile(
-    file: FileEntity
+    file: FileEntity,
   ): AspectRatioString | undefined {
     const w = file.widthPx;
     const h = file.heightPx;
